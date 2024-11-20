@@ -126,6 +126,17 @@ async def get_team_transfers(team_id: int):
         logger.error(f"Error fetching transfers for team {team_id}: {e}")
         return []
 
+@app.get("/api/element-summary/{player_id}")
+async def get_player_summary(player_id: int):
+    try:
+        url = f"https://fantasy.premierleague.com/api/element-summary/{player_id}/"
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        logger.error(f"Error fetching player summary for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch player summary: {str(e)}")
+
 @app.get("/api/entry/{team_id}/event/{event_id}/picks")
 async def get_team_picks(team_id: int, event_id: int):
     try:
@@ -154,9 +165,44 @@ async def get_weekly_matchups(league_id: int | None = None, event: int | None = 
     except requests.RequestException as e:
         logger.error(f"Error fetching weekly matchups: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch weekly matchups: {str(e)}")
+
 @app.get("/api/matchup/{match_id}")
 async def get_matchup_details(match_id: int, event: int):
     logger.info(f"Fetching matchup details for match_id: {match_id}, event: {event}")
+    
+    def process_team_data(entry_id, all_players, live_data):
+        picks_url = f"https://fantasy.premierleague.com/api/entry/{entry_id}/event/{event}/picks/"
+        picks_response = requests.get(picks_url)
+        picks_response.raise_for_status()
+        picks_data = picks_response.json()
+
+        processed_data = []
+        for pick in picks_data['picks']:
+            player = next((p for p in all_players if p['id'] == pick['element']), None)
+            if player is None:
+                continue
+            live_stats = next((p for p in live_data['elements'] if p['id'] == pick['element']), {})
+            processed_data.append({
+                "id": player['id'],
+                "name": player['web_name'],
+                "position": get_position(player['element_type']),
+                "points": live_stats.get('stats', {}).get('total_points', 0),
+                "isCaptain": pick['is_captain'],
+                "club": team_id_to_code[player['team']],
+                "yellowCards": live_stats.get('stats', {}).get('yellow_cards', 0),
+                "redCards": live_stats.get('stats', {}).get('red_cards', 0),
+                "isStarting": pick['position'] <= 11,
+                "multiplier": pick['multiplier']
+            })
+        return processed_data
+
+    def get_manager_name(entry_id):
+        manager_url = f"https://fantasy.premierleague.com/api/entry/{entry_id}/"
+        manager_response = requests.get(manager_url)
+        manager_response.raise_for_status()
+        manager_data = manager_response.json()
+        return f"{manager_data['player_first_name']} {manager_data['player_last_name']}"
+
     try:
         # Use environment variable for league ID
         league_url = f"https://fantasy.premierleague.com/api/leagues-h2h-matches/league/{LEAGUE_ID}/?event={event}&page=1"
@@ -183,38 +229,6 @@ async def get_matchup_details(match_id: int, event: int):
         # Create a mapping of team ID to team code
         team_id_to_code = {team['id']: team['short_name'] for team in static_data['teams']}
 
-        def process_team_data(entry_id, all_players, live_data):
-            picks_url = f"https://fantasy.premierleague.com/api/entry/{entry_id}/event/{event}/picks/"
-            picks_response = requests.get(picks_url)
-            picks_response.raise_for_status()
-            picks_data = picks_response.json()
-
-            processed_data = []
-            for pick in picks_data['picks']:
-                player = next((p for p in all_players if p['id'] == pick['element']), None)
-                if player is None:
-                    continue
-                live_stats = next((p for p in live_data['elements'] if p['id'] == pick['element']), {})
-                processed_data.append({
-                    "name": player['web_name'],
-                    "position": get_position(player['element_type']),
-                    "points": live_stats.get('stats', {}).get('total_points', 0),
-                    "isCaptain": pick['is_captain'],
-                    "club": team_id_to_code[player['team']],
-                    "yellowCards": live_stats.get('stats', {}).get('yellow_cards', 0),
-                    "redCards": live_stats.get('stats', {}).get('red_cards', 0),
-                    "isStarting": pick['position'] <= 11,
-                    "multiplier": pick['multiplier']
-                })
-            return processed_data
-
-        def get_manager_name(entry_id):
-            manager_url = f"https://fantasy.premierleague.com/api/entry/{entry_id}/"
-            manager_response = requests.get(manager_url)
-            manager_response.raise_for_status()
-            manager_data = manager_response.json()
-            return f"{manager_data['player_first_name']} {manager_data['player_last_name']}"
-
         team_h_manager = get_manager_name(match_data['entry_1_entry'])
         team_a_manager = get_manager_name(match_data['entry_2_entry'])
 
@@ -229,6 +243,7 @@ async def get_matchup_details(match_id: int, event: int):
             "team_a_picks": process_team_data(match_data['entry_2_entry'], static_data['elements'], live_data),
         }
         return result
+
     except requests.RequestException as e:
         logger.error(f"Error fetching data from FPL API: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching data from FPL API: {str(e)}")

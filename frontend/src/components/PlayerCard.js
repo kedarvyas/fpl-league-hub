@@ -1,5 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+
 
 const clubColors = {
   'ARS': { primary: '#EF0107', secondary: '#FFFFFF' },
@@ -24,33 +26,34 @@ const clubColors = {
   'WOL': { primary: '#FDB913', secondary: '#231F20' }
 };
 
-const PlayerCard = ({ name, position, points, isCaptain, club, className = '' }) => {
+const PlayerCard = ({ id, name, position, points, isCaptain, club, className = '' }) => {
   const clubColor = clubColors[club] || { primary: '#1F2937', secondary: '#FFFFFF' };
   
-  // Calculate displayed points - double if captain
   const displayPoints = isCaptain ? points * 2 : points;
 
   return (
-    <motion.div
-      className={`rounded-lg shadow-md p-2 text-center w-20 h-28 flex flex-col justify-between ${className}`}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      style={{
-        backgroundColor: clubColor.primary,
-        color: clubColor.secondary,
-        boxShadow: `0 4px 6px rgba(0, 0, 0, 0.1)`,
-        position: 'relative',
-        zIndex: 10
-      }}
-    >
-      <div className="flex justify-between items-start">
-        <span className="text-xs font-semibold">{position}</span>
-        {isCaptain && <span className="text-xs bg-yellow-400 text-black font-bold px-1 rounded">C</span>}
-      </div>
-      <p className="font-bold text-xs truncate">{name}</p>
-      <p className="text-xs">{club}</p>
-      <p className="text-sm font-bold">{displayPoints}</p>
-    </motion.div>
+    <Link to={`/player/${id}`}>
+      <motion.div
+        className={`rounded-lg shadow-md p-2 text-center w-20 h-28 flex flex-col justify-between ${className}`}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        style={{
+          backgroundColor: clubColor.primary,
+          color: clubColor.secondary,
+          boxShadow: `0 4px 6px rgba(0, 0, 0, 0.1)`,
+          position: 'relative',
+          zIndex: 10
+        }}
+      >
+        <div className="flex justify-between items-start">
+          <span className="text-xs font-semibold">{position}</span>
+          {isCaptain && <span className="text-xs bg-yellow-400 text-black font-bold px-1 rounded">C</span>}
+        </div>
+        <p className="font-bold text-xs truncate">{name}</p>
+        <p className="text-xs">{club}</p>
+        <p className="text-sm font-bold">{displayPoints}</p>
+      </motion.div>
+    </Link>
   );
 };
 

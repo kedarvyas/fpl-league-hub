@@ -1,23 +1,31 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 
 const PlayerRow = ({ player }) => (
-  <motion.div
-    className="flex items-center justify-between bg-white rounded-md shadow-sm p-2 mb-2"
-    whileHover={{ scale: 1.02 }}
-    whileTap={{ scale: 0.98 }}
-  >
-    <div className="flex-1">
-      <p className="text-xs font-semibold truncate">{player.name}</p>
-      <p className="text-xs text-gray-500">{player.position}</p>
-    </div>
-    <div className="flex items-center">
-      {player.isCaptain && (
-        <span className="text-xs font-bold text-blue-600 mr-2">C</span>
-      )}
-      <span className="text-sm font-bold">{player.points}</span>
-    </div>
-  </motion.div>
+  <Link to={`/player/${player.id}`}>
+    <motion.div
+      className="flex items-center justify-between bg-white rounded-md shadow-sm p-2 mb-2 hover:bg-purple-50 transition-colors duration-150"
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <div className="flex-1">
+        <p className="text-xs font-semibold truncate text-purple-700">{player.name}</p>
+        <div className="flex items-center">
+          <p className="text-xs text-gray-500">{player.position}</p>
+          <p className="text-xs text-gray-400 ml-2">{player.club}</p>
+        </div>
+      </div>
+      <div className="flex items-center">
+        {player.isCaptain && (
+          <span className="text-xs font-bold text-blue-600 mr-2">
+            {player.multiplier}x
+          </span>
+        )}
+        <span className="text-sm font-bold">{player.points}</span>
+      </div>
+    </motion.div>
+  </Link>
 );
 
 const TeamList = ({ players, isStarters }) => {
@@ -25,11 +33,12 @@ const TeamList = ({ players, isStarters }) => {
   return (
     <div className="w-full">
       {filteredPlayers.map((player, index) => (
-        <PlayerRow key={index} player={player} />
+        <PlayerRow key={`${player.name}-${index}`} player={player} />
       ))}
     </div>
   );
 };
+
 
 const TeamInfo = ({ teamName, managerName, score }) => (
   <div className="text-center mb-2">

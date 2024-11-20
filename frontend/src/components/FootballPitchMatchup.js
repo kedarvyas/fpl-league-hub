@@ -16,7 +16,7 @@ const TeamFormation = ({ players, isHomeTeam }) => {
                 <div key={position} className="flex flex-col justify-around h-full">
                     {getPlayersForPosition(position).map(player => (
                         <PlayerCard 
-                            key={player.name} 
+                            key={player.id} 
                             {...player}
                         />
                     ))}
