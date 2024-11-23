@@ -25,11 +25,13 @@
     "recharts": "^2.13.3",
     "shadcn-ui": "^0.9.3",
     "web-vitals": "^2.1.4",
+    "ajv": "^8.12.0",
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "GENERATE_SOURCEMAP=false react-scripts build",
+    "prebuild": "npm install --force",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
