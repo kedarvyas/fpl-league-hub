@@ -4,10 +4,10 @@ services:
     env: python
     rootDir: backend
     buildCommand: |
+      chmod +x run.sh
       pip install --upgrade pip
       pip install -r requirements.txt
-    startCommand: |
-      cd app && uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: ./run.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
