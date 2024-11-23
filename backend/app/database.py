@@ -10,16 +10,21 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-# Use DATABASE_URL if available (Render.com provides this), otherwise construct from parts
+# Get the DATABASE_URL from environment variables
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not DATABASE_URL:
-    # Fallback to individual components for local development
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    # Render provides DATABASE_URL in postgres:// format, but SQLAlchemy needs postgresql://
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    logger.info("Using Render database URL")
+else:
+    # Local development fallback
     DB_USER = os.getenv("DB_USER", "fpl_user")
-    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    DB_PASSWORD = os.getenv("DB_PASSWORD", "fpl_tacticos_league")
     DB_NAME = os.getenv("DB_NAME", "fpl_league_hub")
     DB_HOST = os.getenv("DB_HOST", "localhost")
     DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
+    logger.info("Using local database URL")
 
 logger.debug(f"Database URL format: postgresql://user:***@{DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else 'unknown'}")
 

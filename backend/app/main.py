@@ -10,6 +10,8 @@ from . import models, schemas
 from datetime import datetime
 from .database import engine, get_db
 import json
+from typing import Optional
+
 
 
 # Configure logging first thing
@@ -181,7 +183,7 @@ async def get_team_picks(team_id: int, event_id: int):
         raise HTTPException(status_code=500, detail=f"Failed to fetch picks: {str(e)}")
 
 @app.get("/api/weekly-matchups/{league_id}")
-async def get_weekly_matchups(league_id: int | None = None, event: int | None = None):
+async def get_weekly_matchups(league_id: Optional[int] = None, event: Optional[int] = None):
     # Use LEAGUE_ID if league_id is not provided
     league_id = league_id if league_id is not None else LEAGUE_ID
     
