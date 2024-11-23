@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
@@ -41,15 +41,6 @@ engine = create_engine(
     pool_timeout=30,
     pool_recycle=1800
 )
-
-# Add engine logging
-@event.listens_for(engine, "connect")
-def connect(dbapi_connection, connection_record):
-    logger.info("Database connection established")
-
-@event.listens_for(engine, "disconnect")
-def disconnect(dbapi_connection, connection_record):
-    logger.info("Database connection closed")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
