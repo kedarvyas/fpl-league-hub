@@ -2,8 +2,9 @@ services:
   - type: web
     name: fpl-league-hub-api
     env: python
-    buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && gunicorn wsgi:application --bind 0.0.0.0:$PORT --worker-class uvicorn.workers.UvicornWorker --log-level debug
+    rootDir: backend  # This tells Render to look in the backend directory
+    buildCommand: pip install -r requirements.txt  # Now it will look in backend/requirements.txt
+    startCommand: gunicorn wsgi:application --bind 0.0.0.0:$PORT --worker-class uvicorn.workers.UvicornWorker --log-level debug
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
