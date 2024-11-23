@@ -7,12 +7,14 @@ services:
       chmod +x run.sh
       pip install --upgrade pip
       pip install -r requirements.txt
-    startCommand: PYTHONPATH=$PYTHONPATH:./app uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: PYTHONPATH=$PYTHONPATH:. uvicorn app.main:app --host 0.0.0.0 --port $PORT --log-level debug
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
       - key: PYTHONPATH
-        value: ./app
+        value: .
+      - key: LOG_LEVEL
+        value: debug
       - key: DATABASE_URL
         fromDatabase:
           name: fpl_league_db

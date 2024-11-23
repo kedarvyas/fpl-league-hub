@@ -21,7 +21,13 @@ logger = logging.getLogger(__name__)
 # Get league ID from environment variable with a default value
 LEAGUE_ID = int(os.getenv("LEAGUE_ID", "738279"))
 
-# Initialize FastAPI app
+try:
+    models.Base.metadata.create_all(bind=engine)
+    logger.debug("Successfully created database tables")
+except Exception as e:
+    logger.error(f"Error creating database tables: {str(e)}")
+    raise
+
 app = FastAPI()
 
 # Create database tables
@@ -38,6 +44,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/debug-info")
+async def debug_info():
+    """Endpoint to verify API is working and check environment"""
+    import sys
+    import os
+    return {
+        "python_path": sys.path,
+        "current_directory": os.getcwd(),
+        "environment_vars": dict(os.environ),
+        "app_module_location": __file__
+    }
 
 # Helper Functions
 def get_position(element_type):
