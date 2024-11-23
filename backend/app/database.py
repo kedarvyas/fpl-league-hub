@@ -3,27 +3,41 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-# Get database credentials from environment variables
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_NAME = os.getenv("DB_NAME")
-DB_HOST = os.getenv("DB_HOST", "localhost")
+# Use DATABASE_URL if available (Render.com provides this), otherwise construct from parts
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
+if not DATABASE_URL:
+    # Fallback to individual components for local development
+    DB_USER = os.getenv("DB_USER", "fpl_user")
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    DB_NAME = os.getenv("DB_NAME", "fpl_league_hub")
+    DB_HOST = os.getenv("DB_HOST", "localhost")
+    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+logger.debug(f"Database URL format: postgresql://user:***@{DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else 'unknown'}")
+
+try:
+    engine = create_engine(DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    logger.info("Database engine created successfully")
+except Exception as e:
+    logger.error(f"Failed to create database engine: {str(e)}")
+    raise
 
 Base = declarative_base()
 
 def get_db():
     db = SessionLocal()
-    print("Database connection established")  # Debug print
+    logger.debug("Database connection established")
     try:
         yield db
     finally:
         db.close()
-        print("Database connection closed")  # Debug print
+        logger.debug("Database connection closed")

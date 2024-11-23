@@ -4,29 +4,19 @@ services:
     env: python
     rootDir: backend
     buildCommand: |
-      echo "Current directory:" &&
-      pwd &&
-      echo "Directory contents:" &&
-      ls -la &&
-      python test_setup.py &&
       pip install --upgrade pip &&
-      pip install -r requirements.txt
+      pip install -r ../requirements.txt
     startCommand: |
-      PYTHONPATH=/opt/render/project/src/backend gunicorn \
-        --workers=1 \
-        --worker-class=uvicorn.workers.UvicornWorker \
-        --bind=0.0.0.0:$PORT \
-        --log-level=debug \
-        wsgi:application
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT --log-level debug
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
-      - key: PYTHONPATH
-        value: /opt/render/project/src/backend
-      - key: LOG_LEVEL
-        value: debug
+      - key: DATABASE_URL
+        value: postgresql://fpl_user:${POSTGRES_PASSWORD}@postgresql.render.com/fpl_league_hub
       - key: PORT
         value: 10000
+      - key: LEAGUE_ID
+        value: 738279
 
 databases:
   - name: fpl_league_db
