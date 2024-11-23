@@ -6,8 +6,7 @@ services:
     buildCommand: |
       pip install --upgrade pip &&
       pip install -r ../requirements.txt
-    startCommand: |
-      uvicorn app.main:app --host 0.0.0.0 --port $PORT --log-level debug
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT --log-level debug"
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
@@ -17,6 +16,8 @@ services:
         value: 10000
       - key: LEAGUE_ID
         value: 738279
+      - key: PYTHONPATH
+        value: .
 
 databases:
   - name: fpl_league_db

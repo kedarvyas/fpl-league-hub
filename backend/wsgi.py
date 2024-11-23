@@ -1,6 +1,8 @@
 import os
 import sys
 import logging
+from app.main import app
+
 
 # Configure logging
 logging.basicConfig(
