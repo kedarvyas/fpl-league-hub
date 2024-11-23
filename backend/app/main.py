@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 logger.debug(f"Current working directory: {os.getcwd()}")
 logger.debug(f"Python path: {sys.path}")
 logger.debug(f"Environment variables: {dict(os.environ)}")
+logger.debug(f"Directory contents: {os.listdir()}")
+
 
 # Load environment variables
 load_dotenv()
