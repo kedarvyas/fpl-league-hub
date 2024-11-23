@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
@@ -13,10 +13,14 @@ load_dotenv()
 # Get the DATABASE_URL from environment variables
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    # Render provides DATABASE_URL in postgres:// format, but SQLAlchemy needs postgresql://
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    logger.info("Using Render database URL")
+if DATABASE_URL:
+    # Log the database connection (masking sensitive info)
+    sanitized_url = DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else 'unknown'
+    logger.info(f"Using database at: {sanitized_url}")
+    
+    # Modify URL for SQLAlchemy if necessary
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 else:
     # Local development fallback
     DB_USER = os.getenv("DB_USER", "fpl_user")
@@ -24,25 +28,37 @@ else:
     DB_NAME = os.getenv("DB_NAME", "fpl_league_hub")
     DB_HOST = os.getenv("DB_HOST", "localhost")
     DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
-    logger.info("Using local database URL")
+    logger.info("Using local database configuration")
 
-logger.debug(f"Database URL format: postgresql://user:***@{DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else 'unknown'}")
+# Create engine with SSL required for Render
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={
+        "sslmode": "require" if "render.com" in DATABASE_URL else "prefer"
+    },
+    pool_size=5,
+    max_overflow=2,
+    pool_timeout=30,
+    pool_recycle=1800
+)
 
-try:
-    engine = create_engine(DATABASE_URL)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    logger.info("Database engine created successfully")
-except Exception as e:
-    logger.error(f"Failed to create database engine: {str(e)}")
-    raise
+# Add engine logging
+@event.listens_for(engine, "connect")
+def connect(dbapi_connection, connection_record):
+    logger.info("Database connection established")
 
+@event.listens_for(engine, "disconnect")
+def disconnect(dbapi_connection, connection_record):
+    logger.info("Database connection closed")
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def get_db():
     db = SessionLocal()
-    logger.debug("Database connection established")
     try:
+        logger.debug("Database connection opened in get_db")
         yield db
     finally:
         db.close()
-        logger.debug("Database connection closed")
+        logger.debug("Database connection closed in get_db")
