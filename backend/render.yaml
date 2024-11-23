@@ -4,21 +4,20 @@ services:
     env: python
     rootDir: backend
     buildCommand: |
-      chmod +x run.sh
       pip install --upgrade pip
       pip install -r requirements.txt
-    startCommand: PYTHONPATH=$PYTHONPATH:. uvicorn app.main:app --host 0.0.0.0 --port $PORT --log-level debug
+    startCommand: python start.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
-      - key: PYTHONPATH
-        value: .
       - key: LOG_LEVEL
         value: debug
       - key: DATABASE_URL
         fromDatabase:
           name: fpl_league_db
           property: connectionString
+      - key: PYTHONPATH
+        value: /opt/render/project/src
 
 databases:
   - name: fpl_league_db
