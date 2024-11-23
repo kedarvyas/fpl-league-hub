@@ -1,22 +1,28 @@
 import React from 'react';
 
-const PlayerStatsLayout = ({ children, sidePanel }) => {
+const PlayerStatsLayout = ({ children, leftPanel, rightPanel }) => {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex flex-col lg:flex-row lg:space-x-6 p-4">
-        {/* Side Panel - Hidden on mobile, shown on lg screens */}
+        {/* Left Panel - Hidden on mobile */}
         <div className="hidden lg:block lg:w-64 flex-shrink-0">
-          {sidePanel}
+          {leftPanel}
         </div>
         
-        {/* Main Content - Full width on mobile, centered on desktop */}
+        {/* Main Content */}
         <div className="flex-grow lg:max-w-4xl lg:mx-auto">
           {children}
         </div>
+
+        {/* Right Panel - Hidden on mobile */}
+        <div className="hidden lg:block lg:w-64 flex-shrink-0">
+          {rightPanel}
+        </div>
         
-        {/* Mobile Side Panel Content - Shown below header on mobile only */}
+        {/* Mobile Panels - Shown below header */}
         <div className="lg:hidden w-full space-y-4 mb-6">
-          {sidePanel}
+          {leftPanel}
+          {rightPanel}
         </div>
       </div>
     </div>

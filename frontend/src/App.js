@@ -1,28 +1,25 @@
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
-import LeagueStandings from './components/LeagueStandings';
 import WeeklyMatchups from './components/WeeklyMatchups';
-import MatchupDetail from './components/MatchupDetail';
-import Statistics from './components/Statistics';
-import './index.css';
+import PlayerStatisticsHub from './components/PlayerStatisticsHub';
 import PlayerStats from './components/PlayerStats';
-
+import LeagueStandings from './components/LeagueStandings';
 
 const App = () => {
-  const leagueId = 738279; // Your Head-to-Head League ID
+  // You can also manage this with environment variables or state management
+  const leagueId = 738279;  // Your league ID
 
   return (
     <Router>
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard leagueId={leagueId} />} />
-          <Route path="/standings" element={<LeagueStandings leagueId={leagueId} />} />
-          <Route path="/weekly-matchups" element={<WeeklyMatchups leagueId={leagueId} />} />
+          <Route path="/weekly-matchups" element={<WeeklyMatchups />} />
+          <Route path="/player-statistics" element={<PlayerStatisticsHub />} />
           <Route path="/player/:playerId" element={<PlayerStats />} />
-          <Route path="/matchup/:matchId" element={<MatchupDetail />} />
-          <Route path="/statistics" element={<Statistics leagueId={leagueId} />} />
+          <Route path="/standings" element={<LeagueStandings />} />
         </Routes>
       </Layout>
     </Router>

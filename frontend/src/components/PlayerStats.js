@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import PlayerStatsLayout from './PlayerStatsLayout';
+import PlayerComparison from './PlayerComparison';
+import PlayerSearchModal from './PlayerSearchModal';
 import ICTSidePanel from './ICTSidePanel';
+import TransferStats from './TransferStats';
 import {
     UserCircle,
     ArrowUp,
@@ -13,16 +16,17 @@ import {
     Info
 } from 'lucide-react';
 import {
+    LineChart,
+    Line,
     XAxis,
     YAxis,
-    Line,
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
     AreaChart,
     Area,
     Legend
-} from 'recharts';
+  } from 'recharts';
 
 const getPositionName = (elementType) => {
     const positions = {
@@ -95,29 +99,29 @@ const getICTContext = (metric, value) => {
 
 const CustomTooltip = ({ active, payload, label, type }) => {
     if (!active || !payload || !payload.length) return null;
-
+  
     return (
-        <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
-            <p className="font-semibold text-gray-900 mb-2">{label}</p>
-            {payload.map((entry, index) => (
-                <div key={index} className="flex items-center space-x-2 mb-1">
-                    <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: entry.color }}
-                    />
-                    <span className="text-gray-600">{entry.name}:</span>
-                    <span className="font-medium">
-                        {type === 'performance' && entry.name === 'points'
-                            ? `${entry.value} pts`
-                            : type === 'ict'
-                                ? `${entry.value.toFixed(1)} (${getICTContext(entry.name, entry.value)})`
-                                : entry.value}
-                    </span>
-                </div>
-            ))}
-        </div>
+      <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+        <p className="font-semibold text-gray-900 mb-2">{label}</p>
+        {payload.map((entry, index) => (
+          <div key={index} className="flex items-center space-x-2 mb-1">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-gray-600">{entry.name}:</span>
+            <span className="font-medium">
+              {type === 'performance' && entry.name === 'points'
+                ? `${entry.value} pts`
+                : type === 'ict'
+                  ? `${parseFloat(entry.value).toFixed(1)} (${getICTContext(entry.name, entry.value)})`
+                  : parseFloat(entry.value).toFixed(2)}
+            </span>
+          </div>
+        ))}
+      </div>
     );
-};
+  };
 
 const StatCard = ({ title, value, icon, subtitle, description, metrics }) => {
     const [showTooltip, setShowTooltip] = useState(false);
@@ -185,6 +189,9 @@ const PlayerStats = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [teams, setTeams] = useState({});
+    const [showComparison, setShowComparison] = useState(false);
+    const [showPlayerSearch, setShowPlayerSearch] = useState(false);
+    const [comparePlayer, setComparePlayer] = useState(null);
 
 
     useEffect(() => {
@@ -235,17 +242,29 @@ const PlayerStats = () => {
     }, [playerId]);
 
     const calculateForm = (history) => {
-        if (!history?.history) return [];
-        return history.history.slice(-5).map((game, index) => ({
-            gameweek: `GW${game.round}`,
-            points: game.total_points,
-            xG: game.expected_goals || 0,
-            xA: game.expected_assists || 0,
-            influence: parseFloat(game.influence),
-            creativity: parseFloat(game.creativity),
-            threat: parseFloat(game.threat)
-        }));
-    };
+        if (!history?.history || !Array.isArray(history.history)) {
+          console.log('No valid history data');
+          return [];
+        }
+      
+        try {
+          return history.history
+            .filter(game => game && typeof game.round === 'number')
+            .slice(-5)
+            .map(game => ({
+              gameweek: `GW${game.round}`,
+              points: game.total_points || 0,
+              xG: parseFloat(game.expected_goals || 0),
+              xA: parseFloat(game.expected_assists || 0),
+              influence: parseFloat(game.influence || 0),      // Parse as float
+              creativity: parseFloat(game.creativity || 0),    // Parse as float
+              threat: parseFloat(game.threat || 0)            // Parse as float
+            }));
+        } catch (error) {
+          console.error('Error calculating form:', error);
+          return [];
+        }
+      };
 
     const calculateUpcomingFixtures = (fixtures) => {
         if (!fixtures) return [];
@@ -311,50 +330,64 @@ const PlayerStats = () => {
     );
 
 
-    const renderICTChart = () => (
-        <div className="h-64 w-full">
+    const renderICTChart = () => {
+        const data = formData;
+        
+        if (!data || data.length === 0) {
+          return (
+            <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No ICT data available</p>
+            </div>
+          );
+        }
+      
+        return (
+          <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={formData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                        dataKey="gameweek"
-                        tickFormatter={(gameweek) => `${gameweek}\n${formatDate(gameweek)}`}
-                        height={60}
-                    />
-                    <YAxis />
-                    <Tooltip content={<CustomTooltip type="ict" />} />
-                    <Legend />
-                    <Area
-                        type="monotone"
-                        dataKey="influence"
-                        name="Influence"
-                        stroke="#8b5cf6"
-                        fill="#8b5cf6"
-                        fillOpacity={0.2}
-                        stackId="1"
-                    />
-                    <Area
-                        type="monotone"
-                        dataKey="creativity"
-                        name="Creativity"
-                        stroke="#10b981"
-                        fill="#10b981"
-                        fillOpacity={0.2}
-                        stackId="1"
-                    />
-                    <Area
-                        type="monotone"
-                        dataKey="threat"
-                        name="Threat"
-                        stroke="#3b82f6"
-                        fill="#3b82f6"
-                        fillOpacity={0.2}
-                        stackId="1"
-                    />
-                </AreaChart>
+              <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="gameweek"
+                  tickFormatter={(gameweek) => `${gameweek}\n${formatDate(gameweek)}`}
+                  height={60}
+                />
+                <YAxis 
+                  domain={[0, 'dataMax + 20']}  // Add some padding to the top
+                />
+                <Tooltip content={<CustomTooltip type="ict" />} />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="influence"
+                  name="Influence"
+                  stroke="#8b5cf6"
+                  fill="#8b5cf6"
+                  fillOpacity={0.2}
+                  strokeWidth={2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="creativity"
+                  name="Creativity"
+                  stroke="#10b981"
+                  fill="#10b981"
+                  fillOpacity={0.2}
+                  strokeWidth={2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="threat"
+                  name="Threat"
+                  stroke="#3b82f6"
+                  fill="#3b82f6"
+                  fillOpacity={0.2}
+                  strokeWidth={2}
+                />
+              </AreaChart>
             </ResponsiveContainer>
-        </div>
-    );
+          </div>
+        );
+      };
 
     const renderICTSection = () => (
         <div className="grid grid-cols-3 gap-4 mb-6">
@@ -387,7 +420,9 @@ const PlayerStats = () => {
 
     return (
         <PlayerStatsLayout
-            sidePanel={<ICTSidePanel playerData={playerData} />}
+            leftPanel={<TransferStats playerData={playerData} />}
+            rightPanel={<ICTSidePanel playerData={playerData} />}
+        
         >
             <div className="space-y-6">
                 {/* Header section remains the same... */}
@@ -434,6 +469,12 @@ const PlayerStats = () => {
                                         <ArrowDown className="w-4 h-4 text-red-400" />
                                     ) : null}
                                 </div>
+                                <button
+                                    onClick={() => setShowPlayerSearch(true)}
+                                    className="ml-4 px-4 py-2 bg-white bg-opacity-20 rounded-lg text-sm font-medium hover:bg-opacity-30 transition-colors"
+                                >
+                                    Compare
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -576,6 +617,36 @@ const PlayerStats = () => {
                     </div>
                 )}
             </div>
+            {
+                showPlayerSearch && (
+                    <PlayerSearchModal
+                        onSelect={(player) => {
+                            setComparePlayer(player);
+                            setShowPlayerSearch(false);
+                            setShowComparison(true);
+                        }}
+                        onClose={() => setShowPlayerSearch(false)}
+                        excludePlayerId={parseInt(playerId)}
+                    />
+                )
+            }
+
+            {
+                showComparison && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="w-full max-w-3xl">
+                            <PlayerComparison
+                                player1={playerData}
+                                player2={comparePlayer}
+                                onClose={() => {
+                                    setShowComparison(false);
+                                    setComparePlayer(null);
+                                }}
+                            />
+                        </div>
+                    </div>
+                )
+            }
         </PlayerStatsLayout>
     );
 

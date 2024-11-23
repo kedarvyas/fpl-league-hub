@@ -47,10 +47,10 @@ const MatchupRow = ({ matchup, isExpanded, onToggle, eventId }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="bg-white rounded-lg shadow-md mb-4 overflow-hidden"
+      className="bg-card text-card-foreground rounded-lg shadow-md mb-4 overflow-hidden"
     >
       <div
-        className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50 transition-colors duration-150"
+        className="flex justify-between items-center p-4 cursor-pointer hover:bg-muted/50 transition-colors duration-150"
         onClick={onToggle}
       >
         <div className="flex-1 text-left">
@@ -70,7 +70,7 @@ const MatchupRow = ({ matchup, isExpanded, onToggle, eventId }) => {
         </div>
       </div>
       <Collapse in={isExpanded}>
-        <div className="p-4 bg-gray-50">
+        <div className="p-4 bg-muted">
           {loading && <CircularProgress />}
           {error && <div className="text-red-500">{error}</div>}
           {!loading && !error && matchDetails && (
@@ -184,28 +184,28 @@ const WeeklyMatchups = () => {
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen p-2 md:p-4">
+    <div className="bg-background min-h-screen p-2 md:p-4"> {/* Changed from bg-gray-100 */}
       <div className="max-w-[100rem] mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           {/* League Table - Left */}
           <div className="md:col-span-3 md:pl-4">
-            <div className="bg-white rounded-lg shadow-md p-4 mb-4 md:-ml-24 md:w-[90%]">
-              <Typography variant="h6" className="mb-2 font-semibold text-gray-700 text-sm">
+            <div className="bg-card text-card-foreground rounded-lg shadow-md p-4 mb-4 md:-ml-24 md:w-[90%]">
+              <Typography variant="h6" className="mb-2 font-semibold text-card-foreground text-sm">
                 League Table
               </Typography>
               <LeagueTable standings={standings} />
             </div>
           </div>
           <div className="md:col-span-7 md:-ml-28 md:mr-[-4rem]">
-            <div className="bg-white rounded-lg shadow-md p-2 md:p-4 mb-4">
+            <div className="bg-card text-card-foreground rounded-lg shadow-md p-2 md:p-4 mb-4">
               <div className="flex flex-col md:flex-row justify-between items-center mb-4">
-                <Typography variant="h6" className="text-gray-800 font-bold mb-2 md:mb-0">
+                <Typography variant="h6" className="text-card-foreground font-bold mb-2 md:mb-0">
                   Weekly Matchups
                 </Typography>
                 <Select
                   value={selectedEvent || ''}
                   onChange={handleEventChange}
-                  className="min-w-[150px] bg-white text-sm"
+                  className="min-w-[150px] bg-card text-sm"
                 >
                   {events.map((event) => (
                     <MenuItem key={event.id} value={event.id}>
@@ -241,6 +241,7 @@ const WeeklyMatchups = () => {
               )}
             </div>
           </div>
+          {/* Gameweek Stats - Right */}
           <div className="md:col-span-2 md:mr-[-8rem]">
             <div className="md:ml-20 md:w-[80%]">
               <GameweekStats eventId={selectedEvent} />
