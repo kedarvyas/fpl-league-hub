@@ -2,16 +2,32 @@ services:
   - type: web
     name: fpl-league-hub-api
     env: python
-    rootDir: backend  # This tells Render to look in the backend directory
-    buildCommand: pip install -r requirements.txt  # Now it will look in backend/requirements.txt
-    startCommand: gunicorn wsgi:application --bind 0.0.0.0:$PORT --worker-class uvicorn.workers.UvicornWorker --log-level debug
+    rootDir: backend
+    buildCommand: |
+      python -m pip install --upgrade pip &&
+      pip install -r requirements.txt
+    startCommand: |
+      cd /opt/render/project/src/backend &&
+      PYTHONPATH=/opt/render/project/src/backend gunicorn \
+        --workers=1 \
+        --worker-class=uvicorn.workers.UvicornWorker \
+        --bind=0.0.0.0:$PORT \
+        --log-level=debug \
+        --timeout=120 \
+        wsgi:application
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
       - key: PYTHONPATH
-        value: .
+        value: /opt/render/project/src/backend
       - key: LOG_LEVEL
         value: debug
+      - key: DB_USER
+        value: fpl_user
+      - key: DB_NAME
+        value: fpl_league_hub
+      - key: LEAGUE_ID  # Adding this from your local env
+        value: "738279"
       - key: DATABASE_URL
         fromDatabase:
           name: fpl_league_db
