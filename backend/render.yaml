@@ -3,8 +3,10 @@ services:
     name: fpl-league-hub-api
     env: python
     rootDir: backend  
-    buildCommand: pip install -r requirements.txt
-    startCommand: cd app && uvicorn main:app --host 0.0.0.0 --port $PORT
+    buildCommand: |
+      pip install -r requirements.txt
+      pip install --upgrade pip
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT  # Changed this line to use proper Python module path
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
