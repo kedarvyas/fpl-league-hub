@@ -2,15 +2,14 @@ services:
   - type: web
     name: fpl-league-hub-api
     env: python
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: chmod +x backend/start.sh && cd backend && ./start.sh
+    rootDir: backend
+    buildCommand: |
+      pip install -r requirements.txt
+      python -m pip install --upgrade pip
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --log-level debug --reload
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
-      - key: PYTHONPATH
-        value: /opt/render/project/src/backend
-      - key: PORT
-        value: 10000
       - key: DATABASE_URL
         fromDatabase:
           name: fpl_league_db

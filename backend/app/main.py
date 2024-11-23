@@ -11,12 +11,21 @@ from datetime import datetime
 from .database import engine, get_db
 import json
 
+
+# Configure logging first thing
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Log startup information
+logger.debug(f"Current working directory: {os.getcwd()}")
+logger.debug(f"Python path: {sys.path}")
+logger.debug(f"Environment variables: {dict(os.environ)}")
+
 # Load environment variables
 load_dotenv()
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Get league ID from environment variable with a default value
 LEAGUE_ID = int(os.getenv("LEAGUE_ID", "738279"))
