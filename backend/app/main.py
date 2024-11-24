@@ -70,6 +70,24 @@ async def debug_info():
         "app_module_location": __file__
     }
 
+@app.get("/debug/check_league/{league_id}")
+async def check_league(league_id: int, db: Session = Depends(get_db)):
+    league = db.query(models.League).filter(models.League.id == league_id).first()
+    if league is None:
+        return {"exists": False, "message": "League not found"}
+    return {
+        "exists": True,
+        "league": {
+            "id": league.id,
+            "name": league.name,
+            "created_at": league.created_at,
+            "updated_at": league.updated_at,
+            "total_teams": league.total_teams,
+            "average_score": league.average_score,
+            "highest_score": league.highest_score
+        }
+    }
+
 # Helper Functions
 def get_position(element_type):
     positions = {1: 'GKP', 2: 'DEF', 3: 'MID', 4: 'FWD'}
@@ -314,24 +332,33 @@ async def get_league(league_id: int, db: Session = Depends(get_db)):
         db.commit()
     return league
 
-@app.post("/debug/create_league")
+@app.get("/debug/create_league")  # Add GET method
+@app.post("/debug/create_league")  # Keep POST method
 async def create_league(db: Session = Depends(get_db)):
     # Check if league already exists
     existing_league = db.query(models.League).filter(models.League.id == 738279).first()
     if existing_league:
         return {
             "message": "League already exists",
-            "league": existing_league
+            "league": {
+                "id": existing_league.id,
+                "name": existing_league.name,
+                "created_at": existing_league.created_at,
+                "total_teams": existing_league.total_teams,
+                "average_score": existing_league.average_score,
+                "highest_score": existing_league.highest_score
+            }
         }
     
     # Create new league with specific details
     new_league = models.League(
         id=738279,
-        name="FPL Tacticos League",  # You can change this name
+        name="FPL Tacticos League",
         created_at=datetime.utcnow(),
-        total_teams=0,  # These will be updated when you add team data
+        total_teams=0,
         average_score=0,
-        highest_score=0
+        highest_score=0,
+        updated_at=datetime.utcnow()  # Add this field
     )
     
     try:
@@ -340,7 +367,14 @@ async def create_league(db: Session = Depends(get_db)):
         db.refresh(new_league)
         return {
             "message": "League created successfully",
-            "league": new_league
+            "league": {
+                "id": new_league.id,
+                "name": new_league.name,
+                "created_at": new_league.created_at,
+                "total_teams": new_league.total_teams,
+                "average_score": new_league.average_score,
+                "highest_score": new_league.highest_score
+            }
         }
     except Exception as e:
         db.rollback()
