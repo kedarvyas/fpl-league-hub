@@ -314,13 +314,37 @@ async def get_league(league_id: int, db: Session = Depends(get_db)):
         db.commit()
     return league
 
-@app.post("/api/leagues", response_model=schemas.League)
-async def create_league(league: schemas.LeagueCreate, db: Session = Depends(get_db)):
-    db_league = models.League(**league.dict())
-    db.add(db_league)
-    db.commit()
-    db.refresh(db_league)
-    return db_league
+@app.post("/debug/create_league")
+async def create_league(db: Session = Depends(get_db)):
+    # Check if league already exists
+    existing_league = db.query(models.League).filter(models.League.id == 738279).first()
+    if existing_league:
+        return {
+            "message": "League already exists",
+            "league": existing_league
+        }
+    
+    # Create new league with specific details
+    new_league = models.League(
+        id=738279,
+        name="FPL Tacticos League",  # You can change this name
+        created_at=datetime.utcnow(),
+        total_teams=0,  # These will be updated when you add team data
+        average_score=0,
+        highest_score=0
+    )
+    
+    try:
+        db.add(new_league)
+        db.commit()
+        db.refresh(new_league)
+        return {
+            "message": "League created successfully",
+            "league": new_league
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/leagues/{league_id}", response_model=schemas.League)
 async def update_league(league_id: int, league: schemas.LeagueUpdate, db: Session = Depends(get_db)):
