@@ -89,6 +89,40 @@ async def check_league(league_id: int, db: Session = Depends(get_db)):
         }
     }
 
+from sqlalchemy import text
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+@app.get("/debug/init-db")
+def initialize_database(db: Session = Depends(get_db)):
+    try:
+        # Drop existing table if it exists
+        db.execute(text("DROP TABLE IF EXISTS leagues CASCADE"))
+        
+        # Create new table with all required columns
+        create_table_sql = """
+        CREATE TABLE leagues (
+            id INTEGER PRIMARY KEY,
+            name VARCHAR,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE,
+            total_teams INTEGER DEFAULT 0,
+            average_score FLOAT DEFAULT 0.0,
+            highest_score INTEGER DEFAULT 0
+        )
+        """
+        db.execute(text(create_table_sql))
+        db.commit()
+        
+        return {"message": "Database initialized successfully"}
+    except Exception as e:
+        logger.error(f"Error initializing database: {str(e)}")
+        db.rollback()
+        return {
+            "error": "Failed to initialize database",
+            "detail": str(e)
+        }
+
 # Helper Functions
 def get_position(element_type):
     positions = {1: 'GKP', 2: 'DEF', 3: 'MID', 4: 'FWD'}
@@ -336,7 +370,7 @@ async def get_league(league_id: int, db: Session = Depends(get_db)):
 from sqlalchemy import text
 
 @app.get("/debug/db-test")
-async def test_db_connection(db: Session = Depends(get_db)):
+def test_db_connection(db: Session = Depends(get_db)):
     try:
         # Try to execute a simple query using text()
         result = db.execute(text("SELECT 1"))
@@ -349,10 +383,9 @@ async def test_db_connection(db: Session = Depends(get_db)):
             "detail": str(e)
         }
 
-# Also let's update the create_league endpoint to use better error handling
 @app.get("/debug/create_league")
 @app.post("/debug/create_league")
-async def create_league(db: Session = Depends(get_db)):
+def create_league(db: Session = Depends(get_db)):
     logger.info("Starting league creation process")
     try:
         # First test the connection
