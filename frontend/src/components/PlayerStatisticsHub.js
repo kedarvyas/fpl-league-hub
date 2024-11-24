@@ -24,7 +24,7 @@ const PlayerStatisticsHub = () => {
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/bootstrap-static');
+        const response = await fetch(`${API_URL}/api/bootstrap-static`);
         const data = await response.json();
         
         // Process and sort players by total points

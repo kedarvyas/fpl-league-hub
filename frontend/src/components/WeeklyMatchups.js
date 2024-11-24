@@ -8,6 +8,8 @@ import LeagueTable from './LeagueTable';
 import GameweekStats from './GameweekStats';
 
 const LEAGUE_ID = 738279;
+const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
+
 
 const MatchupRow = ({ matchup, isExpanded, onToggle, eventId }) => {
   const [matchDetails, setMatchDetails] = useState(null);
@@ -24,8 +26,8 @@ const MatchupRow = ({ matchup, isExpanded, onToggle, eventId }) => {
   useEffect(() => {
     if (isExpanded && !matchDetails) {
       setLoading(true);
-      fetch(`http://localhost:8000/api/matchup/${matchup.id}?event=${eventId}`)
-        .then(response => {
+      fetch(`${API_URL}/api/matchup/${matchup.id}?event=${eventId}`)
+      .then(response => {
           if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
           return response.json();
         })
@@ -99,7 +101,7 @@ const WeeklyMatchups = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/bootstrap-static');
+        const response = await fetch(`${API_URL}/api/bootstrap-static`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -160,7 +162,7 @@ const WeeklyMatchups = () => {
   useEffect(() => {
     const fetchStandings = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/leagues/${LEAGUE_ID}/standings`);
+        const response = await fetch(`${API_URL}/api/bootstrap-static`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

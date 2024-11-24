@@ -230,7 +230,6 @@ const Dashboard = ({ leagueId }) => {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <DashboardDebug />  {/* Add this line */}
         {/* Left Column */}
         <div className="space-y-6">
           <Card>
