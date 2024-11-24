@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
+import DashboardDebug from './DashboardDebug';
 
 const Dashboard = ({ leagueId }) => {
   const [bootstrapData, setBootstrapData] = useState(null);
