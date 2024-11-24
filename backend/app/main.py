@@ -209,7 +209,7 @@ async def get_team_transfers(team_id: int):
         response.raise_for_status()
         data = response.json()
         return data if isinstance(data, list) else []
-    except requests.RequestException as e:
+    except Exception as e:
         logger.error(f"Error fetching transfers for team {team_id}: {e}")
         return []
 
@@ -231,9 +231,12 @@ async def get_team_picks(team_id: int, event_id: int):
         response = requests.get(url)
         response.raise_for_status()
         return response.json()
-    except requests.RequestException as e:
+    except Exception as e:
         logger.error(f"Error fetching picks for team {team_id} event {event_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch picks: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch picks: {str(e)}"
+        )
 
 @app.get("/api/weekly-matchups/{league_id}")
 async def get_weekly_matchups(league_id: int, event: int):

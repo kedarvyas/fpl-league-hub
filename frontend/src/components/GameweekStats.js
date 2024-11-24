@@ -3,6 +3,9 @@ import { Typography, CircularProgress } from '@mui/material';
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, TrophyIcon } from '@heroicons/react/24/solid';
 import { motion } from 'framer-motion';
 
+const LEAGUE_ID = 738279;
+const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
+
 const TransferCard = ({ transfer, managerName }) => {
     // Format price to show £ and .0/.5
     const formatPrice = (price) => {
@@ -95,6 +98,7 @@ const ManagerOfWeekCard = ({ manager }) => (
     </motion.div>
 );
 
+
 const GameweekStats = ({ eventId }) => {
     const [transfers, setTransfers] = useState([]);
     const [managerOfWeek, setManagerOfWeek] = useState(null);
@@ -108,8 +112,7 @@ const GameweekStats = ({ eventId }) => {
             setLoading(true);
             try {
                 // Fetch standings first
-                const leagueId = 738279;
-                const standingsResponse = await fetch(`http://localhost:8000/api/leagues/${leagueId}/standings`);
+                const standingsResponse = await fetch(`${API_URL}/api/leagues/${LEAGUE_ID}/standings`);
                 if (!standingsResponse.ok) throw new Error('Failed to fetch standings');
                 const standingsData = await standingsResponse.json();
 
@@ -118,7 +121,7 @@ const GameweekStats = ({ eventId }) => {
                 let topManager = null;
 
                 // Get bootstrap-static data for player names
-                const bootstrapResponse = await fetch('http://localhost:8000/api/bootstrap-static');
+                const bootstrapResponse = await fetch(`${API_URL}/api/bootstrap-static`);
                 if (!bootstrapResponse.ok) throw new Error('Failed to fetch bootstrap data');
                 const bootstrapData = await bootstrapResponse.json();
 
@@ -135,7 +138,7 @@ const GameweekStats = ({ eventId }) => {
 
                     try {
                         // Fetch transfers
-                        const transfersResponse = await fetch(`http://localhost:8000/api/entry/${entry}/transfers`);
+                        const transfersResponse = await fetch(`${API_URL}/api/entry/${entry}/transfers`);
                         if (!transfersResponse.ok) continue;
                         const transfersData = await transfersResponse.json();
 
@@ -149,21 +152,19 @@ const GameweekStats = ({ eventId }) => {
                                     element_out_name: playerMap[t.element_out] || 'Unknown',
                                     manager_name: team.player_name,
                                     team_name: team.entry_name,
-                                    // Add transfer costs (prices)
                                     element_in_cost: t.element_in_cost,
                                     element_out_cost: t.element_out_cost,
-                                    cost: t.cost || 0  // Add cost for hit points
+                                    cost: t.cost || 0
                                 }))
                             : [];
 
                         allTransfers = [...allTransfers, ...gameweekTransfers];
 
                         // Fetch picks for points
-                        const picksResponse = await fetch(`http://localhost:8000/api/entry/${entry}/event/${eventId}/picks`);
+                        const picksResponse = await fetch(`${API_URL}/api/entry/${entry}/event/${eventId}/picks`);
                         if (!picksResponse.ok) continue;
                         const picksData = await picksResponse.json();
 
-                        // Check for points in the correct location of the response
                         const points = picksData.entry_history?.points || 0;
                         if (points > maxPoints) {
                             maxPoints = points;
