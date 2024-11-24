@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card } from '@/components/ui/card';
+import { Card } from "./ui/card";
 
 const DashboardDebug = () => {
   const [apiStatus, setApiStatus] = React.useState({
