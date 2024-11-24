@@ -26,23 +26,23 @@ const Dashboard = ({ leagueId }) => {
     const fetchAllData = async () => {
       try {
         setLoading(true);
-  
+
         // Fetch bootstrap data
         const bootstrapResponse = await fetch('http://localhost:8000/api/bootstrap-static');
         const bootstrapResult = await bootstrapResponse.json();
         setBootstrapData(bootstrapResult);
-  
+
         // Find current gameweek
         const current = bootstrapResult.events?.find(gw => gw.is_current);
         setCurrentGameweek(current);
-  
+
         // Fetch league standings - Use the correct endpoint
         const leagueResponse = await fetch(`http://localhost:8000/api/leagues/${leagueId}/standings`);
         const leagueResult = await leagueResponse.json();
-        
+
         // Initialize leagueData as an empty array if the response is null/undefined
         setLeagueData(Array.isArray(leagueResult) ? leagueResult : []);
-  
+
         setError(null);
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -53,7 +53,7 @@ const Dashboard = ({ leagueId }) => {
         setLoading(false);
       }
     };
-  
+
     if (leagueId) {  // Only fetch if leagueId exists
       fetchAllData();
     }
@@ -167,10 +167,10 @@ const Dashboard = ({ leagueId }) => {
     if (!leagueData || !Array.isArray(leagueData)) {
       return { topFour: [], bottomThree: [] };
     }
-  
+
     try {
       const sortedByTotal = [...leagueData].sort((a, b) => b.total - a.total);
-  
+
       return {
         topFour: sortedByTotal.slice(0, 4).map(manager => ({
           ...manager,
@@ -223,6 +223,7 @@ const Dashboard = ({ leagueId }) => {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <DashboardDebug />  {/* Add this line */}
         {/* Left Column */}
         <div className="space-y-6">
           <Card>
