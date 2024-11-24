@@ -14,6 +14,9 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import DashboardDebug from './DashboardDebug';
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
+
+
 const Dashboard = ({ leagueId }) => {
   const [bootstrapData, setBootstrapData] = useState(null);
   const [leagueData, setLeagueData] = useState(null);
@@ -28,8 +31,8 @@ const Dashboard = ({ leagueId }) => {
       try {
         setLoading(true);
 
-        // Fetch bootstrap data
-        const bootstrapResponse = await fetch('http://localhost:8000/api/bootstrap-static');
+        // Fetch bootstrap data - Updated URL
+        const bootstrapResponse = await fetch(`${API_URL}/api/bootstrap-static`);
         const bootstrapResult = await bootstrapResponse.json();
         setBootstrapData(bootstrapResult);
 
@@ -37,8 +40,8 @@ const Dashboard = ({ leagueId }) => {
         const current = bootstrapResult.events?.find(gw => gw.is_current);
         setCurrentGameweek(current);
 
-        // Fetch league standings - Use the correct endpoint
-        const leagueResponse = await fetch(`http://localhost:8000/api/leagues/${leagueId}/standings`);
+        // Fetch league standings - Updated URL
+        const leagueResponse = await fetch(`${API_URL}/api/leagues/${leagueId}/standings`);
         const leagueResult = await leagueResponse.json();
 
         // Initialize leagueData as an empty array if the response is null/undefined
@@ -48,14 +51,13 @@ const Dashboard = ({ leagueId }) => {
       } catch (err) {
         console.error('Error fetching data:', err);
         setError(err.message || 'Failed to fetch data');
-        // Initialize leagueData as an empty array on error
         setLeagueData([]);
       } finally {
         setLoading(false);
       }
     };
 
-    if (leagueId) {  // Only fetch if leagueId exists
+    if (leagueId) {
       fetchAllData();
     }
   }, [leagueId]);
@@ -65,7 +67,10 @@ const Dashboard = ({ leagueId }) => {
       if (!currentGameweek?.id) return;
 
       try {
-        const matchupsResponse = await fetch(`http://localhost:8000/api/weekly-matchups/${leagueId}?event=${currentGameweek.id}`);
+        // Updated URL
+        const matchupsResponse = await fetch(
+          `${API_URL}/api/weekly-matchups/${leagueId}?event=${currentGameweek.id}`
+        );
         const matchupsResult = await matchupsResponse.json();
         setWeeklyMatchups(matchupsResult);
       } catch (err) {
@@ -75,6 +80,7 @@ const Dashboard = ({ leagueId }) => {
 
     fetchWeeklyMatchups();
   }, [leagueId, currentGameweek?.id]);
+
 
   // Data processing functions
   const getGameweekTopPerformers = () => {
