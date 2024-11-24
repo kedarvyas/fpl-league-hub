@@ -32,12 +32,20 @@ const Dashboard = ({ leagueId }) => {
 
         // Fetch bootstrap data - Updated URL
         const bootstrapResponse = await fetch(`${API_URL}/api/bootstrap-static`);
+        if (!bootstrapResponse.ok) {
+          throw new Error('Failed to fetch bootstrap data');
+        }
         const bootstrapResult = await bootstrapResponse.json();
+        console.log('Bootstrap Data:', bootstrapResult); // Add logging
         setBootstrapData(bootstrapResult);
 
         // Find current gameweek
         const current = bootstrapResult.events?.find(gw => gw.is_current);
-        setCurrentGameweek(current);
+        if (!current) {
+          console.warn('No current gameweek found');
+        }
+        console.log('Current Gameweek:', current); // Add logging
+        setCurrentGameweek(current || null);
 
         // Fetch league standings - Updated URL
         const leagueResponse = await fetch(`${API_URL}/api/leagues/${leagueId}/standings`);
@@ -153,24 +161,34 @@ const Dashboard = ({ leagueId }) => {
 
   const getGameweekSummary = () => {
     if (!currentGameweek) return null;
-
-    return {
-      averagePoints: currentGameweek.average_entry_score,
-      highestPoints: currentGameweek.highest_score,
-      mostCaptained: bootstrapData?.elements?.find(p =>
+  
+    // Add logging to debug the data
+    console.log('Current Gameweek Data:', currentGameweek);
+    
+    // Add null checks and default values
+    const chipPlays = currentGameweek.chip_plays || [];
+    const summary = {
+      averagePoints: currentGameweek.average_entry_score || 0,
+      highestPoints: currentGameweek.highest_score || 0,
+      mostCaptained: bootstrapData?.elements?.find(p => 
         p.id === currentGameweek.most_captained
       ),
-      mostViceCaptained: bootstrapData?.elements?.find(p =>
+      mostViceCaptained: bootstrapData?.elements?.find(p => 
         p.id === currentGameweek.most_vice_captained
       ),
       chipUsage: {
-        wildcard: currentGameweek.chip_plays.find(c => c.chip_name === 'wildcard')?.num_plays || 0,
-        benchBoost: currentGameweek.chip_plays.find(c => c.chip_name === 'bboost')?.num_plays || 0,
-        tripleCaptain: currentGameweek.chip_plays.find(c => c.chip_name === '3xc')?.num_plays || 0,
-        freeHit: currentGameweek.chip_plays.find(c => c.chip_name === 'freehit')?.num_plays || 0,
+        wildcard: chipPlays.find(c => c.chip_name === 'wildcard')?.num_plays || 0,
+        benchBoost: chipPlays.find(c => c.chip_name === 'bboost')?.num_plays || 0,
+        tripleCaptain: chipPlays.find(c => c.chip_name === '3xc')?.num_plays || 0,
+        freeHit: chipPlays.find(c => c.chip_name === 'freehit')?.num_plays || 0,
       }
     };
+  
+    console.log('Processed Summary:', summary);
+    return summary;
   };
+  
+  
 
   const getLeagueInsights = () => {
     // Return early if leagueData is not an array
@@ -200,15 +218,15 @@ const Dashboard = ({ leagueId }) => {
   };
 
   const getLeagueAverageScore = () => {
-    if (!weeklyMatchups?.results) return 0;
-
-    // Get all scores from the matchups
-    const allScores = weeklyMatchups.results.flatMap(match => [
+    // Updated to handle direct array
+    const matchupsData = weeklyMatchups || [];
+    if (!Array.isArray(matchupsData) || matchupsData.length === 0) return 0;
+  
+    const allScores = matchupsData.flatMap(match => [
       match.entry_1_points,
       match.entry_2_points
     ]);
-
-    // Calculate average
+  
     const sum = allScores.reduce((acc, score) => acc + score, 0);
     return Math.round(sum / allScores.length);
   };

@@ -212,6 +212,29 @@ async def get_team_transfers(team_id: int):
     except Exception as e:
         logger.error(f"Error fetching transfers for team {team_id}: {e}")
         return []
+    
+@app.get("/api/current-gameweek")
+async def get_current_gameweek():
+    try:
+        # Fetch bootstrap data
+        url = "https://fantasy.premierleague.com/api/bootstrap-static/"
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        
+        # Find current gameweek
+        current_gw = next((gw for gw in data['events'] if gw['is_current']), None)
+        if not current_gw:
+            # If no current gameweek, find the next one
+            current_gw = next((gw for gw in data['events'] if gw['is_next']), None)
+        
+        if not current_gw:
+            raise HTTPException(status_code=404, detail="No current or next gameweek found")
+            
+        return current_gw
+    except Exception as e:
+        logger.error(f"Error fetching current gameweek: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/element-summary/{player_id}")
 async def get_player_summary(player_id: int):
