@@ -122,10 +122,14 @@ const Dashboard = ({ leagueId }) => {
   };
 
   const getLeaguePerformance = () => {
-    if (!weeklyMatchups?.results) return { topManagers: [], bottomManagers: [] };
-
+    // Handle both array and object with results property
+    const matchupsData = weeklyMatchups?.results || weeklyMatchups || [];
+    if (!Array.isArray(matchupsData) || matchupsData.length === 0) {
+      return { topManagers: [], bottomManagers: [] };
+    }
+  
     // Get scores from actual matches
-    const matchScores = weeklyMatchups.results.map(match => ([
+    const matchScores = matchupsData.flatMap(match => [
       {
         entry: match.entry_1_entry,
         display_name: match.entry_1_player_name,
@@ -136,11 +140,11 @@ const Dashboard = ({ leagueId }) => {
         display_name: match.entry_2_player_name,
         points: match.entry_2_points
       }
-    ])).flat();
-
+    ]);
+  
     // Sort by points
     const sortedByPoints = matchScores.sort((a, b) => b.points - a.points);
-
+  
     return {
       topManagers: sortedByPoints.slice(0, 3),
       bottomManagers: sortedByPoints.slice(-3).reverse()
