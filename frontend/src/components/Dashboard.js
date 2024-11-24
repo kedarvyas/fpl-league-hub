@@ -12,7 +12,6 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
-import DashboardDebug from './DashboardDebug';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
 

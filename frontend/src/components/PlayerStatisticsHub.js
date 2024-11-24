@@ -14,6 +14,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
+
 
 const PlayerStatisticsHub = () => {
   const [players, setPlayers] = useState([]);
