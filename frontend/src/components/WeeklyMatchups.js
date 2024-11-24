@@ -10,7 +10,6 @@ import GameweekStats from './GameweekStats';
 const LEAGUE_ID = 738279;
 const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
 
-
 const MatchupRow = ({ matchup, isExpanded, onToggle, eventId }) => {
   const [matchDetails, setMatchDetails] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -137,16 +136,24 @@ const WeeklyMatchups = () => {
         setLoading(true);
         setError(null);
         try {
-          const url = `http://localhost:8000/api/weekly-matchups/${LEAGUE_ID}?event=${selectedEvent}`;
+          const url = `${API_URL}/api/weekly-matchups/${LEAGUE_ID}?event=${selectedEvent}`;
+          console.log('Fetching matchups from:', url); // Debug log
           const response = await fetch(url);
+          
           if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Error response:', errorText); // Debug log
             throw new Error(`HTTP error! status: ${response.status}`);
           }
+          
           const data = await response.json();
-          if (!data.results) {
-            throw new Error('No results found in the response');
+          if (!data.results && !Array.isArray(data)) {
+            throw new Error('Invalid data format received');
           }
-          setMatchups(data.results);
+          
+          // Handle both data formats (with .results and direct array)
+          const matchupsData = data.results || data;
+          setMatchups(matchupsData);
         } catch (error) {
           console.error('Error fetching matchups:', error);
           setError('Failed to load matchups: ' + error.message);
@@ -162,7 +169,7 @@ const WeeklyMatchups = () => {
   useEffect(() => {
     const fetchStandings = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/bootstrap-static`);
+        const response = await fetch(`${API_URL}/api/leagues/${LEAGUE_ID}/standings`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

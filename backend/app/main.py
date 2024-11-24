@@ -236,22 +236,33 @@ async def get_team_picks(team_id: int, event_id: int):
         raise HTTPException(status_code=500, detail=f"Failed to fetch picks: {str(e)}")
 
 @app.get("/api/weekly-matchups/{league_id}")
-async def get_weekly_matchups(league_id: Optional[int] = None, event: Optional[int] = None):
-    # Use LEAGUE_ID if league_id is not provided
-    league_id = league_id if league_id is not None else LEAGUE_ID
-    
-    if event is None:
-        raise HTTPException(status_code=400, detail="Event parameter is required")
-        
-    url = f"https://fantasy.premierleague.com/api/leagues-h2h-matches/league/{league_id}/?event={event}"
+async def get_weekly_matchups(league_id: int, event: int):
     try:
+        # Construct the FPL API URL
+        url = f"https://fantasy.premierleague.com/api/leagues-h2h-matches/league/{league_id}/?event={event}&page=1"
+        
+        # Make the request
         response = requests.get(url)
-        response.raise_for_status()
+        response.raise_for_status()  # Raise exception for non-200 status codes
+        
+        # Get the data
         data = response.json()
-        return data
+        
+        # Return only the results array
+        return data.get('results', [])
+        
     except requests.RequestException as e:
         logger.error(f"Error fetching weekly matchups: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch weekly matchups: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch weekly matchups: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in get_weekly_matchups: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
 
 @app.get("/api/matchup/{match_id}")
 async def get_matchup_details(match_id: int, event: int):
