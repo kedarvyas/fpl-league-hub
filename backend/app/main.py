@@ -10,6 +10,7 @@ from . import models, schemas
 from datetime import datetime
 from .database import engine, get_db
 import json
+from sqlalchemy import text
 from typing import Optional
 
 
@@ -332,53 +333,84 @@ async def get_league(league_id: int, db: Session = Depends(get_db)):
         db.commit()
     return league
 
-@app.get("/debug/create_league")  # Add GET method
-@app.post("/debug/create_league")  # Keep POST method
-async def create_league(db: Session = Depends(get_db)):
-    # Check if league already exists
-    existing_league = db.query(models.League).filter(models.League.id == 738279).first()
-    if existing_league:
-        return {
-            "message": "League already exists",
-            "league": {
-                "id": existing_league.id,
-                "name": existing_league.name,
-                "created_at": existing_league.created_at,
-                "total_teams": existing_league.total_teams,
-                "average_score": existing_league.average_score,
-                "highest_score": existing_league.highest_score
-            }
-        }
-    
-    # Create new league with specific details
-    new_league = models.League(
-        id=738279,
-        name="FPL Tacticos League",
-        created_at=datetime.utcnow(),
-        total_teams=0,
-        average_score=0,
-        highest_score=0,
-        updated_at=datetime.utcnow()  # Add this field
-    )
-    
+from sqlalchemy import text
+
+@app.get("/debug/db-test")
+async def test_db_connection(db: Session = Depends(get_db)):
     try:
-        db.add(new_league)
+        # Try to execute a simple query using text()
+        result = db.execute(text("SELECT 1"))
         db.commit()
+        return {"message": "Database connection successful", "result": result.scalar()}
+    except Exception as e:
+        logger.error(f"Database connection error: {str(e)}")
+        return {
+            "error": "Database connection failed",
+            "detail": str(e)
+        }
+
+# Also let's update the create_league endpoint to use better error handling
+@app.get("/debug/create_league")
+@app.post("/debug/create_league")
+async def create_league(db: Session = Depends(get_db)):
+    logger.info("Starting league creation process")
+    try:
+        # First test the connection
+        db.execute(text("SELECT 1"))
+        
+        # Check if league already exists
+        logger.info("Checking for existing league")
+        existing_league = db.query(models.League).filter(models.League.id == 738279).first()
+        if existing_league:
+            logger.info("League already exists")
+            return {
+                "message": "League already exists",
+                "league": {
+                    "id": existing_league.id,
+                    "name": existing_league.name,
+                    "created_at": str(existing_league.created_at),
+                }
+            }
+        
+        logger.info("Creating new league")
+        current_time = datetime.utcnow()
+        new_league = models.League(
+            id=738279,
+            name="FPL Tacticos League",
+            created_at=current_time,
+            updated_at=current_time,
+            total_teams=0,
+            average_score=0.0,
+            highest_score=0
+        )
+        
+        logger.info("Adding league to database session")
+        db.add(new_league)
+        
+        logger.info("Committing to database")
+        db.commit()
+        
+        logger.info("Refreshing league object")
         db.refresh(new_league)
+        
         return {
             "message": "League created successfully",
             "league": {
                 "id": new_league.id,
                 "name": new_league.name,
-                "created_at": new_league.created_at,
-                "total_teams": new_league.total_teams,
-                "average_score": new_league.average_score,
-                "highest_score": new_league.highest_score
+                "created_at": str(new_league.created_at),
             }
         }
     except Exception as e:
+        logger.error(f"Error during league creation: {str(e)}")
+        logger.error(f"Error type: {type(e)}")
+        logger.exception("Full traceback:")
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "error": "Failed to create league",
+            "detail": str(e),
+            "type": str(type(e))
+        }
 
 @app.put("/api/leagues/{league_id}", response_model=schemas.League)
 async def update_league(league_id: int, league: schemas.LeagueUpdate, db: Session = Depends(get_db)):
