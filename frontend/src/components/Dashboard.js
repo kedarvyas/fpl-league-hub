@@ -185,6 +185,7 @@ const Dashboard = ({ leagueId }) => {
     };
   
     console.log('Processed Summary:', summary);
+    console.log('Chip Plays:', currentGameweek.chip_plays);
     return summary;
   };
   
@@ -490,7 +491,7 @@ const Dashboard = ({ leagueId }) => {
             <CardContent className="pt-6">
               <div className="space-y-6">
                 <div>
-                  <h3 className="font-semibold mb-3">Top Four</h3>
+                  <h3 className="font-semibold mb-3">Top Four 🏆</h3>
                   {getLeagueInsights().topFour.map((manager, index) => (
                     <div key={manager.entry} className="flex items-center justify-between border-b pb-2">
                       <div className="flex items-center">
@@ -505,7 +506,7 @@ const Dashboard = ({ leagueId }) => {
                 <Separator />
 
                 <div>
-                  <h3 className="font-semibold mb-3">Bottom Three</h3>
+                  <h3 className="font-semibold mb-3">Bottom Three 💩</h3>
                   {getLeagueInsights().bottomThree.map((manager, index) => (
                     <div key={manager.entry} className="flex items-center justify-between border-b pb-2">
                       <div className="flex items-center">

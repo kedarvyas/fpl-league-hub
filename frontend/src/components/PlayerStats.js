@@ -28,6 +28,8 @@ import {
     Legend
   } from 'recharts';
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
+
 const getPositionName = (elementType) => {
     const positions = {
         1: 'Goalkeeper',
@@ -200,8 +202,8 @@ const PlayerStats = () => {
                 setLoading(true);
 
                 const [bootstrapResponse, historyResponse] = await Promise.all([
-                    fetch('http://localhost:8000/api/bootstrap-static'),
-                    fetch(`http://localhost:8000/api/element-summary/${playerId}`)
+                    fetch(`${API_URL}/api/bootstrap-static`),
+                    fetch(`${API_URL}/api/element-summary/${playerId}`)
                 ]);
 
                 const bootstrapData = await bootstrapResponse.json();
