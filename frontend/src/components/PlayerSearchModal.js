@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Search, X } from 'lucide-react';
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
+
 const PlayerSearchModal = ({ onSelect, onClose, excludePlayerId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -13,7 +15,7 @@ const PlayerSearchModal = ({ onSelect, onClose, excludePlayerId }) => {
     }
     
     try {
-      const response = await fetch('http://localhost:8000/api/bootstrap-static');
+      const response = await fetch(`${API_URL}/api/bootstrap-static`);
       const data = await response.json();
       
       const filteredPlayers = data.elements
