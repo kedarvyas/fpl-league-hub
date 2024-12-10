@@ -40,3 +40,12 @@
     transform: rotate(360deg);
   }
 }
+
+@supports (-webkit-touch-callout: none) {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

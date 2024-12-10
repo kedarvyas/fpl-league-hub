@@ -54,3 +54,12 @@
 .header {
   background-color: rgb(149, 46, 235); /* Exact purple color */
 }
+
+@supports (-webkit-touch-callout: none) {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

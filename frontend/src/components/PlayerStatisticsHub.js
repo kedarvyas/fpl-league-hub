@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
+import {
   Users,
   Award,
   Shield,
@@ -28,7 +28,7 @@ const PlayerStatisticsHub = () => {
       try {
         const response = await fetch(`${API_URL}/api/bootstrap-static`);
         const data = await response.json();
-        
+
         // Process and sort players by total points
         const processedPlayers = data.elements.map(player => {
           const team = data.teams.find(t => t.id === player.team);
@@ -63,7 +63,7 @@ const PlayerStatisticsHub = () => {
 
   const filteredPlayers = players.filter(player => {
     const matchesSearch = player.web_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         player.teamName.toLowerCase().includes(searchTerm.toLowerCase());
+      player.teamName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPosition = activePosition === 'all' || player.position === activePosition;
     return matchesSearch && matchesPosition;
   });
@@ -89,9 +89,9 @@ const PlayerStatisticsHub = () => {
   );
 
   const PlayerRow = ({ player, rank }) => (
-    <Link 
+    <Link
       to={`/player/${player.id}`}
-      className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors"
+      className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors relative"
     >
       <span className="text-lg font-bold text-gray-400 w-6">{rank}</span>
       <div className="flex-1 flex items-center space-x-3">
@@ -107,7 +107,7 @@ const PlayerStatisticsHub = () => {
             }}
           />
         </div>
-        <div>
+        <div className="flex-1">
           <div className="font-medium">{player.web_name}</div>
           <div className="text-sm text-gray-500 flex items-center space-x-2">
             <span>{player.teamShortName}</span>
@@ -115,10 +115,16 @@ const PlayerStatisticsHub = () => {
             <span>{player.position}</span>
           </div>
         </div>
-      </div>
-      <div className="text-right">
-        <div className="font-bold text-purple-600">{player.total_points}</div>
-        <div className="text-sm text-gray-500">points</div>
+        {/* Mobile price tag */}
+        <div className="hidden sm:block text-right">
+          <div className="font-bold text-purple-600">{player.total_points}</div>
+          <div className="text-sm text-gray-500">points</div>
+        </div>
+        {/* Mobile-optimized price and points */}
+        <div className="flex sm:hidden flex-col items-end text-sm">
+          <div className="font-bold text-purple-600">{player.total_points}p</div>
+          <div className="text-gray-500">£{(player.now_cost / 10).toFixed(1)}m</div>
+        </div>
       </div>
       <ChevronRight className="w-5 h-5 text-gray-400" />
     </Link>
@@ -180,7 +186,7 @@ const PlayerStatisticsHub = () => {
             .sort((a, b) => (b.total_points / b.now_cost) - (a.total_points / a.now_cost))
             .map((player, index) => (
               <PlayerRow key={player.id} player={player} rank={index + 1} />
-          ))}
+            ))}
         </StatCard>
 
         <StatCard title="Form Players" icon={Goal}>
@@ -188,7 +194,7 @@ const PlayerStatisticsHub = () => {
             .sort((a, b) => parseFloat(b.form) - parseFloat(a.form))
             .map((player, index) => (
               <PlayerRow key={player.id} player={player} rank={index + 1} />
-          ))}
+            ))}
         </StatCard>
       </div>
     </div>

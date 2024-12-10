@@ -26,7 +26,7 @@ import {
     AreaChart,
     Area,
     Legend
-  } from 'recharts';
+} from 'recharts';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
 
@@ -101,29 +101,94 @@ const getICTContext = (metric, value) => {
 
 const CustomTooltip = ({ active, payload, label, type }) => {
     if (!active || !payload || !payload.length) return null;
-  
+
     return (
-      <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
-        <p className="font-semibold text-gray-900 mb-2">{label}</p>
-        {payload.map((entry, index) => (
-          <div key={index} className="flex items-center space-x-2 mb-1">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className="text-gray-600">{entry.name}:</span>
-            <span className="font-medium">
-              {type === 'performance' && entry.name === 'points'
-                ? `${entry.value} pts`
-                : type === 'ict'
-                  ? `${parseFloat(entry.value).toFixed(1)} (${getICTContext(entry.name, entry.value)})`
-                  : parseFloat(entry.value).toFixed(2)}
-            </span>
-          </div>
-        ))}
-      </div>
+        <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+            <p className="font-semibold text-gray-900 mb-2">{label}</p>
+            {payload.map((entry, index) => (
+                <div key={index} className="flex items-center space-x-2 mb-1">
+                    <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: entry.color }}
+                    />
+                    <span className="text-gray-600">{entry.name}:</span>
+                    <span className="font-medium">
+                        {type === 'performance' && entry.name === 'points'
+                            ? `${entry.value} pts`
+                            : type === 'ict'
+                                ? `${parseFloat(entry.value).toFixed(1)} (${getICTContext(entry.name, entry.value)})`
+                                : parseFloat(entry.value).toFixed(2)}
+                    </span>
+                </div>
+            ))}
+        </div>
     );
-  };
+};
+
+const PlayerHeader = ({ playerData, onCompareClick, getPositionName }) => (
+    <div className="bg-white rounded-lg shadow-md mb-6">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-800 p-4 sm:p-6 text-white rounded-t-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                {/* Player Info Section */}
+                <div className="flex items-center space-x-4">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-full overflow-hidden flex-shrink-0">
+                        <img
+                            src={`https://resources.premierleague.com/premierleague/photos/players/110x140/p${playerData.code}.png`}
+                            alt={playerData.web_name}
+                            className="w-full h-full object-cover object-top transform translate-y-1"
+                            onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = "";
+                                e.target.parentNode.innerHTML = `
+                    <div class="w-full h-full flex items-center justify-center">
+                      <svg class="w-12 h-12 text-purple-600">
+                        <use href="#user-circle"></use>
+                      </svg>
+                    </div>`;
+                            }}
+                        />
+                    </div>
+                    <div>
+                        <h1 className="text-xl sm:text-2xl font-bold">{playerData.web_name}</h1>
+                        <div className="flex items-center space-x-2 text-sm sm:text-base opacity-90">
+                            <span>{getPositionName(playerData.element_type)}</span>
+                            <span>•</span>
+                            <span>{playerData.teamName}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Stats & Actions Section */}
+                <div className="flex items-center justify-between sm:justify-end sm:space-x-6">
+                    {/* Selection & Price Info */}
+                    <div className="space-y-2">
+                        <div className="flex items-center space-x-2 text-sm">
+                            <Users className="w-4 h-4" />
+                            <span className="font-medium">{playerData.selected_by_percent}%</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-sm">
+                            <span>Price</span>
+                            <span className="font-bold">£{(playerData.now_cost / 10).toFixed(1)}m</span>
+                            {playerData.cost_change_event > 0 ? (
+                                <ArrowUp className="w-4 h-4 text-green-400" />
+                            ) : playerData.cost_change_event < 0 ? (
+                                <ArrowDown className="w-4 h-4 text-red-400" />
+                            ) : null}
+                        </div>
+                    </div>
+
+                    {/* Compare Button */}
+                    <button
+                        onClick={onCompareClick}
+                        className="px-4 py-2 bg-white bg-opacity-20 rounded-lg text-sm font-medium hover:bg-opacity-30 transition-colors"
+                    >
+                        Compare
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+);
 
 const StatCard = ({ title, value, icon, subtitle, description, metrics }) => {
     const [showTooltip, setShowTooltip] = useState(false);
@@ -245,28 +310,28 @@ const PlayerStats = () => {
 
     const calculateForm = (history) => {
         if (!history?.history || !Array.isArray(history.history)) {
-          console.log('No valid history data');
-          return [];
+            console.log('No valid history data');
+            return [];
         }
-      
+
         try {
-          return history.history
-            .filter(game => game && typeof game.round === 'number')
-            .slice(-5)
-            .map(game => ({
-              gameweek: `GW${game.round}`,
-              points: game.total_points || 0,
-              xG: parseFloat(game.expected_goals || 0),
-              xA: parseFloat(game.expected_assists || 0),
-              influence: parseFloat(game.influence || 0),      // Parse as float
-              creativity: parseFloat(game.creativity || 0),    // Parse as float
-              threat: parseFloat(game.threat || 0)            // Parse as float
-            }));
+            return history.history
+                .filter(game => game && typeof game.round === 'number')
+                .slice(-5)
+                .map(game => ({
+                    gameweek: `GW${game.round}`,
+                    points: game.total_points || 0,
+                    xG: parseFloat(game.expected_goals || 0),
+                    xA: parseFloat(game.expected_assists || 0),
+                    influence: parseFloat(game.influence || 0),      // Parse as float
+                    creativity: parseFloat(game.creativity || 0),    // Parse as float
+                    threat: parseFloat(game.threat || 0)            // Parse as float
+                }));
         } catch (error) {
-          console.error('Error calculating form:', error);
-          return [];
+            console.error('Error calculating form:', error);
+            return [];
         }
-      };
+    };
 
     const calculateUpcomingFixtures = (fixtures) => {
         if (!fixtures) return [];
@@ -298,12 +363,21 @@ const PlayerStats = () => {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
                         dataKey="gameweek"
-                        tickFormatter={(gameweek) => `${gameweek}\n${formatDate(gameweek)}`}
-                        height={60}
+                        tickFormatter={(gameweek) => gameweek}
+                        height={30}
+                        tick={{ fontSize: 11 }}
+                        interval="preserveStartEnd"
                     />
-                    <YAxis />
+                    <YAxis
+                        tick={{ fontSize: 11 }}
+                        width={30}
+                    />
                     <Tooltip content={<CustomTooltip type="performance" />} />
-                    <Legend />
+                    <Legend
+                        wrapperStyle={{ fontSize: '12px' }}
+                        iconSize={8}
+                        margin={{ top: 0, left: 0, right: 0, bottom: 0 }}
+                    />
                     <Area
                         type="monotone"
                         dataKey="points"
@@ -331,65 +405,72 @@ const PlayerStats = () => {
         </div>
     );
 
-
     const renderICTChart = () => {
         const data = formData;
-        
+
         if (!data || data.length === 0) {
-          return (
-            <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
-              <p className="text-gray-500">No ICT data available</p>
-            </div>
-          );
+            return (
+                <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
+                    <p className="text-gray-500">No ICT data available</p>
+                </div>
+            );
         }
-      
+
         return (
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="gameweek"
-                  tickFormatter={(gameweek) => `${gameweek}\n${formatDate(gameweek)}`}
-                  height={60}
-                />
-                <YAxis 
-                  domain={[0, 'dataMax + 20']}  // Add some padding to the top
-                />
-                <Tooltip content={<CustomTooltip type="ict" />} />
-                <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="influence"
-                  name="Influence"
-                  stroke="#8b5cf6"
-                  fill="#8b5cf6"
-                  fillOpacity={0.2}
-                  strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="creativity"
-                  name="Creativity"
-                  stroke="#10b981"
-                  fill="#10b981"
-                  fillOpacity={0.2}
-                  strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="threat"
-                  name="Threat"
-                  stroke="#3b82f6"
-                  fill="#3b82f6"
-                  fillOpacity={0.2}
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+            <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                            dataKey="gameweek"
+                            tickFormatter={(gameweek) => gameweek}
+                            height={30}
+                            tick={{ fontSize: 11 }}
+                            interval="preserveStartEnd"
+                        />
+                        <YAxis
+                            domain={[0, 'dataMax + 20']}
+                            tick={{ fontSize: 11 }}
+                            width={30}
+                        />
+                        <Tooltip content={<CustomTooltip type="ict" />} />
+                        <Legend
+                            wrapperStyle={{ fontSize: '12px' }}
+                            iconSize={8}
+                            margin={{ top: 0, left: 0, right: 0, bottom: 0 }}
+                        />
+                        <Area
+                            type="monotone"
+                            dataKey="influence"
+                            name="Influence"
+                            stroke="#8b5cf6"
+                            fill="#8b5cf6"
+                            fillOpacity={0.2}
+                            strokeWidth={2}
+                        />
+                        <Area
+                            type="monotone"
+                            dataKey="creativity"
+                            name="Creativity"
+                            stroke="#10b981"
+                            fill="#10b981"
+                            fillOpacity={0.2}
+                            strokeWidth={2}
+                        />
+                        <Area
+                            type="monotone"
+                            dataKey="threat"
+                            name="Threat"
+                            stroke="#3b82f6"
+                            fill="#3b82f6"
+                            fillOpacity={0.2}
+                            strokeWidth={2}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
         );
-      };
+    };
 
     const renderICTSection = () => (
         <div className="grid grid-cols-3 gap-4 mb-6">
@@ -424,63 +505,14 @@ const PlayerStats = () => {
         <PlayerStatsLayout
             leftPanel={<TransferStats playerData={playerData} />}
             rightPanel={<ICTSidePanel playerData={playerData} />}
-        
+
         >
             <div className="space-y-6">
-                {/* Header section remains the same... */}
-                <div className="bg-white rounded-lg shadow-md mb-6">
-                    <div className="bg-gradient-to-r from-purple-600 to-purple-800 p-6 text-white rounded-t-lg">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
-                                <div className="w-16 h-16 bg-white rounded-full overflow-hidden">
-                                    <img
-                                        src={`https://resources.premierleague.com/premierleague/photos/players/110x140/p${playerData.code}.png`}
-                                        alt={playerData.web_name}
-                                        className="w-full h-full object-cover object-top transform translate-y-1" // Added these properties
-                                        onError={(e) => {
-                                            e.target.onerror = null;
-                                            e.target.src = "";
-                                            e.target.parentNode.innerHTML = `<div class="w-full h-full flex items-center justify-center">
-                <svg class="w-12 h-12 text-purple-600">
-                    <use href="#user-circle"></use>
-                </svg>
-            </div>`;
-                                        }}
-                                    />
-                                </div>
-                                <div>
-                                    <h1 className="text-2xl font-bold">{playerData.web_name}</h1>
-                                    <div className="flex items-center space-x-2 opacity-90">
-                                        <span>{getPositionName(playerData.element_type)}</span>
-                                        <span>•</span>
-                                        <span>{playerData.teamName}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <div className="flex items-center justify-end space-x-2 mb-1">
-                                    <Users className="w-4 h-4" />
-                                    <span className="font-semibold">{playerData.selected_by_percent}%</span>
-                                </div>
-                                <div className="flex items-center justify-end space-x-2">
-                                    <span className="text-sm">Price</span>
-                                    <span className="font-bold">£{(playerData.now_cost / 10).toFixed(1)}m</span>
-                                    {playerData.cost_change_event > 0 ? (
-                                        <ArrowUp className="w-4 h-4 text-green-400" />
-                                    ) : playerData.cost_change_event < 0 ? (
-                                        <ArrowDown className="w-4 h-4 text-red-400" />
-                                    ) : null}
-                                </div>
-                                <button
-                                    onClick={() => setShowPlayerSearch(true)}
-                                    className="ml-4 px-4 py-2 bg-white bg-opacity-20 rounded-lg text-sm font-medium hover:bg-opacity-30 transition-colors"
-                                >
-                                    Compare
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <PlayerHeader
+                    playerData={playerData}
+                    onCompareClick={() => setShowPlayerSearch(true)}
+                    getPositionName={getPositionName}
+                />
                 {/* Enhanced Navigation Tabs */}
                 <div className="border-b border-gray-200">
                     <nav className="flex space-x-4 px-6" aria-label="Tabs">

@@ -273,7 +273,7 @@ async def get_weekly_matchups(league_id: int, event: int):
         
         # Get the data
         data = response.json()
-        
+
         # Return only the results array
         return data.get('results', [])
         
