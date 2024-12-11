@@ -4,20 +4,16 @@ import Header from './Header';
 
 const Layout = ({ children }) => {
   const [showInfo, setShowInfo] = useState(false);
-  const [isDark, setIsDark] = useState(() => {
-    return localStorage.getItem('theme') === 'dark' ||
-      (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [currentTheme, setTheme] = useState(() => {
+    return localStorage.getItem('theme') || 'light';
   });
 
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDark]);
+    // Update the data-theme attribute
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    // Store the theme preference
+    localStorage.setItem('theme', currentTheme);
+  }, [currentTheme]);
 
   const AboutModal = () => (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -28,7 +24,7 @@ const Layout = ({ children }) => {
             <h2 className="text-2xl font-bold text-white">About FPL League Hub</h2>
             <button
               onClick={() => setShowInfo(false)}
-              className="text-white hover:text-purple-200 transition-colors"
+              className="text-white hover:text-primary-lighter transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
@@ -61,7 +57,7 @@ const Layout = ({ children }) => {
           </div>
 
           <div className="pt-4 border-t border-border text-sm text-muted-foreground">
-            Version 1.0.0
+            built by a human on earth - version 1.1.5
           </div>
         </div>
       </div>
@@ -69,9 +65,13 @@ const Layout = ({ children }) => {
   );
 
   return (
-    <div className="min-h-screen bg-background text-card-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="bg-gradient-to-r from-primary-darker to-primary shadow-lg">
-        <Header isDark={isDark} setIsDark={setIsDark} setShowInfo={setShowInfo} />
+        <Header 
+          currentTheme={currentTheme}
+          setTheme={setTheme}
+          setShowInfo={setShowInfo}
+        />
       </div>
 
       <main className="transition-colors duration-300">

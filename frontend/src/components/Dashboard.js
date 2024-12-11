@@ -135,7 +135,7 @@ const Dashboard = ({ leagueId }) => {
     if (!Array.isArray(matchupsData) || matchupsData.length === 0) {
       return { topManagers: [], bottomManagers: [] };
     }
-  
+
     // Get scores from actual matches
     const matchScores = matchupsData.flatMap(match => [
       {
@@ -149,10 +149,10 @@ const Dashboard = ({ leagueId }) => {
         points: match.entry_2_points
       }
     ]);
-  
+
     // Sort by points
     const sortedByPoints = matchScores.sort((a, b) => b.points - a.points);
-  
+
     return {
       topManagers: sortedByPoints.slice(0, 3),
       bottomManagers: sortedByPoints.slice(-3).reverse()
@@ -161,19 +161,19 @@ const Dashboard = ({ leagueId }) => {
 
   const getGameweekSummary = () => {
     if (!currentGameweek) return null;
-  
+
     // Add logging to debug the data
     console.log('Current Gameweek Data:', currentGameweek);
-    
+
     // Add null checks and default values
     const chipPlays = currentGameweek.chip_plays || [];
     const summary = {
       averagePoints: currentGameweek.average_entry_score || 0,
       highestPoints: currentGameweek.highest_score || 0,
-      mostCaptained: bootstrapData?.elements?.find(p => 
+      mostCaptained: bootstrapData?.elements?.find(p =>
         p.id === currentGameweek.most_captained
       ),
-      mostViceCaptained: bootstrapData?.elements?.find(p => 
+      mostViceCaptained: bootstrapData?.elements?.find(p =>
         p.id === currentGameweek.most_vice_captained
       ),
       chipUsage: {
@@ -183,13 +183,13 @@ const Dashboard = ({ leagueId }) => {
         freeHit: chipPlays.find(c => c.chip_name === 'freehit')?.num_plays || 0,
       }
     };
-  
+
     console.log('Processed Summary:', summary);
     console.log('Chip Plays:', currentGameweek.chip_plays);
     return summary;
   };
-  
-  
+
+
 
   const getLeagueInsights = () => {
     // Return early if leagueData is not an array
@@ -222,72 +222,118 @@ const Dashboard = ({ leagueId }) => {
     // Updated to handle direct array
     const matchupsData = weeklyMatchups || [];
     if (!Array.isArray(matchupsData) || matchupsData.length === 0) return 0;
-  
+
     const allScores = matchupsData.flatMap(match => [
       match.entry_1_points,
       match.entry_2_points
     ]);
-  
+
     const sum = allScores.reduce((acc, score) => acc + score, 0);
     return Math.round(sum / allScores.length);
   };
 
+  const HeaderCard = ({ children }) => (
+    <Card className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
+      <CardHeader>
+        {children}
+      </CardHeader>
+    </Card>
+  );
+
+  const SectionHeader = ({ icon, title }) => (
+    <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
+      <CardTitle className="card-header-text flex items-center">
+        {React.cloneElement(icon, { className: 'h-6 w-6 mr-2 card-header-text' })}
+        <span>{title}</span>
+      </CardTitle>
+    </CardHeader>
+  );
+
+  const StatBox = ({ value, label }) => (
+    <div className="text-center p-4 bg-muted rounded-lg">
+      <div className="text-2xl font-bold text-primary">
+        {value}
+      </div>
+      <div className="text-sm text-muted-foreground">{label}</div>
+    </div>
+  );
+
+  const ListItem = ({ leadingText, mainText, trailingText, color = "primary", variant = "default" }) => (
+    <div className="flex items-center justify-between border-b border-border pb-2">
+      <div className="flex items-center">
+        <span className={`text-${color} font-bold mr-2`}>{leadingText}</span>
+        <span className="text-foreground">{mainText}</span>
+      </div>
+      <span className={`font-bold ${variant === "negative" ? "text-destructive" : `text-${color}`}`}>
+        {trailingText}
+      </span>
+    </div>
+  );
+
+  // Update the player link component
+  const PlayerLink = ({ index, player, showPoints = true }) => (
+    <Link
+      to={`/player/${player.id}`}
+      className="flex items-center justify-between border-b border-border pb-2 hover:bg-muted/50 px-2 py-1 rounded transition-colors"
+    >
+      <div className="flex items-center">
+        <span className="text-primary font-bold mr-2">{index + 1}.</span>
+        <span className="text-foreground">{player.name}</span>
+        <span className="text-muted-foreground text-sm ml-2">({player.team})</span>
+      </div>
+      {showPoints && (
+        <div className="flex items-center space-x-2">
+          <span className="font-bold text-primary">{player.points} pts</span>
+          <ChevronRight className="w-4 h-4 text-primary/60" />
+        </div>
+      )}
+    </Link>
+  );
+
   // Rest of your JSX remains the same, but now let's use the processed data:
   return (
     <div className="space-y-6">
-      <Card className="bg-gradient-to-r from-purple-800 to-purple-600">
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold text-white">FPL League Hub Dashboard</CardTitle>
-          <CardDescription className="text-purple-100">
-            <div className="flex items-center space-x-4">
-              <span>League ID: {leagueId}</span>
-              {currentGameweek && (
-                <Badge variant="secondary" className="bg-purple-700 text-white">
-                  Gameweek {currentGameweek.id}
-                </Badge>
-              )}
-            </div>
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
+      <HeaderCard>
+        <CardTitle className="card-header-text text-3xl">
+          FPL League Hub Dashboard
+        </CardTitle>
+        <CardDescription className="card-header-text-secondary">
+          <div className="flex items-center space-x-4">
+            <span>League ID: {leagueId}</span>
+            {currentGameweek && (
+              <Badge variant="secondary" className="bg-primary-darker/50 card-header-text">
+                Gameweek {currentGameweek.id}
+              </Badge>
+            )}
+          </div>
+        </CardDescription>
+      </HeaderCard>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Left Column */}
         <div className="space-y-6">
           <Card>
-            <CardHeader className="bg-gradient-to-r from-purple-700 to-purple-600">
-              <CardTitle className="text-white flex items-center">
-                <Star className="h-6 w-6 mr-2" />
-                Gameweek {currentGameweek?.id} Top Performers
-              </CardTitle>
-            </CardHeader>
+            <SectionHeader
+              icon={<Star />}
+              title={`Gameweek ${currentGameweek?.id} Top Performers`}
+            />
             <CardContent className="pt-6">
               <div className="space-y-4">
                 {getGameweekTopPerformers().map((player, index) => (
-                  <Link
+                  <PlayerLink
                     key={player.id}
-                    to={`/player/${player.id}`}
-                    className="flex items-center justify-between border-b pb-2 hover:bg-purple-50 px-2 py-1 rounded transition-colors"
-                  >
-                    <div className="flex items-center">
-                      <span className="text-purple-700 font-bold mr-2">{index + 1}.</span>
-                      <span>{player.name}</span>
-                      <span className="text-gray-500 text-sm ml-2">({player.team})</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-bold text-purple-600">{player.points} pts</span>
-                      <ChevronRight className="w-4 h-4 text-purple-400" />
-                    </div>
-                  </Link>
+                    index={index}
+                    player={player}
+                  />
                 ))}
               </div>
             </CardContent>
           </Card>
 
+
           <Card>
-            <CardHeader className="bg-gradient-to-r from-purple-700 to-purple-600">
-              <CardTitle className="text-white flex items-center">
-                <ArrowUp className="h-6 w-6 mr-2" />
+            <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
+              <CardTitle className="card-header-text flex items-center">
+                <ArrowUp className="h-6 w-6 mr-2 card-header-text" />
                 Transfer Trends
               </CardTitle>
             </CardHeader>
@@ -299,16 +345,16 @@ const Dashboard = ({ leagueId }) => {
                     <Link
                       key={player.id}
                       to={`/player/${player.id}`}
-                      className="flex items-center justify-between border-b pb-2 hover:bg-purple-50 px-2 py-1 rounded transition-colors"
+                      className="flex items-center justify-between border-b pb-2 hover:bg-muted/50 px-2 py-1 rounded transition-colors"
                     >
                       <div className="flex items-center">
-                        <span className="text-purple-700 font-bold mr-2">{index + 1}.</span>
+                        <span className="ranking-number">{index + 1}.</span>
                         <span>{player.name}</span>
-                        <span className="text-gray-500 text-sm ml-2">({player.team})</span>
+                        <span className="text-muted-foreground text-sm ml-2">({player.team})</span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <span className="font-bold text-green-600">+{player.transfers}</span>
-                        <ChevronRight className="w-4 h-4 text-purple-400" />
+                        <span className="font-bold text-success-color">+{player.transfers}</span>
+                        <ChevronRight className="w-4 h-4 text-primary/60" />
                       </div>
                     </Link>
                   ))}
@@ -319,16 +365,18 @@ const Dashboard = ({ leagueId }) => {
                     <Link
                       key={player.id}
                       to={`/player/${player.id}`}
-                      className="flex items-center justify-between border-b pb-2 hover:bg-purple-50 px-2 py-1 rounded transition-colors"
+                      className="flex items-center justify-between border-b pb-2 hover:hover:bg-muted/50
+
+ px-2 py-1 rounded transition-colors"
                     >
                       <div className="flex items-center">
-                        <span className="text-purple-700 font-bold mr-2">{index + 1}.</span>
+                        <span className="ranking-number">{index + 1}.</span>
                         <span>{player.name}</span>
-                        <span className="text-gray-500 text-sm ml-2">({player.team})</span>
+                        <span className="text-muted-foreground text-sm ml-2">({player.team})</span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <span className="font-bold text-red-600">-{player.transfers}</span>
-                        <ChevronRight className="w-4 h-4 text-purple-400" />
+                        <span className="font-bold text-destructive">-{player.transfers}</span>
+                        <ChevronRight className="w-4 h-4 text-primary/60" />
                       </div>
                     </Link>
                   ))}
@@ -341,9 +389,9 @@ const Dashboard = ({ leagueId }) => {
         {/* Middle Column */}
         <div className="space-y-6">
           <Card>
-            <CardHeader className="bg-gradient-to-r from-purple-700 to-purple-600">
-              <CardTitle className="text-white flex items-center">
-                <Trophy className="h-6 w-6 mr-2" />
+            <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
+              <CardTitle className="card-header-text flex items-center">
+                <Trophy className="h-6 w-6 mr-2 card-header-text" />
                 League Performance
               </CardTitle>
             </CardHeader>
@@ -352,13 +400,12 @@ const Dashboard = ({ leagueId }) => {
                 <div>
                   <h3 className="font-semibold mb-3">Top Managers This Week</h3>
                   {getLeaguePerformance().topManagers.map((manager, index) => (
-                    <div key={manager.entry} className="flex items-center justify-between border-b pb-2">
-                      <div className="flex items-center">
-                        <span className="text-purple-700 font-bold mr-2">{index + 1}.</span>
-                        <span>{manager.display_name}</span>
-                      </div>
-                      <span className="font-bold text-purple-600">{manager.points} pts</span>
-                    </div>
+                    <ListItem
+                      key={manager.entry}
+                      leadingText={`${index + 1}.`}
+                      mainText={manager.display_name}
+                      trailingText={`${manager.points} pts`}
+                    />
                   ))}
                 </div>
 
@@ -367,13 +414,13 @@ const Dashboard = ({ leagueId }) => {
                 <div>
                   <h3 className="font-semibold mb-3">Bottom Managers This Week</h3>
                   {getLeaguePerformance().bottomManagers.map((manager, index) => (
-                    <div key={manager.entry} className="flex items-center justify-between border-b pb-2">
-                      <div className="flex items-center">
-                        <span className="text-red-700 font-bold mr-2">{index + 1}.</span>
-                        <span>{manager.display_name}</span>
-                      </div>
-                      <span className="font-bold text-red-600">{manager.points} pts</span>
-                    </div>
+                    <ListItem
+                      key={manager.entry}
+                      leadingText={`${index + 1}.`}
+                      mainText={manager.display_name}
+                      trailingText={`${manager.points} pts`}
+                      variant="negative"
+                    />
                   ))}
                 </div>
               </div>
@@ -381,45 +428,41 @@ const Dashboard = ({ leagueId }) => {
           </Card>
 
           <Card>
-            <CardHeader className="bg-gradient-to-r from-purple-700 to-purple-600">
-              <CardTitle className="text-white flex items-center">
-                <BarChart className="h-6 w-6 mr-2" />
+            <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
+              <CardTitle className="card-header-text flex items-center">
+                <BarChart className="h-6 w-6 mr-2 card-header-text" />
                 Gameweek Summary
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {getGameweekSummary()?.averagePoints || 0}
-                  </div>
-                  <div className="text-sm text-gray-600">Avg. Points</div>
-                </div>
-                <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {getGameweekSummary()?.highestPoints || 0}
-                  </div>
-                  <div className="text-sm text-gray-600">Highest Score</div>
-                </div>
+                <StatBox
+                  value={getGameweekSummary()?.averagePoints || 0}
+                  label="Avg. Points"
+                />
+                <StatBox
+                  value={getGameweekSummary()?.highestPoints || 0}
+                  label="Highest Score"
+                />
               </div>
 
               <div className="mt-6 space-y-4">
                 <h3 className="font-semibold">Chip Usage</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-sm">
-                    <span className="block text-gray-600">Wildcard:</span>
+                    <span className="block text-muted-foreground">Wildcard:</span>
                     <span className="font-semibold">{getGameweekSummary()?.chipUsage.wildcard || 0}</span>
                   </div>
                   <div className="text-sm">
-                    <span className="block text-gray-600">Bench Boost:</span>
+                    <span className="block text-muted-foreground">Bench Boost:</span>
                     <span className="font-semibold">{getGameweekSummary()?.chipUsage.benchBoost || 0}</span>
                   </div>
                   <div className="text-sm">
-                    <span className="block text-gray-600">Triple Captain:</span>
+                    <span className="block text-muted-foreground">Triple Captain:</span>
                     <span className="font-semibold">{getGameweekSummary()?.chipUsage.tripleCaptain || 0}</span>
                   </div>
                   <div className="text-sm">
-                    <span className="block text-gray-600">Free Hit:</span>
+                    <span className="block text-muted-foreground">Free Hit:</span>
                     <span className="font-semibold">{getGameweekSummary()?.chipUsage.freeHit || 0}</span>
                   </div>
                 </div>
@@ -431,9 +474,9 @@ const Dashboard = ({ leagueId }) => {
         {/* Right Column - Additional Stats */}
         <div className="space-y-6">
           <Card>
-            <CardHeader className="bg-gradient-to-r from-purple-700 to-purple-600">
-              <CardTitle className="text-white flex items-center">
-                <Users className="h-6 w-6 mr-2" />
+            <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
+              <CardTitle className="card-header-text flex items-center">
+                <Users className="h-6 w-6 mr-2 card-header-text" />
                 Team Form & Captaincy
               </CardTitle>
             </CardHeader>
@@ -466,11 +509,11 @@ const Dashboard = ({ leagueId }) => {
                   <h3 className="font-semibold mb-3">League Stats</h3>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Total Teams:</span>
+                      <span className="text-muted-foreground">Total Teams:</span>
                       <span className="font-semibold">{leagueData?.length || 0}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Average Score:</span>
+                      <span className="text-muted-foreground">Average Score:</span>
                       <span className="font-semibold">
                         {getLeagueAverageScore()}
                       </span>
@@ -482,9 +525,9 @@ const Dashboard = ({ leagueId }) => {
           </Card>
 
           <Card>
-            <CardHeader className="bg-gradient-to-r from-purple-700 to-purple-600">
-              <CardTitle className="text-white flex items-center">
-                <BarChart className="h-6 w-6 mr-2" />
+            <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
+              <CardTitle className="card-header-text flex items-center">
+                <BarChart className="h-6 w-6 mr-2 card-header-text" />
                 League Insights
               </CardTitle>
             </CardHeader>
@@ -495,10 +538,10 @@ const Dashboard = ({ leagueId }) => {
                   {getLeagueInsights().topFour.map((manager, index) => (
                     <div key={manager.entry} className="flex items-center justify-between border-b pb-2">
                       <div className="flex items-center">
-                        <span className="text-purple-700 font-bold mr-2">{index + 1}.</span>
+                        <span className="text-primary font-bold mr-2">{index + 1}.</span>
                         <span>{manager.display_name}</span>
                       </div>
-                      <span className="font-bold text-purple-600">{manager.total} pts</span>
+                      <span className="font-bold text-primary">{manager.total} pts</span>
                     </div>
                   ))}
                 </div>
@@ -510,10 +553,10 @@ const Dashboard = ({ leagueId }) => {
                   {getLeagueInsights().bottomThree.map((manager, index) => (
                     <div key={manager.entry} className="flex items-center justify-between border-b pb-2">
                       <div className="flex items-center">
-                        <span className="text-red-700 font-bold mr-2">{index + 1}.</span>
+                        <span className="text-destructive font-bold mr-2">{index + 1}.</span>
                         <span>{manager.display_name}</span>
                       </div>
-                      <span className="font-bold text-red-600">{manager.total} pts</span>
+                      <span className="font-bold text-destructive">{manager.total} pts</span>
                     </div>
                   ))}
                 </div>
