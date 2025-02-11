@@ -13,8 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
-
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const Dashboard = ({ leagueId }) => {
   const [bootstrapData, setBootstrapData] = useState(null);

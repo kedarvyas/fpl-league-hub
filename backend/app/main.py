@@ -52,7 +52,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # Your local frontend
-        "https://fpl-tacticos-leaguehub.netlify.app",  # Your Netlify domain
+        #"https://fpl-tacticos-leaguehub.netlify.app",  # Your Netlify domain
     ],
     allow_credentials=True,
     allow_methods=["*"],
