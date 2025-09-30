@@ -519,6 +519,31 @@ const MyTeam = () => {
             {/* Live Tab Content */}
             {activeTab === 'Live' && (
               <div className="space-y-8">
+                {/* Team Info Section */}
+                <Card className="bg-gradient-to-r from-muted/20 to-muted/10 border-l-4 border-l-primary">
+                  <CardContent className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center md:text-left">
+                      <div>
+                        <p className="text-sm text-muted-foreground font-medium">Team ID</p>
+                        <p className="text-lg font-bold text-foreground">{teamData.id}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-medium">Team Name</p>
+                        <p className="text-lg font-bold text-foreground">{teamData.name || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-medium">Manager</p>
+                        <p className="text-lg font-bold text-foreground">
+                          {teamData.player_first_name && teamData.player_last_name
+                            ? `${teamData.player_first_name} ${teamData.player_last_name}`
+                            : 'N/A'
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Live Rank Section */}
                 <div>
                   <h3 className="text-xl font-semibold text-foreground mb-4">Live Rank</h3>
