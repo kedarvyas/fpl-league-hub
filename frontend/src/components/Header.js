@@ -9,13 +9,16 @@ import {
   X,
   Menu,
   Info,
+  User,
 } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: <Home className="w-4 h-4" /> },
-  { name: 'Weekly Matchups', href: '/weekly-matchups', icon: <Users className="w-4 h-4" /> },
+  { name: 'Home', href: '/', icon: <Home className="w-4 h-4" /> },
+  { name: 'Dashboard', href: '/dashboard', icon: <ChartBar className="w-4 h-4" /> },
+  { name: 'H2H League Info', href: '/weekly-matchups', icon: <Users className="w-4 h-4" /> },
   { name: 'Player Statistics', href: '/player-statistics', icon: <ChartBar className="w-4 h-4" /> },
   { name: 'League Standings', href: '/standings', icon: <Table className="w-4 h-4" /> },
+  { name: 'My Team', href: '/my-team', icon: <User className="w-4 h-4" /> },
 ];
 
 const Header = ({ currentTheme, setTheme, setShowInfo }) => {
@@ -23,7 +26,6 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
   const location = useLocation();
 
   // Updated theme-based styling
-  const isDarkTheme = currentTheme === 'dark' || currentTheme === 'midnight';
   const bgHover = "hover:bg-muted/80";
   const activeBg = "bg-muted";
 
