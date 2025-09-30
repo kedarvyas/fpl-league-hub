@@ -4,6 +4,8 @@ import { User, TrendingUp, TrendingDown, Target } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 
+const SUPABASE_URL = 'https://hvgotlfiwwirfpezvxhp.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const MyTeam = () => {
@@ -33,23 +35,28 @@ const MyTeam = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch team data from FPL API
-      const response = await fetch(`${API_URL}/api/team/${id}`);
+      const headers = {
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json'
+      };
+
+      // Fetch team data from Supabase Edge Function
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/team-data?teamId=${id}`, { headers });
       if (!response.ok) {
         throw new Error('Failed to fetch team data');
       }
       const data = await response.json();
       setTeamData(data);
 
-      // Fetch season history data
-      const historyResponse = await fetch(`${API_URL}/api/team/${id}/history`);
+      // Fetch season history data from Supabase Edge Function
+      const historyResponse = await fetch(`${SUPABASE_URL}/functions/v1/team-history?teamId=${id}`, { headers });
       if (historyResponse.ok) {
         const historyData = await historyResponse.json();
         setSeasonHistory(historyData);
       }
 
-      // Fetch previous seasons data
-      const previousSeasonsResponse = await fetch(`${API_URL}/api/team/${id}/previous-seasons`);
+      // Fetch previous seasons data from Supabase Edge Function
+      const previousSeasonsResponse = await fetch(`${SUPABASE_URL}/functions/v1/team-previous-seasons?teamId=${id}`, { headers });
       if (previousSeasonsResponse.ok) {
         const previousSeasonsData = await previousSeasonsResponse.json();
         setPreviousSeasons(previousSeasonsData);
