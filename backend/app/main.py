@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from . import models, schemas
 from datetime import datetime
-from .database import engine, get_db
+from .database import engine, get_db, get_supabase
 import json
 from sqlalchemy import text
 from typing import Optional
@@ -52,6 +52,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # Your local frontend
+        "http://localhost:3004",  # Alternative frontend port
         #"https://fpl-tacticos-leaguehub.netlify.app",  # Your Netlify domain
     ],
     allow_credentials=True,
@@ -70,6 +71,25 @@ async def debug_info():
         "environment_vars": dict(os.environ),
         "app_module_location": __file__
     }
+
+@app.get("/debug/supabase-test")
+async def test_supabase_connection():
+    """Test Supabase connection"""
+    try:
+        supabase = get_supabase()
+        # Test basic connection by getting user (will return empty for anon key)
+        response = supabase.auth.get_user()
+        return {
+            "supabase_connected": True,
+            "message": "Supabase client created successfully",
+            "user": response.user
+        }
+    except Exception as e:
+        logger.error(f"Supabase connection error: {str(e)}")
+        return {
+            "supabase_connected": False,
+            "error": str(e)
+        }
 
 @app.get("/debug/check_league/{league_id}")
 async def check_league(league_id: int, db: Session = Depends(get_db)):
@@ -246,6 +266,249 @@ async def get_player_summary(player_id: int):
     except requests.RequestException as e:
         logger.error(f"Error fetching player summary for player {player_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch player summary: {str(e)}")
+
+@app.get("/api/team/{team_id}")
+async def get_team_data(team_id: int):
+    try:
+        url = f"https://fantasy.premierleague.com/api/entry/{team_id}/"
+        response = requests.get(url)
+        response.raise_for_status()
+        team_data = response.json()
+
+        # Get current gameweek from bootstrap
+        bootstrap_url = "https://fantasy.premierleague.com/api/bootstrap-static/"
+        bootstrap_response = requests.get(bootstrap_url)
+        bootstrap_response.raise_for_status()
+        bootstrap_data = bootstrap_response.json()
+
+        # Find current gameweek
+        current_gw = next((gw for gw in bootstrap_data['events'] if gw['is_current']), None)
+        if current_gw:
+            team_data['current_event'] = current_gw['id']
+            current_gw_id = current_gw['id']
+
+            # Get previous gameweek data if available
+            if current_gw_id > 1:
+                try:
+                    # Fetch team history to get previous gameweek rank
+                    history_url = f"https://fantasy.premierleague.com/api/entry/{team_id}/history/"
+                    history_response = requests.get(history_url)
+                    history_response.raise_for_status()
+                    history_data = history_response.json()
+
+                    # Get current gameweek data from history
+                    current_gw_history = next((gw for gw in history_data['current'] if gw['event'] == current_gw_id), None)
+
+                    if current_gw_history:
+                        team_data['current_event_rank'] = current_gw_history['overall_rank']
+
+                    # Get previous gameweek data
+                    prev_gw_history = next((gw for gw in history_data['current'] if gw['event'] == current_gw_id - 1), None)
+
+                    if prev_gw_history:
+                        team_data['previous_event_rank'] = prev_gw_history['overall_rank']
+
+                        # Calculate rank change (positive means improvement/rank went down, negative means rank went up)
+                        if current_gw_history:
+                            rank_change = prev_gw_history['overall_rank'] - current_gw_history['overall_rank']
+                            team_data['rank_change'] = rank_change
+
+                except Exception as e:
+                    logger.warning(f"Could not fetch history data: {e}")
+                    # Fall back to basic data without rank change
+                    pass
+
+        return team_data
+    except requests.RequestException as e:
+        logger.error(f"Error fetching team data for team {team_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch team data: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error fetching team data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+@app.get("/api/team/{team_id}/history")
+async def get_team_history(team_id: int):
+    try:
+        # Fetch team history from FPL API
+        history_url = f"https://fantasy.premierleague.com/api/entry/{team_id}/history/"
+        history_response = requests.get(history_url)
+        history_response.raise_for_status()
+        history_data = history_response.json()
+
+        # Process current season data
+        current_season = history_data.get('current', [])
+
+        if not current_season:
+            return {"ranks": [], "highest_rank": None, "lowest_rank": None, "highest_rank_gw": None, "lowest_rank_gw": None}
+
+        # Extract rank data for each gameweek
+        ranks = []
+        for gw in current_season:
+            ranks.append({
+                "gameweek": gw['event'],
+                "rank": gw['overall_rank'],
+                "points": gw['points'],
+                "total_points": gw['total_points']
+            })
+
+        # Find highest and lowest ranks
+        if ranks:
+            highest_rank_data = min(ranks, key=lambda x: x['rank'])  # Lower number = better rank
+            lowest_rank_data = max(ranks, key=lambda x: x['rank'])   # Higher number = worse rank
+
+            return {
+                "ranks": ranks,
+                "highest_rank": highest_rank_data['rank'],
+                "lowest_rank": lowest_rank_data['rank'],
+                "highest_rank_gw": highest_rank_data['gameweek'],
+                "lowest_rank_gw": lowest_rank_data['gameweek']
+            }
+        else:
+            return {"ranks": [], "highest_rank": None, "lowest_rank": None, "highest_rank_gw": None, "lowest_rank_gw": None}
+
+    except requests.RequestException as e:
+        logger.error(f"Error fetching team history for team {team_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch team history: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error fetching team history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+@app.get("/api/team/{team_id}/previous-seasons")
+async def get_team_previous_seasons(team_id: int):
+    try:
+        # Fetch team history from FPL API
+        history_url = f"https://fantasy.premierleague.com/api/entry/{team_id}/history/"
+        history_response = requests.get(history_url)
+        history_response.raise_for_status()
+        history_data = history_response.json()
+
+        # Process previous seasons data
+        previous_seasons = history_data.get('past', [])
+
+        if not previous_seasons:
+            return {"seasons": []}
+
+        # Format the seasons data
+        seasons = []
+        total_players_map = {
+            "2023/24": 11200000,  # Approximate total players for each season
+            "2022/23": 10900000,
+            "2021/22": 9000000,
+            "2020/21": 8500000,
+            "2019/20": 7600000,
+            "2018/19": 6900000,
+            "2017/18": 5700000,
+            "2016/17": 4600000,
+            "2015/16": 4200000,
+            "2014/15": 3500000,
+            "2013/14": 3200000,
+        }
+
+        for season in previous_seasons:
+            season_name = season['season_name']
+            total_players = total_players_map.get(season_name, 10000000)  # Default fallback
+            percentage = (season['rank'] / total_players) * 100
+
+            # Determine rank tier for styling
+            if percentage <= 1:
+                tier = "top1"
+                tier_color = "#10b981"  # Green
+                tier_icon = "🏆"
+            elif percentage <= 5:
+                tier = "top5"
+                tier_color = "#f59e0b"  # Yellow
+                tier_icon = "🥇"
+            elif percentage <= 10:
+                tier = "top10"
+                tier_color = "#8b5cf6"  # Purple
+                tier_icon = "🥈"
+            elif percentage <= 25:
+                tier = "top25"
+                tier_color = "#3b82f6"  # Blue
+                tier_icon = "🥉"
+            else:
+                tier = "other"
+                tier_color = "#6b7280"  # Gray
+                tier_icon = "🔵"
+
+            seasons.append({
+                "season": season_name,
+                "total_points": season['total_points'],
+                "rank": season['rank'],
+                "percentage": round(percentage, 2),
+                "tier": tier,
+                "tier_color": tier_color,
+                "tier_icon": tier_icon
+            })
+
+        # Sort by season (most recent first)
+        seasons.sort(key=lambda x: x['season'], reverse=True)
+
+        return {"seasons": seasons}
+
+    except requests.RequestException as e:
+        logger.error(f"Error fetching previous seasons for team {team_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch previous seasons: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error fetching previous seasons: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+@app.get("/api/fixtures/{gameweek_id}")
+async def get_gameweek_fixtures(gameweek_id: int):
+    try:
+        # First get bootstrap data for team mappings
+        bootstrap_url = "https://fantasy.premierleague.com/api/bootstrap-static/"
+        bootstrap_response = requests.get(bootstrap_url)
+        bootstrap_response.raise_for_status()
+        bootstrap_data = bootstrap_response.json()
+
+        # Create team mapping
+        teams = {team['id']: team for team in bootstrap_data['teams']}
+
+        # Get fixtures for the specific gameweek
+        fixtures_url = "https://fantasy.premierleague.com/api/fixtures/"
+        fixtures_response = requests.get(fixtures_url)
+        fixtures_response.raise_for_status()
+        fixtures_data = fixtures_response.json()
+
+        # Filter fixtures for the specified gameweek
+        gameweek_fixtures = [
+            fixture for fixture in fixtures_data
+            if fixture['event'] == gameweek_id and fixture['finished']
+        ]
+
+        # Format the fixtures data
+        results = []
+        for fixture in gameweek_fixtures:
+            home_team = teams.get(fixture['team_h'])
+            away_team = teams.get(fixture['team_a'])
+
+            if home_team and away_team:
+                results.append({
+                    'homeTeam': {
+                        'id': home_team['id'],
+                        'name': home_team['name'],
+                        'abbreviation': home_team['short_name']
+                    },
+                    'awayTeam': {
+                        'id': away_team['id'],
+                        'name': away_team['name'],
+                        'abbreviation': away_team['short_name']
+                    },
+                    'homeScore': fixture['team_h_score'],
+                    'awayScore': fixture['team_a_score'],
+                    'finished': fixture['finished'],
+                    'kickoff_time': fixture['kickoff_time']
+                })
+
+        return results
+
+    except requests.RequestException as e:
+        logger.error(f"Error fetching fixtures for gameweek {gameweek_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch fixtures: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error fetching fixtures: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 @app.get("/api/entry/{team_id}/event/{event_id}/picks")
 async def get_team_picks(team_id: int, event_id: int):
@@ -430,7 +693,7 @@ def create_league(db: Session = Depends(get_db)):
         
         # Check if league already exists
         logger.info("Checking for existing league")
-        existing_league = db.query(models.League).filter(models.League.id == 738279).first()
+        existing_league = db.query(models.League).filter(models.League.id == LEAGUE_ID).first()
         if existing_league:
             logger.info("League already exists")
             return {
@@ -445,8 +708,8 @@ def create_league(db: Session = Depends(get_db)):
         logger.info("Creating new league")
         current_time = datetime.utcnow()
         new_league = models.League(
-            id=738279,
-            name="FPL Tacticos League",
+            id=LEAGUE_ID,
+            name="FPL League Hub",
             created_at=current_time,
             updated_at=current_time,
             total_teams=0,
