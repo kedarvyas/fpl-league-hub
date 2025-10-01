@@ -15,11 +15,11 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./ui/dropdown-menu";
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.supabase.co/functions/v1';
 
 const Dashboard = ({ leagueId: propLeagueId }) => {
   const { leagueId: urlLeagueId } = useParams();
-  const leagueId = urlLeagueId || propLeagueId;
+  const leagueId = urlLeagueId || propLeagueId || process.env.REACT_APP_LEAGUE_ID || '1176282';
   const [bootstrapData, setBootstrapData] = useState(null);
   const [leagueData, setLeagueData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -82,7 +82,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
       try {
         // Updated URL
         const matchupsResponse = await fetch(
-          `${API_URL}/api/weekly-matchups/${leagueId}?event=${currentGameweek.id}`
+          `${API_URL}/weekly-matchups/${leagueId}?event=${currentGameweek.id}`
         );
         const matchupsResult = await matchupsResponse.json();
         setWeeklyMatchups(matchupsResult);
