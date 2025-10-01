@@ -38,8 +38,12 @@ Deno.serve(async (req) => {
       )
     }
 
+    // For now, we'll use the league ID from the original weekly-matchups call
+    // The frontend should pass the league ID, but as a temporary fix, we'll use a hardcoded league ID
+    const leagueId = '1176282' // TODO: This should be passed as a parameter
+
     // Fetch matchup details from FPL API
-    const matchupResponse = await fetch(`https://fantasy.premierleague.com/api/leagues-h2h-matches/league/${matchupId}/?event=${event}`)
+    const matchupResponse = await fetch(`https://fantasy.premierleague.com/api/leagues-h2h-matches/league/${leagueId}/?event=${event}`)
 
     if (!matchupResponse.ok) {
       throw new Error(`Failed to fetch matchup details: ${matchupResponse.status}`)
