@@ -37,11 +37,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
         setLoading(true);
 
         // Fetch bootstrap data - Updated URL
-        const bootstrapResponse = await fetch(`${API_URL}/bootstrap-static`, {
-          headers: {
-            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-          }
-        });
+        const bootstrapResponse = await fetch(`${API_URL}/bootstrap-static`);
         if (!bootstrapResponse.ok) {
           throw new Error('Failed to fetch bootstrap data');
         }
@@ -58,11 +54,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
         setCurrentGameweek(current || null);
 
         // Fetch league standings - Updated URL
-        const leagueResponse = await fetch(`${API_URL}/league-standings/${leagueId}/standings`, {
-          headers: {
-            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-          }
-        });
+        const leagueResponse = await fetch(`${API_URL}/league-standings/${leagueId}/standings`);
         const leagueResult = await leagueResponse.json();
 
         // Initialize leagueData as an empty array if the response is null/undefined
@@ -106,11 +98,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
   useEffect(() => {
     const fetchGameweekResults = async () => {
       try {
-        const response = await fetch(`${API_URL}/fixtures/${selectedGameweek}`, {
-          headers: {
-            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-          }
-        });
+        const response = await fetch(`${API_URL}/fixtures/${selectedGameweek}`);
         if (!response.ok) {
           throw new Error('Failed to fetch fixtures');
         }

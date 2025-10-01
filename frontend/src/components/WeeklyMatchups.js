@@ -26,11 +26,7 @@ const MatchupRow = ({ matchup, isExpanded, onToggle, eventId, onManagerClick }) 
   useEffect(() => {
     if (isExpanded && !matchDetails) {
       setLoading(true);
-      fetch(`${API_URL}/matchup/${matchup.id}?event=${eventId}`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-        }
-      })
+      fetch(`${API_URL}/matchup/${matchup.id}?event=${eventId}`)
       .then(response => {
           if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
           return response.json();
@@ -129,11 +125,7 @@ const WeeklyMatchups = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await fetch(`${API_URL}/bootstrap-static`, {
-          headers: {
-            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-          }
-        });
+        const response = await fetch(`${API_URL}/bootstrap-static`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -171,11 +163,7 @@ const WeeklyMatchups = () => {
         try {
           const url = `${API_URL}/weekly-matchups/${LEAGUE_ID}?event=${selectedEvent}`;
           console.log('Fetching matchups from:', url); // Debug log
-          const response = await fetch(url, {
-            headers: {
-              'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-            }
-          });
+          const response = await fetch(url);
           
           if (!response.ok) {
             const errorText = await response.text();
@@ -206,11 +194,7 @@ const WeeklyMatchups = () => {
   useEffect(() => {
     const fetchStandings = async () => {
       try {
-        const response = await fetch(`${API_URL}/league-standings/${LEAGUE_ID}/standings`, {
-          headers: {
-            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-          }
-        });
+        const response = await fetch(`${API_URL}/league-standings/${LEAGUE_ID}/standings`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

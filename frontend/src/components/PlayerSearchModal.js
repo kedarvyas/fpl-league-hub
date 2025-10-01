@@ -15,11 +15,7 @@ const PlayerSearchModal = ({ onSelect, onClose, excludePlayerId }) => {
     }
     
     try {
-      const response = await fetch(`${API_URL}/bootstrap-static`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-        }
-      });
+      const response = await fetch(`${API_URL}/bootstrap-static`);
       const data = await response.json();
       
       const filteredPlayers = data.elements

@@ -267,16 +267,8 @@ const PlayerStats = () => {
                 setLoading(true);
 
                 const [bootstrapResponse, historyResponse] = await Promise.all([
-                    fetch(`${API_URL}/bootstrap-static`, {
-                      headers: {
-                        'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-                      }
-                    }),
-                    fetch(`${API_URL}/element-summary/${playerId}`, {
-                      headers: {
-                        'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-                      }
-                    })
+                    fetch(`${API_URL}/bootstrap-static`),
+                    fetch(`${API_URL}/element-summary/${playerId}`)
                 ]);
 
                 const bootstrapData = await bootstrapResponse.json();

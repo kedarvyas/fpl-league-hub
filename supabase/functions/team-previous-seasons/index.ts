@@ -84,10 +84,14 @@ Deno.serve(async (req) => {
         tier = "top25"
         tier_color = "#3b82f6"
         tier_icon = "🥉"
-      } else {
-        tier = "other"
+      } else if (percentage <= 50) {
+        tier = "middle"
         tier_color = "#6b7280"
         tier_icon = "🔵"
+      } else {
+        tier = "bottom"
+        tier_color = "#dc2626"
+        tier_icon = "🔴"
       }
 
       return {

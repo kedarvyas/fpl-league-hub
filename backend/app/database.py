@@ -3,13 +3,21 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 load_dotenv()
 
-# Get database URL from environment variable or use default
+# Supabase configuration
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://hvgotlfiwwirfpezvxhp.supabase.co")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE")
+
+# Create Supabase client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+# Database URL construction for SQLAlchemy (for PostgreSQL compatibility)
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://fpl_user:fpl_tacticos_league@localhost/fpl_league_hub"
+    f"postgresql://postgres.hvgotlfiwwirfpezvxhp:HazardGOAT17!@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true"
 )
 
 # Fix potential "postgres://" to "postgresql://" in the URL
@@ -27,3 +35,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def get_supabase() -> Client:
+    """Get Supabase client instance"""
+    return supabase

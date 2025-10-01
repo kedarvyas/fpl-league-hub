@@ -114,11 +114,7 @@ const GameweekStats = ({ eventId }) => {
             setLoading(true);
             try {
                 // Fetch standings first
-                const standingsResponse = await fetch(`${API_URL}/league-standings/${LEAGUE_ID}/standings`, {
-                  headers: {
-                    'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-                  }
-                });
+                const standingsResponse = await fetch(`${API_URL}/league-standings/${LEAGUE_ID}/standings`);
                 if (!standingsResponse.ok) throw new Error('Failed to fetch standings');
                 const standingsData = await standingsResponse.json();
 
@@ -127,11 +123,7 @@ const GameweekStats = ({ eventId }) => {
                 let topManager = null;
 
                 // Get bootstrap-static data for player names
-                const bootstrapResponse = await fetch(`${API_URL}/bootstrap-static`, {
-                  headers: {
-                    'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-                  }
-                });
+                const bootstrapResponse = await fetch(`${API_URL}/bootstrap-static`);
                 if (!bootstrapResponse.ok) throw new Error('Failed to fetch bootstrap data');
                 const bootstrapData = await bootstrapResponse.json();
 
@@ -148,11 +140,7 @@ const GameweekStats = ({ eventId }) => {
 
                     try {
                         // Fetch transfers
-                        const transfersResponse = await fetch(`${API_URL}/entry-transfers/${entry}/transfers`, {
-                          headers: {
-                            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-                          }
-                        });
+                        const transfersResponse = await fetch(`${API_URL}/entry-transfers/${entry}/transfers`);
                         if (!transfersResponse.ok) continue;
                         const transfersData = await transfersResponse.json();
 
@@ -175,11 +163,7 @@ const GameweekStats = ({ eventId }) => {
                         allTransfers = [...allTransfers, ...gameweekTransfers];
 
                         // Fetch picks for points
-                        const picksResponse = await fetch(`${API_URL}/entry-picks/entry/${entry}/event/${eventId}/picks`, {
-                          headers: {
-                            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-                          }
-                        });
+                        const picksResponse = await fetch(`${API_URL}/entry-picks/entry/${entry}/event/${eventId}/picks`);
                         if (!picksResponse.ok) continue;
                         const picksData = await picksResponse.json();
 

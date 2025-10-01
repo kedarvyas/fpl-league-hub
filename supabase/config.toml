@@ -378,3 +378,43 @@ entrypoint = "./functions/team-previous-seasons/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/team-previous-seasons/*.html" ]
+
+[functions.bootstrap-static]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/bootstrap-static/index.ts"
+
+[functions.weekly-matchups]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/weekly-matchups/index.ts"
+
+[functions.matchup]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/matchup/index.ts"
+
+[functions.league-standings]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/league-standings/index.ts"
+
+[functions.fixtures]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/fixtures/index.ts"
+
+[functions.entry-transfers]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/entry-transfers/index.ts"
+
+[functions.entry-picks]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/entry-picks/index.ts"
+
+[functions.element-summary]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/element-summary/index.ts"
