@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import {
   ArrowUp,
   ArrowDown,
@@ -7,21 +7,28 @@ import {
   Star,
   BarChart,
   Users,
-  ChevronRight
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./ui/dropdown-menu";
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-const Dashboard = ({ leagueId }) => {
+const Dashboard = ({ leagueId: propLeagueId }) => {
+  const { leagueId: urlLeagueId } = useParams();
+  const leagueId = urlLeagueId || propLeagueId;
   const [bootstrapData, setBootstrapData] = useState(null);
   const [leagueData, setLeagueData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentGameweek, setCurrentGameweek] = useState(null);
   const [weeklyMatchups, setWeeklyMatchups] = useState(null);
+  const [transferView, setTransferView] = useState('in'); // 'in' or 'out'
+  const [gameweekResults, setGameweekResults] = useState([]);
+  const [selectedGameweek, setSelectedGameweek] = useState(6); // Default to gameweek 6
 
 
   useEffect(() => {
@@ -30,7 +37,11 @@ const Dashboard = ({ leagueId }) => {
         setLoading(true);
 
         // Fetch bootstrap data - Updated URL
-        const bootstrapResponse = await fetch(`${API_URL}/api/bootstrap-static`);
+        const bootstrapResponse = await fetch(`${API_URL}/bootstrap-static`, {
+          headers: {
+            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+          }
+        });
         if (!bootstrapResponse.ok) {
           throw new Error('Failed to fetch bootstrap data');
         }
@@ -47,7 +58,11 @@ const Dashboard = ({ leagueId }) => {
         setCurrentGameweek(current || null);
 
         // Fetch league standings - Updated URL
-        const leagueResponse = await fetch(`${API_URL}/api/leagues/${leagueId}/standings`);
+        const leagueResponse = await fetch(`${API_URL}/league-standings/${leagueId}/standings`, {
+          headers: {
+            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+          }
+        });
         const leagueResult = await leagueResponse.json();
 
         // Initialize leagueData as an empty array if the response is null/undefined
@@ -86,6 +101,29 @@ const Dashboard = ({ leagueId }) => {
 
     fetchWeeklyMatchups();
   }, [leagueId, currentGameweek?.id]);
+
+  // Fetch real match results for selected gameweek
+  useEffect(() => {
+    const fetchGameweekResults = async () => {
+      try {
+        const response = await fetch(`${API_URL}/fixtures/${selectedGameweek}`, {
+          headers: {
+            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+          }
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch fixtures');
+        }
+        const results = await response.json();
+        setGameweekResults(results);
+      } catch (err) {
+        console.error('Error fetching gameweek results:', err);
+        setGameweekResults([]);
+      }
+    };
+
+    fetchGameweekResults();
+  }, [selectedGameweek]);
 
 
   // Data processing functions
@@ -128,35 +166,6 @@ const Dashboard = ({ leagueId }) => {
     return { in: transfersIn, out: transfersOut };
   };
 
-  const getLeaguePerformance = () => {
-    // Handle both array and object with results property
-    const matchupsData = weeklyMatchups?.results || weeklyMatchups || [];
-    if (!Array.isArray(matchupsData) || matchupsData.length === 0) {
-      return { topManagers: [], bottomManagers: [] };
-    }
-
-    // Get scores from actual matches
-    const matchScores = matchupsData.flatMap(match => [
-      {
-        entry: match.entry_1_entry,
-        display_name: match.entry_1_player_name,
-        points: match.entry_1_points
-      },
-      {
-        entry: match.entry_2_entry,
-        display_name: match.entry_2_player_name,
-        points: match.entry_2_points
-      }
-    ]);
-
-    // Sort by points
-    const sortedByPoints = matchScores.sort((a, b) => b.points - a.points);
-
-    return {
-      topManagers: sortedByPoints.slice(0, 3),
-      bottomManagers: sortedByPoints.slice(-3).reverse()
-    };
-  };
 
   const getGameweekSummary = () => {
     if (!currentGameweek) return null;
@@ -190,32 +199,6 @@ const Dashboard = ({ leagueId }) => {
 
 
 
-  const getLeagueInsights = () => {
-    // Return early if leagueData is not an array
-    if (!leagueData || !Array.isArray(leagueData)) {
-      return { topFour: [], bottomThree: [] };
-    }
-
-    try {
-      const sortedByTotal = [...leagueData].sort((a, b) => b.total - a.total);
-
-      return {
-        topFour: sortedByTotal.slice(0, 4).map(manager => ({
-          ...manager,
-          display_name: `${manager.player_name}`,
-          points: manager.total
-        })),
-        bottomThree: sortedByTotal.slice(-3).map(manager => ({
-          ...manager,
-          display_name: `${manager.player_name}`,
-          points: manager.total
-        }))
-      };
-    } catch (error) {
-      console.error('Error in getLeagueInsights:', error);
-      return { topFour: [], bottomThree: [] };
-    }
-  };
 
   const getLeagueAverageScore = () => {
     // Updated to handle direct array
@@ -289,6 +272,39 @@ const Dashboard = ({ leagueId }) => {
     </Link>
   );
 
+  // Team colors mapping for Premier League teams
+  const getTeamColors = (teamCode) => {
+    const teamColors = {
+      'ARS': { primary: '#EF0107', secondary: '#FFFFFF' }, // Arsenal - Red/White
+      'AVL': { primary: '#95BFE5', secondary: '#670E36' }, // Aston Villa - Claret/Blue
+      'BOU': { primary: '#DA020E', secondary: '#000000' }, // Bournemouth - Red/Black
+      'BRE': { primary: '#E30613', secondary: '#FFFFFF' }, // Brentford - Red/White
+      'BHA': { primary: '#0057B8', secondary: '#FFCD00' }, // Brighton - Blue/White
+      'BUR': { primary: '#6C1D45', secondary: '#99D6EA' }, // Burnley - Claret/Blue
+      'CHE': { primary: '#034694', secondary: '#FFFFFF' }, // Chelsea - Blue/White
+      'CRY': { primary: '#1B458F', secondary: '#A7A5A6' }, // Crystal Palace - Blue/Red
+      'EVE': { primary: '#003399', secondary: '#FFFFFF' }, // Everton - Blue/White
+      'FUL': { primary: '#FFFFFF', secondary: '#000000' }, // Fulham - White/Black
+      'LEE': { primary: '#FFFFFF', secondary: '#1D428A' }, // Leeds - White/Blue
+      'LIV': { primary: '#C8102E', secondary: '#FFFFFF' }, // Liverpool - Red/White
+      'MCI': { primary: '#6CABDD', secondary: '#FFFFFF' }, // Man City - Sky Blue/White
+      'MUN': { primary: '#DA020E', secondary: '#FBE122' }, // Man United - Red/Yellow
+      'NEW': { primary: '#241F20', secondary: '#FFFFFF' }, // Newcastle - Black/White
+      'NFO': { primary: '#DD0000', secondary: '#FFFFFF' }, // Nottingham Forest - Red/White
+      'SUN': { primary: '#EB172B', secondary: '#FFFFFF' }, // Sunderland - Red/White
+      'TOT': { primary: '#132257', secondary: '#FFFFFF' }, // Tottenham - Navy/White
+      'WHU': { primary: '#7A263A', secondary: '#1BB1E7' }, // West Ham - Claret/Blue
+      'WOL': { primary: '#FDB913', secondary: '#231F20' }, // Wolves - Gold/Black
+    };
+
+    return teamColors[teamCode] || { primary: '#6B7280', secondary: '#FFFFFF' }; // Default gray
+  };
+
+  const getGameweekResults = () => {
+    // Return real data from state instead of mock data
+    return gameweekResults;
+  };
+
   // Rest of your JSX remains the same, but now let's use the processed data:
   return (
     <div className="space-y-6">
@@ -331,55 +347,67 @@ const Dashboard = ({ leagueId }) => {
 
           <Card>
             <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
-              <CardTitle className="card-header-text flex items-center">
-                <ArrowUp className="h-6 w-6 mr-2 card-header-text" />
-                Transfer Trends
+              <CardTitle className="card-header-text flex items-center justify-between">
+                <div className="flex items-center">
+                  <ArrowUp className="h-6 w-6 mr-2 card-header-text" />
+                  Transfer Trends
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="card-header-text flex items-center space-x-1 hover:bg-white/10 px-2 py-1 rounded">
+                    <span className="text-sm">
+                      {transferView === 'in' ? 'Transferred In' : 'Transferred Out'}
+                    </span>
+                    <ChevronDown className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => setTransferView('in')}>
+                      Most Transferred In
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTransferView('out')}>
+                      Most Transferred Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-semibold mb-3">Most Transferred In</h3>
-                  {getTransferTrends().in.map((player, index) => (
-                    <Link
-                      key={player.id}
-                      to={`/player/${player.id}`}
-                      className="flex items-center justify-between border-b pb-2 hover:bg-muted/50 px-2 py-1 rounded transition-colors"
-                    >
-                      <div className="flex items-center">
-                        <span className="ranking-number">{index + 1}.</span>
-                        <span>{player.name}</span>
-                        <span className="text-muted-foreground text-sm ml-2">({player.team})</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-success-color">+{player.transfers}</span>
-                        <ChevronRight className="w-4 h-4 text-primary/60" />
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-3">Most Transferred Out</h3>
-                  {getTransferTrends().out.map((player, index) => (
-                    <Link
-                      key={player.id}
-                      to={`/player/${player.id}`}
-                      className="flex items-center justify-between border-b pb-2 hover:hover:bg-muted/50
-
- px-2 py-1 rounded transition-colors"
-                    >
-                      <div className="flex items-center">
-                        <span className="ranking-number">{index + 1}.</span>
-                        <span>{player.name}</span>
-                        <span className="text-muted-foreground text-sm ml-2">({player.team})</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-destructive">-{player.transfers}</span>
-                        <ChevronRight className="w-4 h-4 text-primary/60" />
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+              <div className="space-y-4">
+                {transferView === 'in'
+                  ? getTransferTrends().in.map((player, index) => (
+                      <Link
+                        key={player.id}
+                        to={`/player/${player.id}`}
+                        className="flex items-center justify-between border-b pb-2 hover:bg-muted/50 px-2 py-1 rounded transition-colors"
+                      >
+                        <div className="flex items-center">
+                          <span className="ranking-number">{index + 1}.</span>
+                          <span>{player.name}</span>
+                          <span className="text-muted-foreground text-sm ml-2">({player.team})</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-success-color">+{player.transfers}</span>
+                          <ChevronRight className="w-4 h-4 text-primary/60" />
+                        </div>
+                      </Link>
+                    ))
+                  : getTransferTrends().out.map((player, index) => (
+                      <Link
+                        key={player.id}
+                        to={`/player/${player.id}`}
+                        className="flex items-center justify-between border-b pb-2 hover:bg-muted/50 px-2 py-1 rounded transition-colors"
+                      >
+                        <div className="flex items-center">
+                          <span className="ranking-number">{index + 1}.</span>
+                          <span>{player.name}</span>
+                          <span className="text-muted-foreground text-sm ml-2">({player.team})</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-destructive">-{player.transfers}</span>
+                          <ChevronRight className="w-4 h-4 text-primary/60" />
+                        </div>
+                      </Link>
+                    ))
+                }
               </div>
             </CardContent>
           </Card>
@@ -387,45 +415,6 @@ const Dashboard = ({ leagueId }) => {
 
         {/* Middle Column */}
         <div className="space-y-6">
-          <Card>
-            <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
-              <CardTitle className="card-header-text flex items-center">
-                <Trophy className="h-6 w-6 mr-2 card-header-text" />
-                League Performance
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-semibold mb-3">Top Managers This Week</h3>
-                  {getLeaguePerformance().topManagers.map((manager, index) => (
-                    <ListItem
-                      key={manager.entry}
-                      leadingText={`${index + 1}.`}
-                      mainText={manager.display_name}
-                      trailingText={`${manager.points} pts`}
-                    />
-                  ))}
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="font-semibold mb-3">Bottom Managers This Week</h3>
-                  {getLeaguePerformance().bottomManagers.map((manager, index) => (
-                    <ListItem
-                      key={manager.entry}
-                      leadingText={`${index + 1}.`}
-                      mainText={manager.display_name}
-                      trailingText={`${manager.points} pts`}
-                      variant="negative"
-                    />
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
               <CardTitle className="card-header-text flex items-center">
@@ -468,10 +457,8 @@ const Dashboard = ({ leagueId }) => {
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Right Column - Additional Stats */}
-        <div className="space-y-6">
+          {/* Team Form & Captaincy - Moved from right column */}
           <Card>
             <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
               <CardTitle className="card-header-text flex items-center">
@@ -522,43 +509,99 @@ const Dashboard = ({ leagueId }) => {
               </div>
             </CardContent>
           </Card>
+        </div>
 
+        {/* Right Column - Results */}
+        <div className="space-y-6">
           <Card>
             <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
               <CardTitle className="card-header-text flex items-center">
-                <BarChart className="h-6 w-6 mr-2 card-header-text" />
-                League Insights
+                <Trophy className="h-6 w-6 mr-2 card-header-text" />
+                Results
               </CardTitle>
+              <CardDescription className="card-header-text">
+                Gameweek {selectedGameweek} Match Results
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-semibold mb-3">Top Four 🏆</h3>
-                  {getLeagueInsights().topFour.map((manager, index) => (
-                    <div key={manager.entry} className="flex items-center justify-between border-b pb-2">
-                      <div className="flex items-center">
-                        <span className="text-primary font-bold mr-2">{index + 1}.</span>
-                        <span>{manager.display_name}</span>
-                      </div>
-                      <span className="font-bold text-primary">{manager.total} pts</span>
-                    </div>
-                  ))}
+              <div className="space-y-4">
+                <div className="flex items-center justify-center mb-4">
+                  <div className="flex space-x-1 bg-muted p-1 rounded-lg">
+                    {[1, 2, 3, 4, 5, 6].map((gw) => (
+                      <button
+                        key={gw}
+                        onClick={() => setSelectedGameweek(gw)}
+                        className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                          gw === selectedGameweek
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {gw}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <Separator />
+                <div className="space-y-3">
+                  {getGameweekResults().map((match, index) => {
+                    const homeColors = getTeamColors(match.homeTeam.abbreviation);
+                    const awayColors = getTeamColors(match.awayTeam.abbreviation);
 
-                <div>
-                  <h3 className="font-semibold mb-3">Bottom Three 💩</h3>
-                  {getLeagueInsights().bottomThree.map((manager, index) => (
-                    <div key={manager.entry} className="flex items-center justify-between border-b pb-2">
-                      <div className="flex items-center">
-                        <span className="text-destructive font-bold mr-2">{index + 1}.</span>
-                        <span>{manager.display_name}</span>
+                    return (
+                      <div key={index} className="grid grid-cols-3 items-center p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                        {/* Home Team */}
+                        <div className="flex items-center space-x-3">
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-sm"
+                            style={{
+                              backgroundColor: homeColors.primary,
+                              color: homeColors.secondary
+                            }}
+                          >
+                            <span className="text-xs font-bold">
+                              {match.homeTeam.abbreviation}
+                            </span>
+                          </div>
+                          <span className="text-sm font-medium">{match.homeTeam.abbreviation}</span>
+                        </div>
+
+                        {/* Score - Perfectly Centered */}
+                        <div className="flex items-center justify-center space-x-2">
+                          <div className="w-8 h-8 bg-blue-600 text-white rounded flex items-center justify-center font-bold text-sm">
+                            {match.homeScore}
+                          </div>
+                          <div className="w-8 h-8 bg-blue-600 text-white rounded flex items-center justify-center font-bold text-sm">
+                            {match.awayScore}
+                          </div>
+                        </div>
+
+                        {/* Away Team */}
+                        <div className="flex items-center justify-end space-x-3">
+                          <span className="text-sm font-medium">{match.awayTeam.abbreviation}</span>
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-sm"
+                            style={{
+                              backgroundColor: awayColors.primary,
+                              color: awayColors.secondary
+                            }}
+                          >
+                            <span className="text-xs font-bold">
+                              {match.awayTeam.abbreviation}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <span className="font-bold text-destructive">{manager.total} pts</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
+
+                {getGameweekResults().length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Trophy className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p>No match results available</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

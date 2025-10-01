@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, CircularProgress } from '@mui/material';
+import { Typography, CircularProgress, Select, MenuItem } from '@mui/material';
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, TrophyIcon } from '@heroicons/react/24/solid';
 import { motion } from 'framer-motion';
 
-const LEAGUE_ID = 738279;
+const LEAGUE_ID = process.env.REACT_APP_LEAGUE_ID || 1176282;
 const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
 
 const TransferCard = ({ transfer, managerName }) => {
@@ -104,6 +104,8 @@ const GameweekStats = ({ eventId }) => {
     const [managerOfWeek, setManagerOfWeek] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [selectedTeam, setSelectedTeam] = useState('');
+    const [teamOptions, setTeamOptions] = useState([]);
 
     useEffect(() => {
         const fetchGameweekStats = async () => {
@@ -112,7 +114,11 @@ const GameweekStats = ({ eventId }) => {
             setLoading(true);
             try {
                 // Fetch standings first
-                const standingsResponse = await fetch(`${API_URL}/api/leagues/${LEAGUE_ID}/standings`);
+                const standingsResponse = await fetch(`${API_URL}/league-standings/${LEAGUE_ID}/standings`, {
+                  headers: {
+                    'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+                  }
+                });
                 if (!standingsResponse.ok) throw new Error('Failed to fetch standings');
                 const standingsData = await standingsResponse.json();
 
@@ -121,7 +127,11 @@ const GameweekStats = ({ eventId }) => {
                 let topManager = null;
 
                 // Get bootstrap-static data for player names
-                const bootstrapResponse = await fetch(`${API_URL}/api/bootstrap-static`);
+                const bootstrapResponse = await fetch(`${API_URL}/bootstrap-static`, {
+                  headers: {
+                    'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+                  }
+                });
                 if (!bootstrapResponse.ok) throw new Error('Failed to fetch bootstrap data');
                 const bootstrapData = await bootstrapResponse.json();
 
@@ -138,7 +148,11 @@ const GameweekStats = ({ eventId }) => {
 
                     try {
                         // Fetch transfers
-                        const transfersResponse = await fetch(`${API_URL}/api/entry/${entry}/transfers`);
+                        const transfersResponse = await fetch(`${API_URL}/entry-transfers/${entry}/transfers`, {
+                          headers: {
+                            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+                          }
+                        });
                         if (!transfersResponse.ok) continue;
                         const transfersData = await transfersResponse.json();
 
@@ -161,7 +175,11 @@ const GameweekStats = ({ eventId }) => {
                         allTransfers = [...allTransfers, ...gameweekTransfers];
 
                         // Fetch picks for points
-                        const picksResponse = await fetch(`${API_URL}/api/entry/${entry}/event/${eventId}/picks`);
+                        const picksResponse = await fetch(`${API_URL}/entry-picks/entry/${entry}/event/${eventId}/picks`, {
+                          headers: {
+                            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+                          }
+                        });
                         if (!picksResponse.ok) continue;
                         const picksData = await picksResponse.json();
 
@@ -183,8 +201,25 @@ const GameweekStats = ({ eventId }) => {
                 // Sort transfers by manager name
                 allTransfers.sort((a, b) => a.manager_name.localeCompare(b.manager_name));
 
+                // Create team options for dropdown
+                const uniqueTeams = [...new Set(allTransfers.map(t => t.manager_name))]
+                    .sort()
+                    .map(managerName => {
+                        const transfer = allTransfers.find(t => t.manager_name === managerName);
+                        return {
+                            value: managerName,
+                            label: `${managerName} (${transfer.team_name})`
+                        };
+                    });
+
                 setTransfers(allTransfers);
+                setTeamOptions(uniqueTeams);
                 setManagerOfWeek(topManager);
+
+                // Set first team as default if we have teams
+                if (uniqueTeams.length > 0 && !selectedTeam) {
+                    setSelectedTeam(uniqueTeams[0].value);
+                }
                 setLoading(false);
             } catch (error) {
                 console.error('Error fetching gameweek stats:', error);
@@ -212,23 +247,46 @@ const GameweekStats = ({ eventId }) => {
         );
     }
 
+    // Filter transfers by selected team
+    const filteredTransfers = selectedTeam
+        ? transfers.filter(t => t.manager_name === selectedTeam)
+        : [];
+
     return (
         <div className="space-y-6">
             {managerOfWeek && <ManagerOfWeekCard manager={managerOfWeek} />}
 
             <div className="bg-white rounded-lg shadow-md p-4">
-                <Typography variant="h6" className="text-gray-800 font-bold mb-4 text-sm">
-                    Gameweek Transfers
-                </Typography>
+                <div className="flex flex-col space-y-3 mb-4">
+                    <Typography variant="h6" className="text-gray-800 font-bold text-sm">
+                        Gameweek Transfers
+                    </Typography>
+                    {teamOptions.length > 0 && (
+                        <Select
+                            value={selectedTeam}
+                            onChange={(e) => setSelectedTeam(e.target.value)}
+                            className="min-w-full bg-white text-sm"
+                            size="small"
+                        >
+                            {teamOptions.map((team) => (
+                                <MenuItem key={team.value} value={team.value}>
+                                    {team.label}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    )}
+                </div>
                 <div className="space-y-2">
-                    {transfers.length > 0 ? (
-                        transfers.map((transfer, index) => (
+                    {filteredTransfers.length > 0 ? (
+                        filteredTransfers.map((transfer, index) => (
                             <TransferCard
                                 key={index}
                                 transfer={transfer}
                                 managerName={transfer.manager_name}
                             />
                         ))
+                    ) : selectedTeam && transfers.length > 0 ? (
+                        <p className="text-gray-500 text-sm">No transfers made by this team this gameweek</p>
                     ) : (
                         <p className="text-gray-500 text-sm">No transfers made this gameweek</p>
                     )}

@@ -18,7 +18,7 @@ const MatchupContainer = () => {
         const currentEvent = bootstrapResponse.data.events.find(e => e.is_current).id;
 
         // Then, fetch the league data for the current gameweek
-        const leagueResponse = await axios.get(`http://localhost:8000/api/weekly-matchups/738279?event=${currentEvent}`);
+        const leagueResponse = await axios.get(`http://localhost:8000/api/weekly-matchups/process.env.REACT_APP_LEAGUE_ID || 1176282?event=${currentEvent}`);
         const leagueData = leagueResponse.data;
         
         // Find the correct match in the league data

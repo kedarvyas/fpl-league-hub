@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Typography, CircularProgress, Select, MenuItem, Collapse } from '@mui/material';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,10 +8,10 @@ import VerticalFootballPitchMatchup from './VerticalFootballPitchMatchup';
 import LeagueTable from './LeagueTable';
 import GameweekStats from './GameweekStats';
 
-const LEAGUE_ID = 738279;
+const LEAGUE_ID = process.env.REACT_APP_LEAGUE_ID || 1176282;
 const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
 
-const MatchupRow = ({ matchup, isExpanded, onToggle, eventId }) => {
+const MatchupRow = ({ matchup, isExpanded, onToggle, eventId, onManagerClick }) => {
   const [matchDetails, setMatchDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -25,7 +26,11 @@ const MatchupRow = ({ matchup, isExpanded, onToggle, eventId }) => {
   useEffect(() => {
     if (isExpanded && !matchDetails) {
       setLoading(true);
-      fetch(`${API_URL}/api/matchup/${matchup.id}?event=${eventId}`)
+      fetch(`${API_URL}/matchup/${matchup.id}?event=${eventId}`, {
+        headers: {
+          'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+        }
+      })
       .then(response => {
           if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
           return response.json();
@@ -56,7 +61,15 @@ const MatchupRow = ({ matchup, isExpanded, onToggle, eventId }) => {
       >
         <div className="flex-1 text-left">
           <p className="font-semibold text-sm md:text-base truncate">{matchup.entry_1_name}</p>
-          <p className="text-xs text-gray-500 truncate">{matchup.entry_1_player_name}</p>
+          <p
+            className="text-xs text-gray-500 truncate cursor-pointer hover:text-primary hover:underline transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onManagerClick(matchup.entry_1_entry);
+            }}
+          >
+            {matchup.entry_1_player_name}
+          </p>
         </div>
         <div className="flex-shrink-0 mx-2 md:mx-4">
           <p className="text-lg md:text-xl font-bold">
@@ -67,7 +80,15 @@ const MatchupRow = ({ matchup, isExpanded, onToggle, eventId }) => {
         </div>
         <div className="flex-1 text-right">
           <p className="font-semibold text-sm md:text-base truncate">{matchup.entry_2_name}</p>
-          <p className="text-xs text-gray-500 truncate">{matchup.entry_2_player_name}</p>
+          <p
+            className="text-xs text-gray-500 truncate cursor-pointer hover:text-primary hover:underline transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onManagerClick(matchup.entry_2_entry);
+            }}
+          >
+            {matchup.entry_2_player_name}
+          </p>
         </div>
       </div>
       <Collapse in={isExpanded}>
@@ -88,6 +109,7 @@ const MatchupRow = ({ matchup, isExpanded, onToggle, eventId }) => {
 };
 
 const WeeklyMatchups = () => {
+  const navigate = useNavigate();
   const [matchups, setMatchups] = useState([]);
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,12 +117,23 @@ const WeeklyMatchups = () => {
   const [expandedMatchup, setExpandedMatchup] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [events, setEvents] = useState([]);
+  const [leaguePerformance, setLeaguePerformance] = useState({ topManagers: [], bottomManagers: [] });
+  const [leagueInsights, setLeagueInsights] = useState({ topFour: [], bottomThree: [] });
+
+  // Navigate to manager's team page
+  const handleManagerClick = (teamId) => {
+    navigate('/my-team', { state: { teamId: teamId.toString() } });
+  };
 
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/bootstrap-static`);
+        const response = await fetch(`${API_URL}/bootstrap-static`, {
+          headers: {
+            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+          }
+        });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -136,9 +169,13 @@ const WeeklyMatchups = () => {
         setLoading(true);
         setError(null);
         try {
-          const url = `${API_URL}/api/weekly-matchups/${LEAGUE_ID}?event=${selectedEvent}`;
+          const url = `${API_URL}/weekly-matchups/${LEAGUE_ID}?event=${selectedEvent}`;
           console.log('Fetching matchups from:', url); // Debug log
-          const response = await fetch(url);
+          const response = await fetch(url, {
+            headers: {
+              'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+            }
+          });
           
           if (!response.ok) {
             const errorText = await response.text();
@@ -169,7 +206,11 @@ const WeeklyMatchups = () => {
   useEffect(() => {
     const fetchStandings = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/leagues/${LEAGUE_ID}/standings`);
+        const response = await fetch(`${API_URL}/league-standings/${LEAGUE_ID}/standings`, {
+          headers: {
+            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+          }
+        });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -183,6 +224,54 @@ const WeeklyMatchups = () => {
 
     fetchStandings();
   }, []);
+
+  // Fetch league performance data
+  useEffect(() => {
+    const fetchLeaguePerformanceData = async () => {
+      if (!selectedEvent || !matchups.length || !standings.length) return;
+
+      try {
+        // Get league performance (top/bottom managers this week)
+        const matchScores = matchups.flatMap(match => [
+          {
+            entry: match.entry_1_entry,
+            display_name: match.entry_1_player_name,
+            points: match.entry_1_points
+          },
+          {
+            entry: match.entry_2_entry,
+            display_name: match.entry_2_player_name,
+            points: match.entry_2_points
+          }
+        ]);
+
+        const sortedByPoints = matchScores.sort((a, b) => b.points - a.points);
+        const topManagers = sortedByPoints.slice(0, 3);
+        const bottomManagers = sortedByPoints.slice(-3).reverse();
+
+        setLeaguePerformance({ topManagers, bottomManagers });
+
+        // Get league insights (top/bottom overall standings)
+        const sortedByTotal = [...standings].sort((a, b) => b.total - a.total);
+        const topFour = sortedByTotal.slice(0, 4).map(manager => ({
+          ...manager,
+          display_name: manager.player_name,
+          points: manager.total
+        }));
+        const bottomThree = sortedByTotal.slice(-3).map(manager => ({
+          ...manager,
+          display_name: manager.player_name,
+          points: manager.total
+        }));
+
+        setLeagueInsights({ topFour, bottomThree });
+      } catch (error) {
+        console.error('Error processing league performance data:', error);
+      }
+    };
+
+    fetchLeaguePerformanceData();
+  }, [selectedEvent, matchups, standings]);
 
   const handleToggleExpand = (matchupId) => {
     setExpandedMatchup(expandedMatchup === matchupId ? null : matchupId);
@@ -203,6 +292,94 @@ const WeeklyMatchups = () => {
                 League Table
               </Typography>
               <LeagueTable standings={standings} />
+            </div>
+
+            {/* League Performance */}
+            <div className="bg-card text-card-foreground rounded-lg shadow-md p-4 mb-4 md:-ml-24 md:w-[90%]">
+              <Typography variant="h6" className="mb-3 font-semibold text-card-foreground text-sm">
+                League Performance
+              </Typography>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold mb-2 text-xs">Top Managers This Week</h3>
+                  {leaguePerformance.topManagers.map((manager, index) => (
+                    <div key={manager.entry} className="flex items-center justify-between border-b pb-1 mb-1 text-xs">
+                      <div className="flex items-center">
+                        <span className="text-primary font-bold mr-2">{index + 1}.</span>
+                        <span
+                          className="cursor-pointer hover:text-primary hover:underline transition-colors"
+                          onClick={() => handleManagerClick(manager.entry)}
+                        >
+                          {manager.display_name}
+                        </span>
+                      </div>
+                      <span className="font-bold text-primary">{manager.points} pts</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-2 text-xs">Bottom Managers This Week</h3>
+                  {leaguePerformance.bottomManagers.map((manager, index) => (
+                    <div key={manager.entry} className="flex items-center justify-between border-b pb-1 mb-1 text-xs">
+                      <div className="flex items-center">
+                        <span className="text-red-600 font-bold mr-2">{index + 1}.</span>
+                        <span
+                          className="cursor-pointer hover:text-primary hover:underline transition-colors"
+                          onClick={() => handleManagerClick(manager.entry)}
+                        >
+                          {manager.display_name}
+                        </span>
+                      </div>
+                      <span className="font-bold text-red-600">{manager.points} pts</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* League Insights */}
+            <div className="bg-card text-card-foreground rounded-lg shadow-md p-4 mb-4 md:-ml-24 md:w-[90%]">
+              <Typography variant="h6" className="mb-3 font-semibold text-card-foreground text-sm">
+                League Insights
+              </Typography>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold mb-2 text-xs">Top Four 🏆</h3>
+                  {leagueInsights.topFour.map((manager, index) => (
+                    <div key={manager.entry} className="flex items-center justify-between border-b pb-1 mb-1 text-xs">
+                      <div className="flex items-center">
+                        <span className="text-primary font-bold mr-2">{index + 1}.</span>
+                        <span
+                          className="cursor-pointer hover:text-primary hover:underline transition-colors"
+                          onClick={() => handleManagerClick(manager.entry)}
+                        >
+                          {manager.display_name}
+                        </span>
+                      </div>
+                      <span className="font-bold text-primary">{manager.total} pts</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-2 text-xs">Bottom Three 💩</h3>
+                  {leagueInsights.bottomThree.map((manager, index) => (
+                    <div key={manager.entry} className="flex items-center justify-between border-b pb-1 mb-1 text-xs">
+                      <div className="flex items-center">
+                        <span className="text-red-600 font-bold mr-2">{index + 1}.</span>
+                        <span
+                          className="cursor-pointer hover:text-primary hover:underline transition-colors"
+                          onClick={() => handleManagerClick(manager.entry)}
+                        >
+                          {manager.display_name}
+                        </span>
+                      </div>
+                      <span className="font-bold text-red-600">{manager.total} pts</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
           <div className="md:col-span-7 md:-ml-28 md:mr-[-4rem]">
@@ -244,6 +421,7 @@ const WeeklyMatchups = () => {
                       isExpanded={expandedMatchup === matchup.id}
                       onToggle={() => handleToggleExpand(matchup.id)}
                       eventId={selectedEvent}
+                      onManagerClick={handleManagerClick}
                     />
                   ))}
                 </AnimatePresence>

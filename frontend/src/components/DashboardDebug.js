@@ -16,8 +16,8 @@ const DashboardDebug = () => {
         const rootData = await rootResponse.json();
         setApiStatus(prev => ({ ...prev, root: '✅ Connected', rootData }));
 
-        // Test specific league endpoint (using your league ID 738279)
-        const leagueResponse = await fetch('https://fpl-league-hub-api.onrender.com/api/leagues/738279');
+        // Test specific league endpoint (using your league ID process.env.REACT_APP_LEAGUE_ID || 1176282)
+        const leagueResponse = await fetch('https://fpl-league-hub-api.onrender.com/api/leagues/process.env.REACT_APP_LEAGUE_ID || 1176282');
         const leagueData = await leagueResponse.json();
         setApiStatus(prev => ({ 
           ...prev, 
