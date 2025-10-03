@@ -9,7 +9,8 @@ import LeagueTable from './LeagueTable';
 import GameweekStats from './GameweekStats';
 
 const LEAGUE_ID = process.env.REACT_APP_LEAGUE_ID || 1176282;
-const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
+const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.supabase.co/functions/v1';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
 
 const MatchupRow = ({ matchup, isExpanded, onToggle, eventId, onManagerClick }) => {
   const [matchDetails, setMatchDetails] = useState(null);
@@ -26,7 +27,11 @@ const MatchupRow = ({ matchup, isExpanded, onToggle, eventId, onManagerClick }) 
   useEffect(() => {
     if (isExpanded && !matchDetails) {
       setLoading(true);
-      fetch(`${API_URL}/matchup/${matchup.id}?event=${eventId}`)
+      const headers = {
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json'
+      };
+      fetch(`${API_URL}/matchup/${matchup.id}?event=${eventId}`, { headers })
       .then(response => {
           if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
           return response.json();
@@ -125,7 +130,11 @@ const WeeklyMatchups = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await fetch(`${API_URL}/bootstrap-static`);
+        const headers = {
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
+        };
+        const response = await fetch(`${API_URL}/bootstrap-static`, { headers });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -161,9 +170,13 @@ const WeeklyMatchups = () => {
         setLoading(true);
         setError(null);
         try {
+          const headers = {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+          };
           const url = `${API_URL}/weekly-matchups/${LEAGUE_ID}?event=${selectedEvent}`;
           console.log('Fetching matchups from:', url); // Debug log
-          const response = await fetch(url);
+          const response = await fetch(url, { headers });
           
           if (!response.ok) {
             const errorText = await response.text();
@@ -194,7 +207,11 @@ const WeeklyMatchups = () => {
   useEffect(() => {
     const fetchStandings = async () => {
       try {
-        const response = await fetch(`${API_URL}/league-standings/${LEAGUE_ID}/standings`);
+        const headers = {
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
+        };
+        const response = await fetch(`${API_URL}/league-standings/${LEAGUE_ID}/standings`, { headers });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

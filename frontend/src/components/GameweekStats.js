@@ -4,7 +4,8 @@ import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, TrophyIcon } from '@heroico
 import { motion } from 'framer-motion';
 
 const LEAGUE_ID = process.env.REACT_APP_LEAGUE_ID || 1176282;
-const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
+const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.supabase.co/functions/v1';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
 
 const TransferCard = ({ transfer, managerName }) => {
     // Format price to show £ and .0/.5
@@ -113,8 +114,13 @@ const GameweekStats = ({ eventId }) => {
 
             setLoading(true);
             try {
+                const headers = {
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                };
+
                 // Fetch standings first
-                const standingsResponse = await fetch(`${API_URL}/league-standings/${LEAGUE_ID}/standings`);
+                const standingsResponse = await fetch(`${API_URL}/league-standings/${LEAGUE_ID}/standings`, { headers });
                 if (!standingsResponse.ok) throw new Error('Failed to fetch standings');
                 const standingsData = await standingsResponse.json();
 
@@ -123,7 +129,7 @@ const GameweekStats = ({ eventId }) => {
                 let topManager = null;
 
                 // Get bootstrap-static data for player names
-                const bootstrapResponse = await fetch(`${API_URL}/bootstrap-static`);
+                const bootstrapResponse = await fetch(`${API_URL}/bootstrap-static`, { headers });
                 if (!bootstrapResponse.ok) throw new Error('Failed to fetch bootstrap data');
                 const bootstrapData = await bootstrapResponse.json();
 
@@ -139,8 +145,12 @@ const GameweekStats = ({ eventId }) => {
                     if (!entry) continue;
 
                     try {
+                        const headers = {
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                            'Content-Type': 'application/json'
+                        };
                         // Fetch transfers
-                        const transfersResponse = await fetch(`${API_URL}/entry-transfers/${entry}/transfers`);
+                        const transfersResponse = await fetch(`${API_URL}/entry-transfers/${entry}/transfers`, { headers });
                         if (!transfersResponse.ok) continue;
                         const transfersData = await transfersResponse.json();
 
@@ -163,7 +173,7 @@ const GameweekStats = ({ eventId }) => {
                         allTransfers = [...allTransfers, ...gameweekTransfers];
 
                         // Fetch picks for points
-                        const picksResponse = await fetch(`${API_URL}/entry-picks/entry/${entry}/event/${eventId}/picks`);
+                        const picksResponse = await fetch(`${API_URL}/entry-picks/entry/${entry}/event/${eventId}/picks`, { headers });
                         if (!picksResponse.ok) continue;
                         const picksData = await picksResponse.json();
 

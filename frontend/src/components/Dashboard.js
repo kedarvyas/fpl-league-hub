@@ -16,6 +16,7 @@ import { Separator } from "./ui/separator";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./ui/dropdown-menu";
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.supabase.co/functions/v1';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
 
 const Dashboard = ({ leagueId: propLeagueId }) => {
   const { leagueId: urlLeagueId } = useParams();
@@ -36,8 +37,13 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
       try {
         setLoading(true);
 
+        const headers = {
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
+        };
+
         // Fetch bootstrap data - Updated URL
-        const bootstrapResponse = await fetch(`${API_URL}/bootstrap-static`);
+        const bootstrapResponse = await fetch(`${API_URL}/bootstrap-static`, { headers });
         if (!bootstrapResponse.ok) {
           throw new Error('Failed to fetch bootstrap data');
         }
@@ -54,7 +60,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
         setCurrentGameweek(current || null);
 
         // Fetch league standings - Updated URL
-        const leagueResponse = await fetch(`${API_URL}/league-standings/${leagueId}/standings`);
+        const leagueResponse = await fetch(`${API_URL}/league-standings/${leagueId}/standings`, { headers });
         const leagueResult = await leagueResponse.json();
 
         // Initialize leagueData as an empty array if the response is null/undefined
@@ -80,9 +86,14 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
       if (!currentGameweek?.id) return;
 
       try {
+        const headers = {
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
+        };
         // Updated URL
         const matchupsResponse = await fetch(
-          `${API_URL}/weekly-matchups/${leagueId}?event=${currentGameweek.id}`
+          `${API_URL}/weekly-matchups/${leagueId}?event=${currentGameweek.id}`,
+          { headers }
         );
         const matchupsResult = await matchupsResponse.json();
         setWeeklyMatchups(matchupsResult);
@@ -98,7 +109,11 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
   useEffect(() => {
     const fetchGameweekResults = async () => {
       try {
-        const response = await fetch(`${API_URL}/fixtures/${selectedGameweek}`);
+        const headers = {
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
+        };
+        const response = await fetch(`${API_URL}/fixtures/${selectedGameweek}`, { headers });
         if (!response.ok) {
           throw new Error('Failed to fetch fixtures');
         }
