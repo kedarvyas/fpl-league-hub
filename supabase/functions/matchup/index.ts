@@ -56,6 +56,20 @@ Deno.serve(async (req) => {
       const matchup = matchupData.results.find((match: any) => match.id.toString() === matchupId)
 
       if (matchup) {
+        // Fetch bootstrap data for player information
+        const bootstrapResponse = await fetch('https://fantasy.premierleague.com/api/bootstrap-static/')
+        const bootstrapData = await bootstrapResponse.json()
+
+        // Create player lookup map
+        const playerMap = new Map()
+        bootstrapData.elements.forEach((player: any) => {
+          playerMap.set(player.id, {
+            name: player.web_name,
+            position: bootstrapData.element_types.find((t: any) => t.id === player.element_type)?.singular_name_short || '',
+            team: bootstrapData.teams.find((t: any) => t.id === player.team)?.short_name || ''
+          })
+        })
+
         // Fetch detailed team data for both entries
         const [team1Response, team2Response] = await Promise.all([
           fetch(`https://fantasy.premierleague.com/api/entry/${matchup.entry_1_entry}/event/${event}/picks/`),
@@ -66,6 +80,43 @@ Deno.serve(async (req) => {
           team1Response.ok ? team1Response.json() : null,
           team2Response.ok ? team2Response.json() : null
         ])
+
+        // Enrich picks with player information
+        if (team1Data?.picks) {
+          team1Data.picks = team1Data.picks.map((pick: any) => {
+            const playerInfo = playerMap.get(pick.element)
+            return {
+              ...pick,
+              id: pick.element,
+              name: playerInfo?.name || 'Unknown',
+              position: playerInfo?.position || '',
+              club: playerInfo?.team || '',
+              points: pick.points || 0,
+              isCaptain: pick.is_captain,
+              isViceCaptain: pick.is_vice_captain,
+              isStarting: pick.multiplier > 0,
+              multiplier: pick.multiplier
+            }
+          })
+        }
+
+        if (team2Data?.picks) {
+          team2Data.picks = team2Data.picks.map((pick: any) => {
+            const playerInfo = playerMap.get(pick.element)
+            return {
+              ...pick,
+              id: pick.element,
+              name: playerInfo?.name || 'Unknown',
+              position: playerInfo?.position || '',
+              club: playerInfo?.team || '',
+              points: pick.points || 0,
+              isCaptain: pick.is_captain,
+              isViceCaptain: pick.is_vice_captain,
+              isStarting: pick.multiplier > 0,
+              multiplier: pick.multiplier
+            }
+          })
+        }
 
         return new Response(
           JSON.stringify({

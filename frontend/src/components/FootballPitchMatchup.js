@@ -72,18 +72,19 @@ const MatchupHeader = ({ homeTeam, awayTeam }) => (
 const FootballPitchMatchup = ({ matchData }) => {
     if (!matchData) return null;
 
+    // Handle new API response format
     const homeTeam = {
-        name: matchData.team_h_name,
-        managerName: matchData.team_h_manager,
-        players: matchData.team_h_picks,
-        score: matchData.team_h_score
+        name: matchData.matchup?.entry_1_name || matchData.team_h_name,
+        managerName: matchData.matchup?.entry_1_player_name || matchData.team_h_manager,
+        players: matchData.team1?.picks || matchData.team_h_picks || [],
+        score: matchData.matchup?.entry_1_points || matchData.team_h_score
     };
 
     const awayTeam = {
-        name: matchData.team_a_name,
-        managerName: matchData.team_a_manager,
-        players: matchData.team_a_picks,
-        score: matchData.team_a_score
+        name: matchData.matchup?.entry_2_name || matchData.team_a_name,
+        managerName: matchData.matchup?.entry_2_player_name || matchData.team_a_manager,
+        players: matchData.team2?.picks || matchData.team_a_picks || [],
+        score: matchData.matchup?.entry_2_points || matchData.team_a_score
     };
 
     return (
