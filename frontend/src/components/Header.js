@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import ThemeSwitcher from './ThemeSwitcher';
+import LoginModal from './LoginModal';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Home,
   Users,
@@ -10,6 +12,8 @@ import {
   Menu,
   Info,
   User,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 
 const navigation = [
@@ -18,16 +22,25 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: <ChartBar className="w-4 h-4" /> },
   { name: 'H2H League Info', href: '/weekly-matchups', icon: <Users className="w-4 h-4" /> },
   { name: 'Player Statistics', href: '/player-statistics', icon: <ChartBar className="w-4 h-4" /> },
-  { name: 'League Standings', href: '/standings', icon: <Table className="w-4 h-4" /> },
 ];
 
 const Header = ({ currentTheme, setTheme, setShowInfo }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const location = useLocation();
+  const { user, signOut, loading } = useAuth();
 
   // Updated theme-based styling
   const bgHover = "hover:bg-muted/80";
   const activeBg = "bg-muted";
+
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) {
+      console.error('Error signing out:', error.message);
+      alert('Failed to sign out. Please try again.');
+    }
+  };
 
   return (
     <header className="relative z-50 bg-background">
@@ -70,6 +83,36 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
             >
               <Info className="w-5 h-5 text-foreground" />
             </button>
+
+            {/* Auth Button */}
+            {!loading && (
+              <>
+                {user ? (
+                  <div className="flex items-center gap-2">
+                    <div className="px-3 py-2 rounded-lg bg-muted">
+                      <span className="text-sm font-medium text-foreground">
+                        {user.user_metadata?.full_name || user.email}
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleSignOut}
+                      className={`p-2 rounded-lg transition-colors ${bgHover}`}
+                      title="Sign Out"
+                    >
+                      <LogOut className="w-5 h-5 text-foreground" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsLoginModalOpen(true)}
+                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-2"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span className="font-medium">Log In</span>
+                  </button>
+                )}
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -127,8 +170,47 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
               </button>
             </div>
           </div>
+
+          {/* Mobile Auth Button */}
+          {!loading && (
+            <div className="px-4 pb-2">
+              {user ? (
+                <div className="space-y-2">
+                  <div className="px-4 py-3 rounded-lg bg-muted">
+                    <span className="text-sm font-medium text-foreground">
+                      {user.user_metadata?.full_name || user.email}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      handleSignOut();
+                    }}
+                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${bgHover}`}
+                  >
+                    <LogOut className="w-5 h-5 text-foreground" />
+                    <span className="font-medium text-foreground">Sign Out</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsLoginModalOpen(true);
+                  }}
+                  className="w-full px-4 py-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                >
+                  <LogIn className="w-5 h-5" />
+                  <span className="font-medium">Log In</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Login Modal */}
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </header>
   );
 };

@@ -20,8 +20,8 @@ const Home = () => {
   const handleLeagueSubmit = (e) => {
     e.preventDefault();
     if (leagueId.trim()) {
-      // Navigate to dashboard with the new league ID
-      navigate(`/dashboard/${leagueId.trim()}`);
+      // Navigate to weekly matchups page with the new league ID
+      navigate(`/weekly-matchups/${leagueId.trim()}`);
     }
   };
 

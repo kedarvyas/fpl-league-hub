@@ -80,30 +80,33 @@ const ThemeSwitcher = ({ currentTheme, setTheme }) => {
 
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex items-center justify-between rounded-md px-3 py-2 hover:bg-muted transition-colors w-full bg-muted/50">
-                <span className="font-medium">Theme</span>
-                <span className="text-muted-foreground text-sm ml-2">
-                    {themes[currentTheme]?.name}
-                </span>
+            <DropdownMenuTrigger className="p-2 rounded-lg hover:bg-muted/80 transition-colors">
+                <Palette className="w-5 h-5 text-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
                 side="bottom"
                 align="end"
                 sideOffset={4}
-                className="w-32 min-w-[8rem]"
+                className="w-36"
             >
-                {Object.entries(themes).map(([key, theme]) => (
-                    <DropdownMenuItem
-                        key={key}
-                        onClick={() => setTheme(key)}
-                        className="flex items-center justify-between py-1.5"
-                    >
-                        <span className="text-sm">{theme.name}</span>
-                        {currentTheme === key && (
-                            <Check className="h-4 w-4 text-primary ml-2" />
-                        )}
-                    </DropdownMenuItem>
-                ))}
+                {Object.entries(themes).map(([key, theme]) => {
+                    const Icon = theme.icon;
+                    return (
+                        <DropdownMenuItem
+                            key={key}
+                            onClick={() => setTheme(key)}
+                            className="flex items-center justify-between py-2 cursor-pointer"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">{theme.name}</span>
+                            </div>
+                            {currentTheme === key && (
+                                <Check className="h-4 w-4 text-primary" />
+                            )}
+                        </DropdownMenuItem>
+                    );
+                })}
             </DropdownMenuContent>
         </DropdownMenu>
     );

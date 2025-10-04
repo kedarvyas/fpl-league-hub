@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Typography, CircularProgress, Select, MenuItem, Collapse } from '@mui/material';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,8 +7,6 @@ import FootballPitchMatchup from './FootballPitchMatchup';
 import VerticalFootballPitchMatchup from './VerticalFootballPitchMatchup';
 import LeagueTable from './LeagueTable';
 import GameweekStats from './GameweekStats';
-
-const LEAGUE_ID = process.env.REACT_APP_LEAGUE_ID || 1176282;
 const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.supabase.co/functions/v1';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
 
@@ -111,6 +109,11 @@ const MatchupRow = ({ matchup, isExpanded, onToggle, eventId, onManagerClick }) 
 
 const WeeklyMatchups = () => {
   const navigate = useNavigate();
+  const { leagueId: urlLeagueId } = useParams();
+
+  // Use league ID from URL if provided, otherwise use env variable or default
+  const LEAGUE_ID = urlLeagueId || process.env.REACT_APP_LEAGUE_ID || '1176282';
+
   const [matchups, setMatchups] = useState([]);
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -432,7 +435,7 @@ const WeeklyMatchups = () => {
           {/* Gameweek Stats - Right */}
           <div className="md:col-span-2 md:mr-[-8rem]">
             <div className="md:ml-20 md:w-[80%]">
-              <GameweekStats eventId={selectedEvent} />
+              <GameweekStats eventId={selectedEvent} leagueId={LEAGUE_ID} />
             </div>
           </div>
         </div>
