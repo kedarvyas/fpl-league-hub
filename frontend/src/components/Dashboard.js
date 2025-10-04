@@ -29,7 +29,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
   const [weeklyMatchups, setWeeklyMatchups] = useState(null);
   const [transferView, setTransferView] = useState('in'); // 'in' or 'out'
   const [gameweekResults, setGameweekResults] = useState([]);
-  const [selectedGameweek, setSelectedGameweek] = useState(6); // Default to gameweek 6
+  const [selectedGameweek, setSelectedGameweek] = useState(null); // Will be set to current gameweek
 
 
   useEffect(() => {
@@ -58,6 +58,11 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
         }
         console.log('Current Gameweek:', current); // Add logging
         setCurrentGameweek(current || null);
+
+        // Set selected gameweek to current gameweek for Results section
+        if (current && !selectedGameweek) {
+          setSelectedGameweek(current.id);
+        }
 
         // Fetch league standings - Updated URL
         const leagueResponse = await fetch(`${API_URL}/league-standings/${leagueId}/standings`, { headers });
@@ -133,10 +138,11 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
               abbreviation: awayTeam?.short_name || 'TBD',
               name: awayTeam?.name || 'TBD'
             },
-            homeScore: fixture.team_h_score ?? '-',
-            awayScore: fixture.team_a_score ?? '-',
+            homeScore: fixture.team_h_score !== null ? fixture.team_h_score : '-',
+            awayScore: fixture.team_a_score !== null ? fixture.team_a_score : '-',
             started: fixture.started,
-            finished: fixture.finished
+            finished: fixture.finished,
+            kickoffTime: fixture.kickoff_time
           };
         });
 
@@ -553,18 +559,18 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
             <CardContent className="pt-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-center mb-4">
-                  <div className="flex space-x-1 bg-muted p-1 rounded-lg">
-                    {[1, 2, 3, 4, 5, 6].map((gw) => (
+                  <div className="flex space-x-1 bg-muted p-1 rounded-lg overflow-x-auto max-w-full">
+                    {bootstrapData?.events?.slice(0, currentGameweek?.id || 7).map((event) => (
                       <button
-                        key={gw}
-                        onClick={() => setSelectedGameweek(gw)}
-                        className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                          gw === selectedGameweek
+                        key={event.id}
+                        onClick={() => setSelectedGameweek(event.id)}
+                        className={`px-3 py-1 rounded text-sm font-medium transition-colors whitespace-nowrap ${
+                          event.id === selectedGameweek
                             ? 'bg-primary text-primary-foreground'
                             : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
-                        {gw}
+                        {event.id}
                       </button>
                     ))}
                   </div>
