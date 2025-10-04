@@ -118,15 +118,39 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
           throw new Error('Failed to fetch fixtures');
         }
         const results = await response.json();
-        setGameweekResults(results);
+
+        // Transform fixtures data to match expected format
+        const transformedResults = results.map(fixture => {
+          const homeTeam = bootstrapData?.teams?.find(t => t.id === fixture.team_h);
+          const awayTeam = bootstrapData?.teams?.find(t => t.id === fixture.team_a);
+
+          return {
+            homeTeam: {
+              abbreviation: homeTeam?.short_name || 'TBD',
+              name: homeTeam?.name || 'TBD'
+            },
+            awayTeam: {
+              abbreviation: awayTeam?.short_name || 'TBD',
+              name: awayTeam?.name || 'TBD'
+            },
+            homeScore: fixture.team_h_score ?? '-',
+            awayScore: fixture.team_a_score ?? '-',
+            started: fixture.started,
+            finished: fixture.finished
+          };
+        });
+
+        setGameweekResults(transformedResults);
       } catch (err) {
         console.error('Error fetching gameweek results:', err);
         setGameweekResults([]);
       }
     };
 
-    fetchGameweekResults();
-  }, [selectedGameweek]);
+    if (bootstrapData?.teams) {
+      fetchGameweekResults();
+    }
+  }, [selectedGameweek, bootstrapData?.teams]);
 
 
   // Data processing functions
