@@ -81,17 +81,23 @@ Deno.serve(async (req) => {
           team2Response.ok ? team2Response.json() : null
         ])
 
-        // Enrich picks with player information
+        // Enrich picks with player information and calculate actual points
         if (team1Data?.picks) {
           team1Data.picks = team1Data.picks.map((pick: any) => {
             const playerInfo = playerMap.get(pick.element)
+            const playerStats = bootstrapData.elements.find((p: any) => p.id === pick.element)
+
+            // Calculate actual points: player's event points * multiplier
+            const basePoints = playerStats?.event_points || 0
+            const actualPoints = basePoints * (pick.multiplier || 0)
+
             return {
               ...pick,
               id: pick.element,
               name: playerInfo?.name || 'Unknown',
               position: playerInfo?.position || '',
               club: playerInfo?.team || '',
-              points: pick.points || 0,
+              points: actualPoints,
               isCaptain: pick.is_captain,
               isViceCaptain: pick.is_vice_captain,
               isStarting: pick.multiplier > 0,
@@ -103,13 +109,19 @@ Deno.serve(async (req) => {
         if (team2Data?.picks) {
           team2Data.picks = team2Data.picks.map((pick: any) => {
             const playerInfo = playerMap.get(pick.element)
+            const playerStats = bootstrapData.elements.find((p: any) => p.id === pick.element)
+
+            // Calculate actual points: player's event points * multiplier
+            const basePoints = playerStats?.event_points || 0
+            const actualPoints = basePoints * (pick.multiplier || 0)
+
             return {
               ...pick,
               id: pick.element,
               name: playerInfo?.name || 'Unknown',
               position: playerInfo?.position || '',
               club: playerInfo?.team || '',
-              points: pick.points || 0,
+              points: actualPoints,
               isCaptain: pick.is_captain,
               isViceCaptain: pick.is_vice_captain,
               isStarting: pick.multiplier > 0,
