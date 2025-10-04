@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { User, TrendingUp, TrendingDown, Target } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 const SUPABASE_URL = 'https://hvgotlfiwwirfpezvxhp.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
@@ -10,25 +11,40 @@ const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.s
 
 const MyTeam = () => {
   const location = useLocation();
+
+  // Use localStorage to persist team ID
+  const [savedTeamId, setSavedTeamId] = useLocalStorage('fpl_team_id', '');
+
   const [teamData, setTeamData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [teamId, setTeamId] = useState('');
   const [activeTab, setActiveTab] = useState('Live');
-  const [showInput, setShowInput] = useState(true);
+  const [showInput, setShowInput] = useState(!savedTeamId);
   const [seasonHistory, setSeasonHistory] = useState(null);
   const [previousSeasons, setPreviousSeasons] = useState(null);
 
-  // Check if team ID was passed from Home page
+  // Load saved team ID on mount
+  useEffect(() => {
+    if (savedTeamId && !location.state?.teamId) {
+      setTeamId(savedTeamId);
+      setShowInput(false);
+      fetchTeamData(savedTeamId);
+    }
+  }, []);
+
+  // Check if team ID was passed from Home page or another component
   useEffect(() => {
     if (location.state?.teamId) {
-      setTeamId(location.state.teamId);
-      setShowInput(false); // Hide input when coming from Home page
-      fetchTeamData(location.state.teamId);
+      const newTeamId = location.state.teamId;
+      setTeamId(newTeamId);
+      setSavedTeamId(newTeamId); // Save to localStorage
+      setShowInput(false);
+      fetchTeamData(newTeamId);
       // Clear the location state to prevent re-triggering
       window.history.replaceState({}, document.title);
     }
-  }, [location.state]);
+  }, [location.state, setSavedTeamId]);
 
   const fetchTeamData = async (id) => {
     try {
@@ -73,6 +89,7 @@ const MyTeam = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (teamId.trim()) {
+      setSavedTeamId(teamId.trim()); // Save to localStorage
       fetchTeamData(teamId.trim());
     }
   };

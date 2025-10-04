@@ -35,7 +35,7 @@ export function useLocalStorage(key, initialValue) {
       setStoredValue(valueToStore);
       // Save to local storage
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(key, JSON.parse(valueToStore));
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
       }
     } catch (error) {
       // A more advanced implementation would handle the error case

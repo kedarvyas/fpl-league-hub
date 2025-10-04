@@ -1,18 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import Header from './Header';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 const Layout = ({ children }) => {
   const [showInfo, setShowInfo] = useState(false);
-  const [currentTheme, setTheme] = useState(() => {
-    return localStorage.getItem('theme') || 'light';
-  });
+  const [currentTheme, setTheme] = useLocalStorage('theme', 'light');
 
   useEffect(() => {
     // Update the data-theme attribute
     document.documentElement.setAttribute('data-theme', currentTheme);
-    // Store the theme preference
-    localStorage.setItem('theme', currentTheme);
   }, [currentTheme]);
 
   const AboutModal = () => (

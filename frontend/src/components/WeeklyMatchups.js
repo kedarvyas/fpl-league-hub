@@ -3,10 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Typography, CircularProgress, Select, MenuItem, Collapse } from '@mui/material';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Users } from 'lucide-react';
 import FootballPitchMatchup from './FootballPitchMatchup';
 import VerticalFootballPitchMatchup from './VerticalFootballPitchMatchup';
 import LeagueTable from './LeagueTable';
 import GameweekStats from './GameweekStats';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { useLocalStorage } from '../hooks/useLocalStorage';
+
 const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.supabase.co/functions/v1';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
 
@@ -111,12 +115,19 @@ const WeeklyMatchups = () => {
   const navigate = useNavigate();
   const { leagueId: urlLeagueId } = useParams();
 
-  // Use league ID from URL if provided, otherwise use env variable or default
-  const LEAGUE_ID = urlLeagueId || process.env.REACT_APP_LEAGUE_ID || '1176282';
+  // Use localStorage to persist league ID
+  const [savedLeagueId, setSavedLeagueId] = useLocalStorage('fpl_league_id', '');
+
+  // Determine which league ID to use: URL > saved > nothing (no env fallback)
+  const LEAGUE_ID = urlLeagueId || savedLeagueId || null;
+
+  // State for showing input form
+  const [showInput, setShowInput] = useState(!LEAGUE_ID);
+  const [inputLeagueId, setInputLeagueId] = useState('');
 
   const [matchups, setMatchups] = useState([]);
   const [standings, setStandings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!LEAGUE_ID);
   const [error, setError] = useState(null);
   const [expandedMatchup, setExpandedMatchup] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -124,13 +135,34 @@ const WeeklyMatchups = () => {
   const [leaguePerformance, setLeaguePerformance] = useState({ topManagers: [], bottomManagers: [] });
   const [leagueInsights, setLeagueInsights] = useState({ topFour: [], bottomThree: [] });
 
+  // Save league ID to localStorage when URL param changes
+  useEffect(() => {
+    if (urlLeagueId && urlLeagueId !== savedLeagueId) {
+      setSavedLeagueId(urlLeagueId);
+      setShowInput(false);
+    }
+  }, [urlLeagueId, savedLeagueId, setSavedLeagueId]);
+
   // Navigate to manager's team page
   const handleManagerClick = (teamId) => {
     navigate('/my-team', { state: { teamId: teamId.toString() } });
   };
 
+  // Handle league ID form submission
+  const handleLeagueIdSubmit = (e) => {
+    e.preventDefault();
+    if (inputLeagueId.trim()) {
+      setSavedLeagueId(inputLeagueId.trim());
+      setShowInput(false);
+      // Navigate with the new league ID
+      navigate(`/weekly-matchups/${inputLeagueId.trim()}`);
+    }
+  };
+
 
   useEffect(() => {
+    if (!LEAGUE_ID) return;
+
     const fetchEvents = async () => {
       try {
         const headers = {
@@ -165,7 +197,7 @@ const WeeklyMatchups = () => {
     };
 
     fetchEvents();
-  }, []);
+  }, [LEAGUE_ID]);
 
   useEffect(() => {
     if (selectedEvent) {
@@ -208,6 +240,8 @@ const WeeklyMatchups = () => {
   }, [selectedEvent]);
 
   useEffect(() => {
+    if (!LEAGUE_ID) return;
+
     const fetchStandings = async () => {
       try {
         const headers = {
@@ -227,7 +261,7 @@ const WeeklyMatchups = () => {
     };
 
     fetchStandings();
-  }, []);
+  }, [LEAGUE_ID]);
 
   // Fetch league performance data
   useEffect(() => {
@@ -284,6 +318,57 @@ const WeeklyMatchups = () => {
   const handleEventChange = (event) => {
     setSelectedEvent(event.target.value);
   };
+
+  // Show empty state if no league ID is set
+  if (showInput || !LEAGUE_ID) {
+    return (
+      <div className="min-h-screen bg-background p-4">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-foreground mb-2">H2H League Info</h1>
+            <p className="text-muted-foreground">
+              Enter your FPL H2H League ID to view matchups and league standings
+            </p>
+          </div>
+
+          {/* League ID Input */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Users className="w-5 h-5" />
+                <span>Enter H2H League ID</span>
+              </CardTitle>
+              <CardDescription>
+                Find your League ID in the FPL website URL when viewing your H2H league
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleLeagueIdSubmit} className="flex space-x-4">
+                <input
+                  type="text"
+                  value={inputLeagueId}
+                  onChange={(e) => setInputLeagueId(e.target.value)}
+                  placeholder="e.g., 1176282"
+                  className="flex-1 px-4 py-3 bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                />
+                <button
+                  type="submit"
+                  className="px-6 py-3 bg-primary hover:bg-primary-darker text-primary-foreground rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!inputLeagueId.trim()}
+                >
+                  View League
+                </button>
+              </form>
+              <p className="text-sm text-muted-foreground mt-4">
+                Find your League ID in the URL: fantasy.premierleague.com/leagues/<strong>1176282</strong>/standings/h
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-background min-h-screen p-2 md:p-4"> {/* Changed from bg-gray-100 */}

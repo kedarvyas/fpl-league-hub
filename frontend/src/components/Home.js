@@ -1,13 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Users, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 const Home = () => {
+  const [savedTeamId] = useLocalStorage('fpl_team_id', '');
+  const [savedLeagueId] = useLocalStorage('fpl_league_id', '');
   const [teamId, setTeamId] = useState('');
   const [leagueId, setLeagueId] = useState('');
   const navigate = useNavigate();
+
+  // Load saved IDs on mount
+  useEffect(() => {
+    if (savedTeamId) {
+      setTeamId(savedTeamId);
+    }
+    if (savedLeagueId) {
+      setLeagueId(savedLeagueId);
+    }
+  }, [savedTeamId, savedLeagueId]);
 
   const handleTeamSubmit = (e) => {
     e.preventDefault();
