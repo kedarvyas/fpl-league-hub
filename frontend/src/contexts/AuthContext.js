@@ -37,12 +37,8 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const getRedirectUrl = () => {
-    // Use production URL if available, otherwise use current origin
-    const productionUrl = process.env.REACT_APP_SITE_URL;
-    // If we're on localhost, use production URL if available
-    if (window.location.hostname === 'localhost' && productionUrl) {
-      return productionUrl;
-    }
+    // Always use window.location.origin for the current environment
+    // This ensures OAuth redirects work correctly on both localhost and production
     return window.location.origin;
   };
 
