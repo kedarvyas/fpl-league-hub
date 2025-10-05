@@ -30,14 +30,18 @@ const DropdownMenuTrigger = React.forwardRef(({ className, children, open, setOp
 ))
 DropdownMenuTrigger.displayName = "DropdownMenuTrigger"
 
-const DropdownMenuContent = React.forwardRef(({ className, children, open, setOpen, ...props }, ref) => {
+const DropdownMenuContent = React.forwardRef(({ className, children, open, setOpen, align = "right", ...props }, ref) => {
   if (!open) return null
-  
+
+  // Determine alignment class
+  const alignClass = align === "left" ? "left-0" : "right-0";
+
   return (
     <div
       ref={ref}
       className={cn(
-        "absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-card shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none",
+        "absolute mt-2 w-56 origin-top-right rounded-md bg-card shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50",
+        alignClass,
         className
       )}
       {...props}

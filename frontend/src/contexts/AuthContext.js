@@ -36,11 +36,21 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const getRedirectUrl = () => {
+    // Use production URL if available, otherwise use current origin
+    const productionUrl = process.env.REACT_APP_SITE_URL;
+    // If we're on localhost, use production URL if available
+    if (window.location.hostname === 'localhost' && productionUrl) {
+      return productionUrl;
+    }
+    return window.location.origin;
+  };
+
   const signInWithGoogle = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`
+        redirectTo: `${getRedirectUrl()}/`
       }
     });
     return { data, error };
@@ -50,7 +60,7 @@ export const AuthProvider = ({ children }) => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'apple',
       options: {
-        redirectTo: `${window.location.origin}/`
+        redirectTo: `${getRedirectUrl()}/`
       }
     });
     return { data, error };
@@ -61,7 +71,7 @@ export const AuthProvider = ({ children }) => {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/`
+        emailRedirectTo: `${getRedirectUrl()}/`
       }
     });
     return { data, error };
@@ -86,7 +96,7 @@ export const AuthProvider = ({ children }) => {
 
   const resetPassword = async (email) => {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
+      redirectTo: `${getRedirectUrl()}/reset-password`
     });
     return { data, error };
   };

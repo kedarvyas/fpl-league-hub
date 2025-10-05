@@ -4,10 +4,36 @@ import { User, TrendingUp, TrendingDown, Target } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts';
 
 const SUPABASE_URL = 'https://hvgotlfiwwirfpezvxhp.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
 const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.supabase.co/functions/v1';
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null;
+
+  return (
+    <div className="bg-card p-4 rounded-lg shadow-lg border border-border">
+      <p className="font-semibold text-foreground mb-2">GW{label}</p>
+      <div className="flex items-center space-x-2">
+        <div className="w-3 h-3 rounded-full bg-primary" />
+        <span className="text-muted-foreground">Rank:</span>
+        <span className="font-medium text-foreground">
+          #{payload[0]?.value?.toLocaleString()}
+        </span>
+      </div>
+    </div>
+  );
+};
 
 const MyTeam = () => {
   const location = useLocation();
@@ -31,6 +57,7 @@ const MyTeam = () => {
       setShowInput(false);
       fetchTeamData(savedTeamId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Check if team ID was passed from Home page or another component
@@ -44,7 +71,8 @@ const MyTeam = () => {
       // Clear the location state to prevent re-triggering
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, setSavedTeamId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.teamId]);
 
   const fetchTeamData = async (id) => {
     try {
@@ -268,7 +296,7 @@ const MyTeam = () => {
           </div>
         </div>
 
-        {/* Clean Minimal Line Chart */}
+        {/* Recharts Line Chart */}
         <div className="bg-background border border-border rounded-lg p-6">
           <div className="mb-4">
             <h4 className="text-lg font-semibold text-foreground mb-1">📈 Your rank across the season</h4>
@@ -285,175 +313,44 @@ const MyTeam = () => {
             </p>
           </div>
 
-          <div className="relative h-80">
-            <svg width="100%" height="100%" viewBox="0 0 800 320" className="bg-background">
-              {/* Calculate clean Y-axis range - INVERTED */}
-              {(() => {
-                // Round max rank up to nearest million for clean scaling
-                const maxRankRounded = Math.ceil(maxRank / 1000000) * 1000000;
-                const yAxisSteps = Math.ceil(maxRankRounded / 1000000);
-
-                // Chart dimensions with more padding
-                const chartLeft = 60;
-                const chartRight = 740;
-                const chartTop = 20;
-                const chartBottom = 260;
-                const chartWidth = chartRight - chartLeft;
-                const chartHeight = chartBottom - chartTop;
-
-                return (
-                  <g>
-                    {/* Horizontal grid lines - very subtle */}
-                    {Array.from({length: yAxisSteps + 1}, (_, i) => {
-                      const y = chartTop + (i / yAxisSteps) * chartHeight;
-                      return (
-                        <line
-                          key={i}
-                          x1={chartLeft}
-                          y1={y}
-                          x2={chartRight}
-                          y2={y}
-                          stroke="#f1f5f9"
-                          strokeWidth="1"
-                        />
-                      );
-                    })}
-
-                    {/* Vertical grid lines - very subtle */}
-                    {ranks.map((rank, index) => {
-                      const x = chartLeft + (index / (ranks.length - 1)) * chartWidth;
-                      return (
-                        <line
-                          key={index}
-                          x1={x}
-                          y1={chartTop}
-                          x2={x}
-                          y2={chartBottom}
-                          stroke="#f8fafc"
-                          strokeWidth="1"
-                        />
-                      );
-                    })}
-
-                    {/* Y-axis labels */}
-                    {Array.from({length: yAxisSteps + 1}, (_, i) => {
-                      const rankValue = (i / yAxisSteps) * maxRankRounded;
-                      const y = chartTop + (i / yAxisSteps) * chartHeight;
-
-                      return (
-                        <text
-                          key={i}
-                          x={chartLeft - 15}
-                          y={y + 4}
-                          textAnchor="end"
-                          fontSize="12"
-                          fill="#64748b"
-                          fontFamily="system-ui, -apple-system, sans-serif"
-                        >
-                          {rankValue === 0 ? '1' : `${Math.round(rankValue / 1000000)}m`}
-                        </text>
-                      );
-                    })}
-
-                    {/* X-axis labels */}
-                    {ranks.map((rank, index) => {
-                      const x = chartLeft + (index / (ranks.length - 1)) * chartWidth;
-                      return (
-                        <text
-                          key={rank.gameweek}
-                          x={x}
-                          y={chartBottom + 20}
-                          textAnchor="middle"
-                          fontSize="12"
-                          fill="#64748b"
-                          fontFamily="system-ui, -apple-system, sans-serif"
-                        >
-                          GW{rank.gameweek}
-                        </text>
-                      );
-                    })}
-
-                    {/* Main line path - clean blue line */}
-                    <path
-                      d={ranks.map((rank, index) => {
-                        const x = chartLeft + (index / (ranks.length - 1)) * chartWidth;
-                        const y = chartTop + (rank.rank / maxRankRounded) * chartHeight;
-                        return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-                      }).join(' ')}
-                      fill="none"
-                      stroke="#3b82f6"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-
-                    {/* Data points with hover */}
-                    {ranks.map((rank, index) => {
-                      const x = chartLeft + (index / (ranks.length - 1)) * chartWidth;
-                      const y = chartTop + (rank.rank / maxRankRounded) * chartHeight;
-                      const isHighest = rank.rank === seasonHistory.highest_rank;
-                      const isLowest = rank.rank === seasonHistory.lowest_rank;
-
-                      return (
-                        <g key={rank.gameweek}>
-                          {/* Data point circle */}
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r="4"
-                            fill="#3b82f6"
-                            stroke="#ffffff"
-                            strokeWidth="2"
-                            className="cursor-pointer hover:r-6 transition-all"
-                          />
-
-                          {/* Larger invisible hover area */}
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r="15"
-                            fill="transparent"
-                            className="cursor-pointer"
-                          >
-                            <title>GW{rank.gameweek}: Overall rank #{rank.rank.toLocaleString()}</title>
-                          </circle>
-
-                          {/* Special highlighting for best/worst */}
-                          {isHighest && (
-                            <text
-                              x={x}
-                              y={y - 15}
-                              textAnchor="middle"
-                              fontSize="10"
-                              fill="#10b981"
-                              fontWeight="600"
-                              fontFamily="system-ui, -apple-system, sans-serif"
-                            >
-                              Best
-                            </text>
-                          )}
-
-                          {isLowest && (
-                            <text
-                              x={x}
-                              y={y - 15}
-                              textAnchor="middle"
-                              fontSize="10"
-                              fill="#ef4444"
-                              fontWeight="600"
-                              fontFamily="system-ui, -apple-system, sans-serif"
-                            >
-                              Worst
-                            </text>
-                          )}
-                        </g>
-                      );
-                    })}
-
-                  </g>
-                );
-              })()}
-            </svg>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={ranks.map(r => ({ gameweek: r.gameweek, rank: r.rank }))}
+                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="rankGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="gameweek"
+                  tickFormatter={(gw) => `GW${gw}`}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  stroke="hsl(var(--border))"
+                />
+                <YAxis
+                  reversed
+                  tickFormatter={(value) => value >= 1000000 ? `${(value / 1000000).toFixed(1)}m` : value.toLocaleString()}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  stroke="hsl(var(--border))"
+                  width={60}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="rank"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={3}
+                  fill="url(#rankGradient)"
+                  dot={{ r: 4, fill: 'hsl(var(--primary))', strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 6 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
@@ -504,11 +401,29 @@ const MyTeam = () => {
           </Card>
         )}
 
+        {/* Loading Display */}
+        {loading && !teamData && (
+          <Card className="mb-8">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <p className="text-muted-foreground">Loading team data...</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Error Display */}
         {error && (
           <Card className="mb-8 border-destructive">
             <CardContent className="pt-6">
               <p className="text-destructive">Error: {error}</p>
+              <button
+                onClick={() => setShowInput(true)}
+                className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+              >
+                Try Again
+              </button>
             </CardContent>
           </Card>
         )}

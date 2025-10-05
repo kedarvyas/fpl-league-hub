@@ -84,9 +84,7 @@ const ThemeSwitcher = ({ currentTheme, setTheme }) => {
                 <Palette className="w-5 h-5 text-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
-                side="bottom"
-                align="end"
-                sideOffset={4}
+                align="left"
                 className="w-36"
             >
                 {Object.entries(themes).map(([key, theme]) => {

@@ -218,10 +218,10 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
         p.id === currentGameweek.most_vice_captained
       ),
       chipUsage: {
-        wildcard: chipPlays.find(c => c.chip_name === 'wildcard')?.num_plays || 0,
-        benchBoost: chipPlays.find(c => c.chip_name === 'bboost')?.num_plays || 0,
-        tripleCaptain: chipPlays.find(c => c.chip_name === '3xc')?.num_plays || 0,
-        freeHit: chipPlays.find(c => c.chip_name === 'freehit')?.num_plays || 0,
+        wildcard: chipPlays.find(c => c.chip_name === 'wildcard')?.num_played || 0,
+        benchBoost: chipPlays.find(c => c.chip_name === 'bboost')?.num_played || 0,
+        tripleCaptain: chipPlays.find(c => c.chip_name === '3xc')?.num_played || 0,
+        freeHit: chipPlays.find(c => c.chip_name === 'freehit')?.num_played || 0,
       }
     };
 
@@ -532,7 +532,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
                       <span className="font-semibold">{leagueData?.length || 0}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Average Score:</span>
+                      <span className="text-muted-foreground">League Avg. GW{currentGameweek?.id || ''}:</span>
                       <span className="font-semibold">
                         {getLeagueAverageScore()}
                       </span>
