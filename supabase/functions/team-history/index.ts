@@ -1,5 +1,6 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import { fetchFPL } from "../_shared/fpl.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,7 +28,7 @@ Deno.serve(async (req) => {
     }
 
     // Fetch team history from FPL API
-    const historyResponse = await fetch(`https://fantasy.premierleague.com/api/entry/${teamId}/history/`)
+    const historyResponse = await fetchFPL(`https://fantasy.premierleague.com/api/entry/${teamId}/history/`)
     if (!historyResponse.ok) {
       throw new Error('Failed to fetch team history')
     }

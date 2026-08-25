@@ -1,5 +1,6 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import { fetchFPL } from "../_shared/fpl.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,14 +28,14 @@ Deno.serve(async (req) => {
     }
 
     // Fetch team data from FPL API
-    const teamResponse = await fetch(`https://fantasy.premierleague.com/api/entry/${teamId}/`)
+    const teamResponse = await fetchFPL(`https://fantasy.premierleague.com/api/entry/${teamId}/`)
     if (!teamResponse.ok) {
       throw new Error('Failed to fetch team data')
     }
     const teamData = await teamResponse.json()
 
     // Get current gameweek from bootstrap
-    const bootstrapResponse = await fetch('https://fantasy.premierleague.com/api/bootstrap-static/')
+    const bootstrapResponse = await fetchFPL('https://fantasy.premierleague.com/api/bootstrap-static/')
     if (!bootstrapResponse.ok) {
       throw new Error('Failed to fetch bootstrap data')
     }
@@ -52,7 +53,7 @@ Deno.serve(async (req) => {
       if (currentGwId > 1) {
         try {
           // Fetch team history to get previous gameweek rank
-          const historyResponse = await fetch(`https://fantasy.premierleague.com/api/entry/${teamId}/history/`)
+          const historyResponse = await fetchFPL(`https://fantasy.premierleague.com/api/entry/${teamId}/history/`)
           if (historyResponse.ok) {
             const historyData = await historyResponse.json()
 

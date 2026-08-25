@@ -1,10 +1,6 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders, errorResponse, fetchFPLJson, jsonResponse } from "../_shared/fpl.ts"
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -18,39 +14,11 @@ Deno.serve(async (req) => {
     const entryId = pathParts[pathParts.length - 2] // Get entry ID from path (before /transfers)
 
     if (!entryId) {
-      return new Response(
-        JSON.stringify({ error: 'Entry ID is required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+      return jsonResponse({ error: 'Entry ID is required' }, 400)
     }
 
-    // Fetch entry transfers from FPL API
-    const transfersResponse = await fetch(`https://fantasy.premierleague.com/api/entry/${entryId}/transfers/`)
-
-    if (!transfersResponse.ok) {
-      throw new Error(`Failed to fetch entry transfers: ${transfersResponse.status}`)
-    }
-
-    const transfersData = await transfersResponse.json()
-
-    return new Response(
-      JSON.stringify(transfersData),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
-
+    return jsonResponse(await fetchFPLJson(`/entry/${entryId}/transfers/`, 'entry transfers'))
   } catch (error) {
-    console.error('Error in entry-transfers function:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+    return errorResponse(error, 'entry-transfers function')
   }
 })

@@ -1,10 +1,6 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders, errorResponse, fetchFPLJson, jsonResponse } from "../_shared/fpl.ts"
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -20,52 +16,18 @@ Deno.serve(async (req) => {
     const eventIndex = pathParts.indexOf('event')
 
     if (entryIndex === -1 || eventIndex === -1) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid path format. Expected /entry/{id}/event/{event}/picks' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+      return jsonResponse({ error: 'Invalid path format. Expected /entry/{id}/event/{event}/picks' }, 400)
     }
 
     const entryId = pathParts[entryIndex + 1]
     const eventId = pathParts[eventIndex + 1]
 
     if (!entryId || !eventId) {
-      return new Response(
-        JSON.stringify({ error: 'Entry ID and Event ID are required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+      return jsonResponse({ error: 'Entry ID and Event ID are required' }, 400)
     }
 
-    // Fetch entry picks from FPL API
-    const picksResponse = await fetch(`https://fantasy.premierleague.com/api/entry/${entryId}/event/${eventId}/picks/`)
-
-    if (!picksResponse.ok) {
-      throw new Error(`Failed to fetch entry picks: ${picksResponse.status}`)
-    }
-
-    const picksData = await picksResponse.json()
-
-    return new Response(
-      JSON.stringify(picksData),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
-
+    return jsonResponse(await fetchFPLJson(`/entry/${entryId}/event/${eventId}/picks/`, 'entry picks'))
   } catch (error) {
-    console.error('Error in entry-picks function:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+    return errorResponse(error, 'entry-picks function')
   }
 })

@@ -1,5 +1,6 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import { fetchFPL } from "../_shared/fpl.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -50,7 +51,7 @@ Deno.serve(async (req) => {
     }
 
     // Fetch matchup details from FPL API
-    const matchupResponse = await fetch(`https://fantasy.premierleague.com/api/leagues-h2h-matches/league/${leagueId}/?event=${event}`)
+    const matchupResponse = await fetchFPL(`https://fantasy.premierleague.com/api/leagues-h2h-matches/league/${leagueId}/?event=${event}`)
 
     if (!matchupResponse.ok) {
       throw new Error(`Failed to fetch matchup details: ${matchupResponse.status}`)
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
 
       if (matchup) {
         // Fetch bootstrap data for player information
-        const bootstrapResponse = await fetch('https://fantasy.premierleague.com/api/bootstrap-static/')
+        const bootstrapResponse = await fetchFPL('https://fantasy.premierleague.com/api/bootstrap-static/')
         const bootstrapData = await bootstrapResponse.json()
 
         // Create player lookup map
@@ -101,8 +102,8 @@ Deno.serve(async (req) => {
 
         // Fetch detailed team data for both entries
         const [team1Response, team2Response] = await Promise.all([
-          fetch(`https://fantasy.premierleague.com/api/entry/${matchup.entry_1_entry}/event/${event}/picks/`),
-          fetch(`https://fantasy.premierleague.com/api/entry/${matchup.entry_2_entry}/event/${event}/picks/`)
+          fetchFPL(`https://fantasy.premierleague.com/api/entry/${matchup.entry_1_entry}/event/${event}/picks/`),
+          fetchFPL(`https://fantasy.premierleague.com/api/entry/${matchup.entry_2_entry}/event/${event}/picks/`)
         ])
 
         const [team1Data, team2Data] = await Promise.all([
