@@ -17,6 +17,7 @@ Deno.serve(async (req) => {
     const pathParts = url.pathname.split('/')
     const matchupId = pathParts[pathParts.length - 1] // Get matchup ID from path
     const event = url.searchParams.get('event')
+    const leagueId = url.searchParams.get('leagueId')
 
     if (!matchupId) {
       return new Response(
@@ -38,9 +39,15 @@ Deno.serve(async (req) => {
       )
     }
 
-    // For now, we'll use the league ID from the original weekly-matchups call
-    // The frontend should pass the league ID, but as a temporary fix, we'll use a hardcoded league ID
-    const leagueId = '1176282' // TODO: This should be passed as a parameter
+    if (!leagueId) {
+      return new Response(
+        JSON.stringify({ error: 'leagueId parameter is required' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
 
     // Fetch matchup details from FPL API
     const matchupResponse = await fetch(`https://fantasy.premierleague.com/api/leagues-h2h-matches/league/${leagueId}/?event=${event}`)
@@ -66,8 +73,30 @@ Deno.serve(async (req) => {
           playerMap.set(player.id, {
             name: player.web_name,
             position: bootstrapData.element_types.find((t: any) => t.id === player.element_type)?.singular_name_short || '',
-            team: bootstrapData.teams.find((t: any) => t.id === player.team)?.short_name || ''
+            team: bootstrapData.teams.find((t: any) => t.id === player.team)?.short_name || '',
+            eventPoints: player.event_points || 0
           })
+        })
+
+        // Enrich picks with player information and calculate actual points
+        const enrichPicks = (picks: any[]) => picks.map((pick: any) => {
+          const playerInfo = playerMap.get(pick.element)
+
+          // Calculate actual points: player's event points * multiplier
+          const actualPoints = (playerInfo?.eventPoints || 0) * (pick.multiplier || 0)
+
+          return {
+            ...pick,
+            id: pick.element,
+            name: playerInfo?.name || 'Unknown',
+            position: playerInfo?.position || '',
+            club: playerInfo?.team || '',
+            points: actualPoints,
+            isCaptain: pick.is_captain,
+            isViceCaptain: pick.is_vice_captain,
+            isStarting: pick.multiplier > 0,
+            multiplier: pick.multiplier
+          }
         })
 
         // Fetch detailed team data for both entries
@@ -81,53 +110,12 @@ Deno.serve(async (req) => {
           team2Response.ok ? team2Response.json() : null
         ])
 
-        // Enrich picks with player information and calculate actual points
         if (team1Data?.picks) {
-          team1Data.picks = team1Data.picks.map((pick: any) => {
-            const playerInfo = playerMap.get(pick.element)
-            const playerStats = bootstrapData.elements.find((p: any) => p.id === pick.element)
-
-            // Calculate actual points: player's event points * multiplier
-            const basePoints = playerStats?.event_points || 0
-            const actualPoints = basePoints * (pick.multiplier || 0)
-
-            return {
-              ...pick,
-              id: pick.element,
-              name: playerInfo?.name || 'Unknown',
-              position: playerInfo?.position || '',
-              club: playerInfo?.team || '',
-              points: actualPoints,
-              isCaptain: pick.is_captain,
-              isViceCaptain: pick.is_vice_captain,
-              isStarting: pick.multiplier > 0,
-              multiplier: pick.multiplier
-            }
-          })
+          team1Data.picks = enrichPicks(team1Data.picks)
         }
 
         if (team2Data?.picks) {
-          team2Data.picks = team2Data.picks.map((pick: any) => {
-            const playerInfo = playerMap.get(pick.element)
-            const playerStats = bootstrapData.elements.find((p: any) => p.id === pick.element)
-
-            // Calculate actual points: player's event points * multiplier
-            const basePoints = playerStats?.event_points || 0
-            const actualPoints = basePoints * (pick.multiplier || 0)
-
-            return {
-              ...pick,
-              id: pick.element,
-              name: playerInfo?.name || 'Unknown',
-              position: playerInfo?.position || '',
-              club: playerInfo?.team || '',
-              points: actualPoints,
-              isCaptain: pick.is_captain,
-              isViceCaptain: pick.is_vice_captain,
-              isStarting: pick.multiplier > 0,
-              multiplier: pick.multiplier
-            }
-          })
+          team2Data.picks = enrichPicks(team2Data.picks)
         }
 
         return new Response(

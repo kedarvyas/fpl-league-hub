@@ -117,7 +117,7 @@ const Home = () => {
                     id="leagueId"
                     value={leagueId}
                     onChange={(e) => setLeagueId(e.target.value)}
-                    placeholder="e.g., 1176282"
+                    placeholder="e.g., 1164871"
                     className="w-full px-4 py-3 bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                   />
                   <p className="text-sm text-muted-foreground mt-2">

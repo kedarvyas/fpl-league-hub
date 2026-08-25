@@ -7,12 +7,11 @@ import Dashboard from './components/Dashboard';
 import WeeklyMatchups from './components/WeeklyMatchups';
 import PlayerStatisticsHub from './components/PlayerStatisticsHub';
 import PlayerStats from './components/PlayerStats';
-import LeagueStandings from './components/LeagueStandings';
 import MyTeam from './components/MyTeam';
 
 const App = () => {
   // Get league ID from environment variables
-  const leagueId = process.env.REACT_APP_LEAGUE_ID || 1176282;
+  const leagueId = process.env.REACT_APP_LEAGUE_ID || 1164871;
 
   return (
     <AuthProvider>
@@ -26,7 +25,6 @@ const App = () => {
             <Route path="/weekly-matchups/:leagueId" element={<WeeklyMatchups />} />
             <Route path="/player-statistics" element={<PlayerStatisticsHub />} />
             <Route path="/player/:playerId" element={<PlayerStats />} />
-            <Route path="/standings" element={<LeagueStandings />} />
             <Route path="/my-team" element={<MyTeam />} />
           </Routes>
         </Layout>

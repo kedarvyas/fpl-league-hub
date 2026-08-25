@@ -100,7 +100,7 @@ const ManagerOfWeekCard = ({ manager }) => (
 
 
 const GameweekStats = ({ eventId, leagueId }) => {
-    const LEAGUE_ID = leagueId || process.env.REACT_APP_LEAGUE_ID || '1176282';
+    const LEAGUE_ID = leagueId || process.env.REACT_APP_LEAGUE_ID || '1164871';
     const [transfers, setTransfers] = useState([]);
     const [managerOfWeek, setManagerOfWeek] = useState(null);
     const [loading, setLoading] = useState(true);

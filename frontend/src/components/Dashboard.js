@@ -20,7 +20,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const Dashboard = ({ leagueId: propLeagueId }) => {
   const { leagueId: urlLeagueId } = useParams();
-  const leagueId = urlLeagueId || propLeagueId || process.env.REACT_APP_LEAGUE_ID || '1176282';
+  const leagueId = urlLeagueId || propLeagueId || process.env.REACT_APP_LEAGUE_ID || '1164871';
   const [bootstrapData, setBootstrapData] = useState(null);
   const [leagueData, setLeagueData] = useState(null);
   const [loading, setLoading] = useState(true);

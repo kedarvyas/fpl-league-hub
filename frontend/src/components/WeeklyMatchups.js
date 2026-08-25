@@ -14,7 +14,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.supabase.co/functions/v1';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
 
-const MatchupRow = ({ matchup, isExpanded, onToggle, eventId, onManagerClick }) => {
+const MatchupRow = ({ matchup, isExpanded, onToggle, eventId, leagueId, onManagerClick }) => {
   const [matchDetails, setMatchDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -27,13 +27,13 @@ const MatchupRow = ({ matchup, isExpanded, onToggle, eventId, onManagerClick }) 
   }, []);
 
   useEffect(() => {
-    if (isExpanded && !matchDetails) {
+    if (isExpanded && !matchDetails && leagueId) {
       setLoading(true);
       const headers = {
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json'
       };
-      fetch(`${API_URL}/matchup/${matchup.id}?event=${eventId}`, { headers })
+      fetch(`${API_URL}/matchup/${matchup.id}?event=${eventId}&leagueId=${leagueId}`, { headers })
       .then(response => {
           if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
           return response.json();
@@ -48,7 +48,7 @@ const MatchupRow = ({ matchup, isExpanded, onToggle, eventId, onManagerClick }) 
           setLoading(false);
         });
     }
-  }, [isExpanded, matchup.id, eventId, matchDetails]);
+  }, [isExpanded, matchup.id, eventId, leagueId, matchDetails]);
 
   return (
     <motion.div
@@ -349,7 +349,7 @@ const WeeklyMatchups = () => {
                   type="text"
                   value={inputLeagueId}
                   onChange={(e) => setInputLeagueId(e.target.value)}
-                  placeholder="e.g., 1176282"
+                  placeholder="e.g., 1164871"
                   className="flex-1 px-4 py-3 bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                 />
                 <button
@@ -361,7 +361,7 @@ const WeeklyMatchups = () => {
                 </button>
               </form>
               <p className="text-sm text-muted-foreground mt-4">
-                Find your League ID in the URL: fantasy.premierleague.com/leagues/<strong>1176282</strong>/standings/h
+                Find your League ID in the URL: fantasy.premierleague.com/leagues/<strong>1164871</strong>/standings/h
               </p>
             </CardContent>
           </Card>
@@ -510,6 +510,7 @@ const WeeklyMatchups = () => {
                       isExpanded={expandedMatchup === matchup.id}
                       onToggle={() => handleToggleExpand(matchup.id)}
                       eventId={selectedEvent}
+                      leagueId={LEAGUE_ID}
                       onManagerClick={handleManagerClick}
                     />
                   ))}
