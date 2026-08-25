@@ -1,27 +1,59 @@
 import React from 'react';
 import { ArrowLeftRight, X } from 'lucide-react';
+import {
+    getDefensiveContribution,
+    getPriceOutlook,
+    getSetPieces,
+    formatCount,
+    formatDecimal,
+    formatPrice,
+    formatSignedPercent,
+    priceMoveWord,
+    ordinal
+} from '../lib/playerStats';
 
-const ComparisonMetric = ({ label, value1, value2, higherIsBetter = true }) => {
+const ComparisonMetric = ({ label, value1, value2, higherIsBetter = true, neutral = false }) => {
     const getValue = (val) => parseFloat(val) || 0;
     const diff = getValue(value1) - getValue(value2);
-    const isBetter = higherIsBetter ? diff > 0 : diff < 0;
+    const better = neutral || diff === 0
+        ? 0
+        : (higherIsBetter ? diff > 0 : diff < 0) ? 1 : 2;
 
     return (
-        <div className="grid grid-cols-3 items-center py-2 border-b border-gray-100 last:border-b-0">
+        <div className="grid grid-cols-3 items-center py-2 border-b border-gray-100 last:border-b-0 gap-2">
             <div className="text-sm text-gray-600">{label}</div>
-            <div className={`text-center text-sm font-medium ${isBetter ? 'text-green-600' : ''}`}>
+            <div className={`text-center text-sm font-medium ${better === 1 ? 'text-green-600' : ''}`}>
                 {value1}
             </div>
-            <div className={`text-center text-sm font-medium ${!isBetter ? 'text-green-600' : ''}`}>
+            <div className={`text-center text-sm font-medium ${better === 2 ? 'text-green-600' : ''}`}>
                 {value2}
             </div>
         </div>
     );
 };
 
+/** Defensive contribution reads N/A for goalkeepers — they cannot score it. */
+const defconValue = (player, pick) => {
+    const dc = getDefensiveContribution(player);
+    if (!dc.eligible) return 'N/A';
+    return pick(dc);
+};
+
+const priceProjectionValue = (player) => {
+    const outlook = getPriceOutlook(player);
+    if (!outlook || !outlook.next) return '—';
+    return `${priceMoveWord(outlook.next.direction)} ${formatSignedPercent(outlook.next.percent, 0)}`;
+};
+
+const setPieceValue = (player, key) => {
+    const duty = getSetPieces(player).find((entry) => entry.key === key);
+    if (!duty || duty.order === null) return '—';
+    return ordinal(duty.order);
+};
+
 
 const PlayerComparison = ({ player1, player2, onClose }) => {
-    const formatNumber = (num) => num?.toLocaleString() || "0";
+    const formatNumber = (num) => formatCount(num);
 
     return (
         <div className="fixed inset-x-0 inset-y-0 z-50 flex items-center justify-center bg-black/50">
@@ -82,19 +114,67 @@ const PlayerComparison = ({ player1, player2, onClose }) => {
                         {/* Form & Price */}
                         <ComparisonMetric
                             label="Price"
-                            value1={`£${(player1?.now_cost / 10).toFixed(1)}m`}
-                            value2={`£${(player2?.now_cost / 10).toFixed(1)}m`}
+                            value1={formatPrice(player1?.now_cost)}
+                            value2={formatPrice(player2?.now_cost)}
                             higherIsBetter={false}
                         />
                         <ComparisonMetric
                             label="Form"
-                            value1={player1?.form}
-                            value2={player2?.form}
+                            value1={formatDecimal(player1?.form, 1, '0.0')}
+                            value2={formatDecimal(player2?.form, 1, '0.0')}
                         />
                         <ComparisonMetric
                             label="Points Per Game"
-                            value1={player1?.points_per_game}
-                            value2={player2?.points_per_game}
+                            value1={formatDecimal(player1?.points_per_game, 1, '0.0')}
+                            value2={formatDecimal(player2?.points_per_game, 1, '0.0')}
+                        />
+                        <ComparisonMetric
+                            label="Total Points"
+                            value1={formatCount(player1?.total_points)}
+                            value2={formatCount(player2?.total_points)}
+                        />
+                        <ComparisonMetric
+                            label="Expected Points (next)"
+                            value1={formatDecimal(player1?.ep_next, 1, '0.0')}
+                            value2={formatDecimal(player2?.ep_next, 1, '0.0')}
+                        />
+                        <ComparisonMetric
+                            label="BPS"
+                            value1={formatCount(player1?.bps)}
+                            value2={formatCount(player2?.bps)}
+                        />
+                        <ComparisonMetric
+                            label="Starts"
+                            value1={formatCount(player1?.starts)}
+                            value2={formatCount(player2?.starts)}
+                        />
+
+                        {/* Defensive Contribution */}
+                        <div className="text-xs font-semibold text-gray-700 pt-2">Defensive Contribution</div>
+                        <ComparisonMetric
+                            label="DefCon total"
+                            value1={defconValue(player1, (dc) => formatCount(dc.total))}
+                            value2={defconValue(player2, (dc) => formatCount(dc.total))}
+                        />
+                        <ComparisonMetric
+                            label="DefCon per 90"
+                            value1={defconValue(player1, (dc) => formatDecimal(dc.per90, 1, '0.0'))}
+                            value2={defconValue(player2, (dc) => formatDecimal(dc.per90, 1, '0.0'))}
+                        />
+                        <ComparisonMetric
+                            label="Tackles"
+                            value1={formatCount(player1?.tackles)}
+                            value2={formatCount(player2?.tackles)}
+                        />
+                        <ComparisonMetric
+                            label="CBI"
+                            value1={formatCount(player1?.clearances_blocks_interceptions)}
+                            value2={formatCount(player2?.clearances_blocks_interceptions)}
+                        />
+                        <ComparisonMetric
+                            label="Recoveries"
+                            value1={formatCount(player1?.recoveries)}
+                            value2={formatCount(player2?.recoveries)}
                         />
 
                         {/* ICT Index */}
@@ -122,21 +202,53 @@ const PlayerComparison = ({ player1, player2, onClose }) => {
                         <div className="text-xs font-semibold text-gray-700 pt-2">Expected Stats</div>
                         <ComparisonMetric
                             label="Expected Goals"
-                            value1={player1?.expected_goals || "0"}
-                            value2={player2?.expected_goals || "0"}
+                            value1={formatDecimal(player1?.expected_goals, 2, '0.00')}
+                            value2={formatDecimal(player2?.expected_goals, 2, '0.00')}
                         />
                         <ComparisonMetric
                             label="Expected Assists"
-                            value1={player1?.expected_assists || "0"}
-                            value2={player2?.expected_assists || "0"}
+                            value1={formatDecimal(player1?.expected_assists, 2, '0.00')}
+                            value2={formatDecimal(player2?.expected_assists, 2, '0.00')}
+                        />
+                        <ComparisonMetric
+                            label="xG Involvements"
+                            value1={formatDecimal(player1?.expected_goal_involvements, 2, '0.00')}
+                            value2={formatDecimal(player2?.expected_goal_involvements, 2, '0.00')}
+                        />
+                        <ComparisonMetric
+                            label="xG Conceded"
+                            value1={formatDecimal(player1?.expected_goals_conceded, 2, '0.00')}
+                            value2={formatDecimal(player2?.expected_goals_conceded, 2, '0.00')}
+                            higherIsBetter={false}
+                        />
+
+                        {/* Set pieces & price outlook */}
+                        <div className="text-xs font-semibold text-gray-700 pt-2">Set Pieces & Price</div>
+                        <ComparisonMetric
+                            label="Penalties"
+                            value1={setPieceValue(player1, 'penalties')}
+                            value2={setPieceValue(player2, 'penalties')}
+                            neutral
+                        />
+                        <ComparisonMetric
+                            label="Corners / indirect"
+                            value1={setPieceValue(player1, 'corners')}
+                            value2={setPieceValue(player2, 'corners')}
+                            neutral
+                        />
+                        <ComparisonMetric
+                            label="Price outlook"
+                            value1={priceProjectionValue(player1)}
+                            value2={priceProjectionValue(player2)}
+                            neutral
                         />
 
                         {/* Ownership & Transfers */}
                         <div className="text-xs font-semibold text-gray-700 pt-2">Ownership & Transfers</div>
                         <ComparisonMetric
                             label="Selected By"
-                            value1={`${player1?.selected_by_percent}%`}
-                            value2={`${player2?.selected_by_percent}%`}
+                            value1={`${formatDecimal(player1?.selected_by_percent, 1, '0.0')}%`}
+                            value2={`${formatDecimal(player2?.selected_by_percent, 1, '0.0')}%`}
                         />
                         <ComparisonMetric
                             label="GW Transfers In"

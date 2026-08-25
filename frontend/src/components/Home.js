@@ -40,20 +40,20 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-4 py-12">
+      <div className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
         {/* Welcome Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-foreground mb-4">
+        <div className="text-center mb-8 sm:mb-12">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-4">
             Welcome to FPL League Hub
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto">
             Your comprehensive dashboard for Fantasy Premier League Head-to-Head leagues,
             player statistics, and league performance tracking.
           </p>
         </div>
 
         {/* Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mb-8 sm:mb-12">
           {/* My Team Info Card */}
           <Card className="bg-card">
             <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
@@ -77,15 +77,15 @@ const Home = () => {
                     value={teamId}
                     onChange={(e) => setTeamId(e.target.value)}
                     placeholder="e.g., 4656161"
-                    className="w-full px-4 py-3 bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                    className="w-full px-4 py-3 min-h-[48px] text-base bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                   />
-                  <p className="text-sm text-muted-foreground mt-2">
+                  <p className="text-sm text-muted-foreground mt-2 break-words">
                     Find your team ID in your FPL URL: fantasy.premierleague.com/entry/<strong>4656161</strong>/event/6
                   </p>
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-primary hover:bg-primary-darker text-primary-foreground flex items-center justify-center"
+                  className="w-full min-h-[48px] bg-primary hover:bg-primary-darker text-primary-foreground flex items-center justify-center"
                   disabled={!teamId.trim()}
                 >
                   View My Team
@@ -118,15 +118,15 @@ const Home = () => {
                     value={leagueId}
                     onChange={(e) => setLeagueId(e.target.value)}
                     placeholder="e.g., 1164871"
-                    className="w-full px-4 py-3 bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                    className="w-full px-4 py-3 min-h-[48px] text-base bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                   />
-                  <p className="text-sm text-muted-foreground mt-2">
+                  <p className="text-sm text-muted-foreground mt-2 break-words">
                     Perfect for H2H leagues - view detailed matchups and standings
                   </p>
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-primary hover:bg-primary-darker text-primary-foreground flex items-center justify-center"
+                  className="w-full min-h-[48px] bg-primary hover:bg-primary-darker text-primary-foreground flex items-center justify-center"
                   disabled={!leagueId.trim()}
                 >
                   View League Dashboard
@@ -138,13 +138,13 @@ const Home = () => {
         </div>
 
         {/* Features Preview */}
-        <div className="bg-muted rounded-lg p-8">
-          <h2 className="text-2xl font-bold text-foreground mb-6 text-center">
+        <div className="bg-muted rounded-lg p-6 sm:p-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6 text-center">
             What You Can Explore
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="bg-primary/10 w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                 <Users className="w-8 h-8 text-primary" />
               </div>
               <h3 className="font-semibold text-foreground mb-2">League Analytics</h3>
@@ -153,7 +153,7 @@ const Home = () => {
               </p>
             </div>
             <div className="text-center">
-              <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="bg-primary/10 w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                 <Search className="w-8 h-8 text-primary" />
               </div>
               <h3 className="font-semibold text-foreground mb-2">Player Statistics</h3>
@@ -162,7 +162,7 @@ const Home = () => {
               </p>
             </div>
             <div className="text-center">
-              <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="bg-primary/10 w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                 <ArrowRight className="w-8 h-8 text-primary" />
               </div>
               <h3 className="font-semibold text-foreground mb-2">Real-time Updates</h3>

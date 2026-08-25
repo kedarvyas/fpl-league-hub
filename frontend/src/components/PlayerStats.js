@@ -5,6 +5,13 @@ import PlayerComparison from './PlayerComparison';
 import PlayerSearchModal from './PlayerSearchModal';
 import ICTSidePanel from './ICTSidePanel';
 import TransferStats from './TransferStats';
+import PlayerDefensiveContribution from './PlayerDefensiveContribution';
+import PlayerPriceProjection from './PlayerPriceProjection';
+import PlayerSetPieces from './PlayerSetPieces';
+import PlayerExpectedStats from './PlayerExpectedStats';
+import PlayerSeasonStats from './PlayerSeasonStats';
+import PlayerMatchLog from './PlayerMatchLog';
+import { formatCount, formatDecimal, ordinal, toNumber } from '../lib/playerStats';
 import {
     UserCircle,
     ArrowUp,
@@ -27,8 +34,9 @@ import {
     Area,
     Legend
 } from 'recharts';
+import { API_URL } from '../config/supabase';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
+
 
 const getPositionName = (elementType) => {
     const positions = {
@@ -38,6 +46,12 @@ const getPositionName = (elementType) => {
         4: 'Forward'
     };
     return positions[elementType] || 'Unknown';
+};
+
+/** "3rd in position" for the rank_type fields, or nothing when unranked. */
+const rankSubtitle = (rank) => {
+    const value = toNumber(rank, null);
+    return value !== null && value > 0 ? `${ordinal(value)} in position` : null;
 };
 
 const ICTDescription = {
@@ -353,6 +367,20 @@ const PlayerStats = () => {
         );
     }
 
+    if (error || !playerData) {
+        return (
+            <div className="max-w-4xl mx-auto p-4">
+                <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-1">Player unavailable</h2>
+                    <p className="text-sm text-gray-500">
+                        {error || 'We could not load this player right now. Please try again.'}
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    const matchHistory = Array.isArray(playerHistory?.history) ? playerHistory.history : [];
     const formData = calculateForm(playerHistory);
     const upcomingFixtures = calculateUpcomingFixtures(playerHistory?.fixtures);
 
@@ -515,7 +543,7 @@ const PlayerStats = () => {
                 />
                 {/* Enhanced Navigation Tabs */}
                 <div className="border-b border-gray-200">
-                    <nav className="flex space-x-4 px-6" aria-label="Tabs">
+                    <nav className="flex space-x-4 px-4 sm:px-6 overflow-x-auto" aria-label="Tabs">
                         <button
                             onClick={() => setActiveTab('overview')}
                             className={`py-4 px-2 border-b-2 font-medium text-sm ${activeTab === 'overview'
@@ -549,35 +577,53 @@ const PlayerStats = () => {
                 {/* Content based on active tab */}
                 {activeTab === 'overview' && (
                     <div className="space-y-6">
-                        <div className="bg-white rounded-lg shadow-md p-6">
-                            <h2 className="text-xl font-semibold mb-4">Key Statistics</h2>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+                            <h2 className="text-lg sm:text-xl font-semibold mb-4">Key Statistics</h2>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-4">
+                                <StatsBox
+                                    title="Total Points"
+                                    value={formatCount(playerData.total_points)}
+                                    subtitle={`${formatCount(playerData.event_points)} last GW`}
+                                />
                                 <StatsBox
                                     title="Points Per Game"
-                                    value={playerData.points_per_game}
-                                    subtitle="Average"
+                                    value={formatDecimal(playerData.points_per_game, 1, '0.0')}
+                                    subtitle={rankSubtitle(playerData.points_per_game_rank_type)}
                                 />
                                 <StatsBox
-                                    title="Expected Goals"
-                                    value={playerData.expected_goals || "N/A"}
-                                    subtitle="This season"
+                                    title="Form"
+                                    value={formatDecimal(playerData.form, 1, '0.0')}
+                                    subtitle={rankSubtitle(playerData.form_rank_type)}
                                 />
                                 <StatsBox
-                                    title="Expected Assists"
-                                    value={playerData.expected_assists || "N/A"}
-                                    subtitle="This season"
+                                    title="Expected Points"
+                                    value={formatDecimal(playerData.ep_next, 1, '0.0')}
+                                    subtitle="Next gameweek"
                                 />
                                 <StatsBox
-                                    title="Price Change"
-                                    value={`£${(playerData.cost_change_start / 10).toFixed(1)}m`}
-                                    subtitle="Since start"
-                                    className={playerData.cost_change_start > 0 ? 'bg-green-50' : playerData.cost_change_start < 0 ? 'bg-red-50' : ''}
+                                    title="BPS"
+                                    value={formatCount(playerData.bps)}
+                                    subtitle="Bonus points system"
+                                />
+                                <StatsBox
+                                    title="Starts"
+                                    value={formatCount(playerData.starts)}
+                                    subtitle={`${formatCount(playerData.minutes)} mins`}
                                 />
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow-md p-6">
-                            <h2 className="text-xl font-semibold mb-4">Recent Form</h2>
+                        <PlayerDefensiveContribution
+                            playerData={playerData}
+                            history={matchHistory}
+                        />
+
+                        <PlayerPriceProjection playerData={playerData} />
+
+                        <PlayerSetPieces playerData={playerData} />
+
+                        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+                            <h2 className="text-lg sm:text-xl font-semibold mb-4">Recent Form</h2>
                             {renderPerformanceChart()}
                         </div>
                     </div>
@@ -585,58 +631,34 @@ const PlayerStats = () => {
 
                 {activeTab === 'performance' && (
                     <div className="space-y-6">
-                        <div className="bg-white rounded-lg shadow-md p-6">
-                            <h2 className="text-xl font-semibold mb-4">ICT Index Trend</h2>
+                        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+                            <h2 className="text-lg sm:text-xl font-semibold mb-4">ICT Index Trend</h2>
                             {renderICTChart()}
                             <div className="mt-4 text-sm text-gray-500">
                                 <p>* ICT Index values are shown stacked to represent total player impact</p>
                             </div>
                         </div>
 
+                        <PlayerSeasonStats playerData={playerData} />
 
-                        <div className="bg-white rounded-lg shadow-md p-6">
-                            <h2 className="text-xl font-semibold mb-4">Detailed Statistics</h2>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                <StatsBox
-                                    title="Minutes Played"
-                                    value={playerData.minutes}
-                                    subtitle={`${Math.round(playerData.minutes / 90)} matches`}
-                                />
-                                <StatsBox
-                                    title="Goals"
-                                    value={playerData.goals_scored}
-                                    subtitle={`${(playerData.goals_scored / (playerData.minutes / 90)).toFixed(2)} per game`}
-                                />
-                                <StatsBox
-                                    title="xG Difference"
-                                    value={(playerData.goals_scored - (playerData.expected_goals || 0)).toFixed(2)}
-                                    subtitle="Goals vs xG"
-                                    className={playerData.goals_scored > (playerData.expected_goals || 0) ? 'bg-green-50' : 'bg-red-50'}
-                                />
-                                <StatsBox
-                                    title="Assists"
-                                    value={playerData.assists}
-                                    subtitle={`${(playerData.assists / (playerData.minutes / 90)).toFixed(2)} per game`}
-                                />
-                                <StatsBox
-                                    title="xA Difference"
-                                    value={(playerData.assists - (playerData.expected_assists || 0)).toFixed(2)}
-                                    subtitle="Assists vs xA"
-                                    className={playerData.assists > (playerData.expected_assists || 0) ? 'bg-green-50' : 'bg-red-50'}
-                                />
-                                <StatsBox
-                                    title="Bonus Points"
-                                    value={playerData.bonus}
-                                    subtitle={`${(playerData.bonus / (playerData.minutes / 90)).toFixed(2)} per game`}
-                                />
-                            </div>
-                        </div>
+                        <PlayerExpectedStats playerData={playerData} />
+
+                        <PlayerMatchLog
+                            history={matchHistory}
+                            elementType={playerData.element_type}
+                            teams={teams}
+                        />
                     </div>
                 )}
 
                 {activeTab === 'fixtures' && (
-                    <div className="bg-white rounded-lg shadow-md p-6">
-                        <h2 className="text-xl font-semibold mb-4">Upcoming Fixtures</h2>
+                    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+                        <h2 className="text-lg sm:text-xl font-semibold mb-4">Upcoming Fixtures</h2>
+                        {upcomingFixtures.length === 0 && (
+                            <div className="rounded-lg bg-gray-50 p-4 text-sm text-gray-500">
+                                No upcoming fixtures listed for this player.
+                            </div>
+                        )}
                         <div className="space-y-4">
                             {upcomingFixtures.map((fixture, index) => (
                                 <FixtureRow

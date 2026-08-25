@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Search, X } from 'lucide-react';
+import { API_URL } from '../config/supabase';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://fpl-league-hub-api.onrender.com';
+
 
 const PlayerSearchModal = ({ onSelect, onClose, excludePlayerId }) => {
   const [searchTerm, setSearchTerm] = useState('');

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Sparkles, Zap, Flame, Info } from 'lucide-react';
+import { PlayerDefconCompact } from './PlayerDefensiveContribution';
+import { formatCount, ordinal, toNumber } from '../lib/playerStats';
 
 const ICTCard = ({ title, value, positionRank, icon: Icon, description, metrics }) => {
   const [showTooltip, setShowTooltip] = useState(false);
@@ -42,7 +44,9 @@ const ICTCard = ({ title, value, positionRank, icon: Icon, description, metrics 
         
         <div className="space-y-1">
           <div className="text-2xl font-bold text-gray-900">{value}</div>
-          <div className="text-xs text-gray-600">{positionRank} in position</div>
+          {positionRank && (
+            <div className="text-xs text-gray-600">{positionRank} in position</div>
+          )}
         </div>
 
         {showTooltip && (
@@ -97,28 +101,36 @@ const ICTSidePanel = ({ playerData }) => {
     }
   };
 
+  if (!playerData) return null;
+
+  const rankLabel = (rank) => {
+    const value = toNumber(rank, null);
+    return value !== null && value > 0 ? ordinal(value) : null;
+  };
+
   return (
     <div className="space-y-3">
+      <PlayerDefconCompact playerData={playerData} />
       <ICTCard
         title="Influence"
-        value={playerData.influence_rank}
-        positionRank={`${playerData.influence_rank_type}`}
+        value={formatCount(playerData.influence_rank, '—')}
+        positionRank={rankLabel(playerData.influence_rank_type)}
         icon={Sparkles}
         description={ictDescription.influence.description}
         metrics={ictDescription.influence.metrics}
       />
       <ICTCard
         title="Creativity"
-        value={playerData.creativity_rank}
-        positionRank={`${playerData.creativity_rank_type}`}
+        value={formatCount(playerData.creativity_rank, '—')}
+        positionRank={rankLabel(playerData.creativity_rank_type)}
         icon={Zap}
         description={ictDescription.creativity.description}
         metrics={ictDescription.creativity.metrics}
       />
       <ICTCard
         title="Threat"
-        value={playerData.threat_rank}
-        positionRank={`${playerData.threat_rank_type}`}
+        value={formatCount(playerData.threat_rank, '—')}
+        positionRank={rankLabel(playerData.threat_rank_type)}
         icon={Flame}
         description={ictDescription.threat.description}
         metrics={ictDescription.threat.metrics}

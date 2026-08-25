@@ -15,9 +15,8 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./ui/dropdown-menu";
 import { DEFAULT_LEAGUE_ID } from '../config/league';
+import { API_URL, SUPABASE_ANON_KEY } from '../config/supabase';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.supabase.co/functions/v1';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
 
 const Dashboard = ({ leagueId: propLeagueId }) => {
   const { leagueId: urlLeagueId } = useParams();
@@ -102,7 +101,9 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
           { headers }
         );
         const matchupsResult = await matchupsResponse.json();
-        setWeeklyMatchups(matchupsResult);
+        // The endpoint returns { has_next, page, results: [...] }; unwrap it so
+        // downstream array checks don't silently fall through to zero.
+        setWeeklyMatchups(matchupsResult?.results ?? matchupsResult);
       } catch (err) {
         console.error('Error fetching weekly matchups:', err);
       }
@@ -290,15 +291,15 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
   const PlayerLink = ({ index, player, showPoints = true }) => (
     <Link
       to={`/player/${player.id}`}
-      className="flex items-center justify-between border-b border-border pb-2 hover:bg-muted/50 px-2 py-1 rounded transition-colors"
+      className="flex items-center justify-between gap-2 border-b border-border hover:bg-muted/50 px-2 py-2 min-h-[44px] rounded transition-colors"
     >
-      <div className="flex items-center">
-        <span className="text-primary font-bold mr-2">{index + 1}.</span>
-        <span className="text-foreground">{player.name}</span>
-        <span className="text-muted-foreground text-sm ml-2">({player.team})</span>
+      <div className="flex items-center min-w-0">
+        <span className="text-primary font-bold mr-2 flex-shrink-0">{index + 1}.</span>
+        <span className="text-foreground truncate">{player.name}</span>
+        <span className="text-muted-foreground text-sm ml-2 flex-shrink-0">({player.team})</span>
       </div>
       {showPoints && (
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 flex-shrink-0">
           <span className="font-bold text-primary">{player.points} pts</span>
           <ChevronRight className="w-4 h-4 text-primary/60" />
         </div>
@@ -341,25 +342,30 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
 
   // Rest of your JSX remains the same, but now let's use the processed data:
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 sm:px-0">
       <HeaderCard>
-        <CardTitle className="card-header-text text-3xl">
+        <CardTitle className="card-header-text text-2xl sm:text-3xl">
           FPL League Hub Dashboard
         </CardTitle>
         <CardDescription className="card-header-text-secondary">
-          <div className="flex items-center space-x-4">
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <span>League ID: {leagueId}</span>
             {currentGameweek && (
               <Badge variant="secondary" className="bg-primary-darker/50 card-header-text">
                 Gameweek {currentGameweek.id}
               </Badge>
             )}
-          </div>
+          </span>
         </CardDescription>
       </HeaderCard>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/*
+        Single column on phone/tablet, ordered by what matters at a glance:
+        gameweek summary first, then performers, then results. Three columns
+        again from lg up.
+      */}
+      <div className="flex flex-col lg:grid lg:grid-cols-3 lg:items-start gap-6">
         {/* Left Column */}
-        <div className="space-y-6">
+        <div className="order-2 lg:order-1 space-y-6 min-w-0">
           <Card>
             <SectionHeader
               icon={<Star />}
@@ -381,13 +387,13 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
 
           <Card>
             <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
-              <CardTitle className="card-header-text flex items-center justify-between">
-                <div className="flex items-center">
+              <CardTitle className="card-header-text flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <span className="flex items-center">
                   <ArrowUp className="h-6 w-6 mr-2 card-header-text" />
                   Transfer Trends
-                </div>
+                </span>
                 <DropdownMenu>
-                  <DropdownMenuTrigger className="card-header-text flex items-center space-x-1 hover:bg-white/10 px-2 py-1 rounded">
+                  <DropdownMenuTrigger className="card-header-text flex items-center justify-between sm:justify-center w-full sm:w-auto space-x-1 hover:bg-white/10 px-3 min-h-[44px] rounded">
                     <span className="text-sm">
                       {transferView === 'in' ? 'Transferred In' : 'Transferred Out'}
                     </span>
@@ -411,14 +417,14 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
                       <Link
                         key={player.id}
                         to={`/player/${player.id}`}
-                        className="flex items-center justify-between border-b pb-2 hover:bg-muted/50 px-2 py-1 rounded transition-colors"
+                        className="flex items-center justify-between gap-2 border-b hover:bg-muted/50 px-2 py-2 min-h-[44px] rounded transition-colors"
                       >
-                        <div className="flex items-center">
-                          <span className="ranking-number">{index + 1}.</span>
-                          <span>{player.name}</span>
-                          <span className="text-muted-foreground text-sm ml-2">({player.team})</span>
+                        <div className="flex items-center min-w-0">
+                          <span className="text-primary font-bold mr-2 flex-shrink-0">{index + 1}.</span>
+                          <span className="truncate">{player.name}</span>
+                          <span className="text-muted-foreground text-sm ml-2 flex-shrink-0">({player.team})</span>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 flex-shrink-0">
                           <span className="font-bold text-success-color">+{player.transfers}</span>
                           <ChevronRight className="w-4 h-4 text-primary/60" />
                         </div>
@@ -428,14 +434,14 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
                       <Link
                         key={player.id}
                         to={`/player/${player.id}`}
-                        className="flex items-center justify-between border-b pb-2 hover:bg-muted/50 px-2 py-1 rounded transition-colors"
+                        className="flex items-center justify-between gap-2 border-b hover:bg-muted/50 px-2 py-2 min-h-[44px] rounded transition-colors"
                       >
-                        <div className="flex items-center">
-                          <span className="ranking-number">{index + 1}.</span>
-                          <span>{player.name}</span>
-                          <span className="text-muted-foreground text-sm ml-2">({player.team})</span>
+                        <div className="flex items-center min-w-0">
+                          <span className="text-primary font-bold mr-2 flex-shrink-0">{index + 1}.</span>
+                          <span className="truncate">{player.name}</span>
+                          <span className="text-muted-foreground text-sm ml-2 flex-shrink-0">({player.team})</span>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 flex-shrink-0">
                           <span className="font-bold text-destructive">-{player.transfers}</span>
                           <ChevronRight className="w-4 h-4 text-primary/60" />
                         </div>
@@ -448,7 +454,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
         </div>
 
         {/* Middle Column */}
-        <div className="space-y-6">
+        <div className="order-1 lg:order-2 space-y-6 min-w-0">
           <Card>
             <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
               <CardTitle className="card-header-text flex items-center">
@@ -546,7 +552,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
         </div>
 
         {/* Right Column - Results */}
-        <div className="space-y-6">
+        <div className="order-3 space-y-6 min-w-0">
           <Card>
             <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
               <CardTitle className="card-header-text flex items-center">
@@ -564,8 +570,9 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
                     {bootstrapData?.events?.slice(0, currentGameweek?.id || 7).map((event) => (
                       <button
                         key={event.id}
+                        aria-label={`Gameweek ${event.id}`}
                         onClick={() => setSelectedGameweek(event.id)}
-                        className={`px-3 py-1 rounded text-sm font-medium transition-colors whitespace-nowrap ${
+                        className={`flex-shrink-0 min-w-[44px] min-h-[44px] px-3 rounded text-sm font-medium transition-colors whitespace-nowrap ${
                           event.id === selectedGameweek
                             ? 'bg-primary text-primary-foreground'
                             : 'text-muted-foreground hover:text-foreground'

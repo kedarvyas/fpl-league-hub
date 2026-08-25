@@ -13,10 +13,8 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
+import { API_URL, SUPABASE_ANON_KEY, SUPABASE_URL } from '../config/supabase';
 
-const SUPABASE_URL = 'https://hvgotlfiwwirfpezvxhp.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
-const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.supabase.co/functions/v1';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null;
@@ -269,13 +267,13 @@ const MyTeam = () => {
     return (
       <div className="space-y-6">
         {/* Rank Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <div className="bg-muted/30 rounded-lg p-4">
             <div className="flex items-center space-x-2 mb-2">
               <TrendingUp className="w-4 h-4 text-green-600" />
               <span className="text-sm font-medium text-foreground">Highest Rank</span>
             </div>
-            <div className="text-2xl font-bold text-foreground">
+            <div className="text-xl sm:text-2xl font-bold text-foreground">
               {seasonHistory.highest_rank?.toLocaleString() || 'N/A'}
             </div>
             <div className="text-sm text-muted-foreground">
@@ -287,7 +285,7 @@ const MyTeam = () => {
               <TrendingDown className="w-4 h-4 text-red-600" />
               <span className="text-sm font-medium text-foreground">Lowest Rank</span>
             </div>
-            <div className="text-2xl font-bold text-foreground">
+            <div className="text-xl sm:text-2xl font-bold text-foreground">
               {seasonHistory.lowest_rank?.toLocaleString() || 'N/A'}
             </div>
             <div className="text-sm text-muted-foreground">
@@ -297,7 +295,7 @@ const MyTeam = () => {
         </div>
 
         {/* Recharts Line Chart */}
-        <div className="bg-background border border-border rounded-lg p-6">
+        <div className="bg-background border border-border rounded-lg p-3 sm:p-6">
           <div className="mb-4">
             <h4 className="text-lg font-semibold text-foreground mb-1">📈 Your rank across the season</h4>
             <p className="text-sm text-muted-foreground">
@@ -313,7 +311,7 @@ const MyTeam = () => {
             </p>
           </div>
 
-          <div className="h-80 w-full">
+          <div className="h-64 sm:h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={ranks.map(r => ({ gameweek: r.gameweek, rank: r.rank }))}
@@ -358,7 +356,7 @@ const MyTeam = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-background px-4 py-4 sm:px-0">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -381,18 +379,19 @@ const MyTeam = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="flex space-x-4">
+              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="text"
+                  inputMode="numeric"
                   value={teamId}
                   onChange={(e) => setTeamId(e.target.value)}
                   placeholder="e.g., 4656161"
-                  className="flex-1 px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="flex-1 min-w-0 px-4 py-2 min-h-[48px] text-base border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 <button
                   type="submit"
                   disabled={loading || !teamId.trim()}
-                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 min-h-[48px] whitespace-nowrap bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Loading...' : 'Load Team'}
                 </button>
@@ -437,7 +436,7 @@ const MyTeam = () => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-5 min-h-[44px] min-w-[72px] rounded-md text-sm font-medium transition-colors ${
                     activeTab === tab
                       ? 'bg-background text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -453,19 +452,20 @@ const MyTeam = () => {
               <div className="space-y-8">
                 {/* Team Info Section */}
                 <Card className="bg-gradient-to-r from-muted/20 to-muted/10 border-l-4 border-l-primary">
-                  <CardContent className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center md:text-left">
-                      <div>
+                  <CardContent className="p-4 sm:p-6">
+                    {/* Label/value rows on a phone, three columns from sm up */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 divide-y divide-border sm:divide-y-0">
+                      <div className="flex items-baseline justify-between gap-3 pt-2 first:pt-0 sm:block sm:pt-0">
                         <p className="text-sm text-muted-foreground font-medium">Team ID</p>
-                        <p className="text-lg font-bold text-foreground">{teamData.id}</p>
+                        <p className="text-base sm:text-lg font-bold text-foreground">{teamData.id}</p>
                       </div>
-                      <div>
+                      <div className="flex items-baseline justify-between gap-3 pt-2 sm:block sm:pt-0">
                         <p className="text-sm text-muted-foreground font-medium">Team Name</p>
-                        <p className="text-lg font-bold text-foreground">{teamData.name || 'N/A'}</p>
+                        <p className="text-base sm:text-lg font-bold text-foreground truncate">{teamData.name || 'N/A'}</p>
                       </div>
-                      <div>
+                      <div className="flex items-baseline justify-between gap-3 pt-2 sm:block sm:pt-0">
                         <p className="text-sm text-muted-foreground font-medium">Manager</p>
-                        <p className="text-lg font-bold text-foreground">
+                        <p className="text-base sm:text-lg font-bold text-foreground truncate">
                           {teamData.player_first_name && teamData.player_last_name
                             ? `${teamData.player_first_name} ${teamData.player_last_name}`
                             : 'N/A'
@@ -479,17 +479,18 @@ const MyTeam = () => {
                 {/* Live Rank Section */}
                 <div>
                   <h3 className="text-xl font-semibold text-foreground mb-4">Live Rank</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {/* 2-up on a phone so all four stats are visible at once */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                     {/* Gameweek */}
                     <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg flex items-center space-x-2">
+                      <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
+                        <CardTitle className="text-base sm:text-lg flex items-center space-x-2">
                           <Target className="w-5 h-5" />
                           <span>Gameweek</span>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <div className="text-3xl font-bold text-foreground">
+                      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                        <div className="text-2xl sm:text-3xl font-bold text-foreground">
                           {teamData.current_event || 'N/A'}
                         </div>
                         {teamData.wildcards_played && teamData.wildcards_played.length > 0 && (
@@ -502,11 +503,11 @@ const MyTeam = () => {
 
                     {/* GW Points */}
                     <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">GW Points</CardTitle>
+                      <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
+                        <CardTitle className="text-base sm:text-lg">GW Points</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <div className="text-3xl font-bold text-foreground">
+                      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                        <div className="text-2xl sm:text-3xl font-bold text-foreground">
                           {teamData.summary_event_points || 0}
                         </div>
                       </CardContent>
@@ -514,11 +515,11 @@ const MyTeam = () => {
 
                     {/* Total Points */}
                     <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Total Points</CardTitle>
+                      <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
+                        <CardTitle className="text-base sm:text-lg">Total Points</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <div className="text-3xl font-bold text-foreground">
+                      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                        <div className="text-2xl sm:text-3xl font-bold text-foreground">
                           {teamData.summary_overall_points || 0}
                         </div>
                       </CardContent>
@@ -526,10 +527,10 @@ const MyTeam = () => {
 
                     {/* Rank Change */}
                     <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Rank Change</CardTitle>
+                      <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
+                        <CardTitle className="text-base sm:text-lg">Rank Change</CardTitle>
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                         <div className="flex flex-col items-start space-y-2">
                           {formatRankChange(teamData.rank_change)}
                           <div className="text-sm text-muted-foreground">
@@ -553,7 +554,7 @@ const MyTeam = () => {
                   </Card>
 
                   {/* Previous Seasons Table */}
-                  <Card>
+                  <Card className="mt-6">
                     <CardContent className="pt-6">
                       {renderPreviousSeasons()}
                     </CardContent>

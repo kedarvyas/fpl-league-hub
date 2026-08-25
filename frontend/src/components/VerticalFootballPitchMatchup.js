@@ -3,22 +3,21 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
 const PlayerRow = ({ player }) => (
-  <Link to={`/player/${player.id}`}>
+  <Link to={`/player/${player.id}`} className="block">
     <motion.div
-      className="flex items-center justify-between bg-white rounded-md shadow-sm p-2 mb-2 hover:bg-purple-50 transition-colors duration-150"
-      whileHover={{ scale: 1.02 }}
+      className="flex items-center justify-between gap-1 bg-card text-card-foreground rounded-md shadow-sm px-2 py-2 mb-2 min-h-[44px] hover:bg-primary/5 transition-colors duration-150"
       whileTap={{ scale: 0.98 }}
     >
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold truncate text-purple-700">{player.name}</p>
-        <div className="flex items-center">
-          <p className="text-xs text-gray-500">{player.position}</p>
-          <p className="text-xs text-gray-400 ml-2">{player.club}</p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p className="text-[11px] text-muted-foreground flex-shrink-0">{player.position}</p>
+          <p className="text-[11px] text-muted-foreground/70 truncate">{player.club}</p>
         </div>
       </div>
-      <div className="flex items-center">
+      <div className="flex items-center flex-shrink-0">
         {player.isCaptain && (
-          <span className="text-xs font-bold text-blue-600 mr-2">
+          <span className="text-xs font-bold text-blue-600 mr-1.5">
             {player.multiplier}x
           </span>
         )}
@@ -32,7 +31,7 @@ const TeamList = ({ players, isStarters }) => {
   if (!players || !Array.isArray(players)) return null;
   const filteredPlayers = players.filter(player => player.isStarting === isStarters);
   return (
-    <div className="w-full">
+    <div className="min-w-0">
       {filteredPlayers.map((player, index) => (
         <PlayerRow key={`${player.name}-${index}`} player={player} />
       ))}
@@ -40,14 +39,13 @@ const TeamList = ({ players, isStarters }) => {
   );
 };
 
-
-const TeamInfo = ({ teamName, managerName, score }) => (
-  <div className="text-center mb-2">
-    <h3 className="text-sm font-bold truncate">{teamName}</h3>
+const TeamHeader = ({ name, managerName, score, align }) => (
+  <div className={`min-w-0 ${align === 'right' ? 'text-right' : 'text-left'}`}>
+    <h4 className="text-sm font-bold text-foreground truncate">{name}</h4>
     {managerName && (
-      <p className="text-xs text-gray-500 truncate">{managerName}</p>
+      <p className="text-xs text-muted-foreground truncate">{managerName}</p>
     )}
-    <p className="text-lg font-bold mt-1">{score}</p>
+    <p className="text-xl font-bold text-purple-700 mt-0.5">{score}</p>
   </div>
 );
 
@@ -70,37 +68,26 @@ const VerticalFootballPitchMatchup = ({ matchData }) => {
   };
 
   return (
-    <div className="w-full bg-gray-100 rounded-lg overflow-hidden shadow-lg">
-      <div className="bg-gray-800 p-2 text-white">
-        <div className="flex justify-between items-center mb-2">
-          <TeamInfo {...homeTeam} />
-          <div className="text-center text-xl font-bold">
-            {homeTeam.score} - {awayTeam.score}
-          </div>
-          <TeamInfo {...awayTeam} />
-        </div>
+    <div className="w-full">
+      {/* Team headers. The collapsed row above already shows the score line, so
+          this only needs to label the two columns of players below it. */}
+      <div className="grid grid-cols-2 gap-2 pb-3 mb-3 border-b border-border">
+        <TeamHeader {...homeTeam} align="left" />
+        <TeamHeader {...awayTeam} align="right" />
       </div>
-      <div className="p-2">
-        <div className="flex mb-4">
-          <div className="w-1/2 pr-1">
-            <h4 className="text-sm font-semibold mb-2">{homeTeam.name}</h4>
-            <TeamList players={homeTeam.players} isStarters={true} />
-          </div>
-          <div className="w-1/2 pl-1">
-            <h4 className="text-sm font-semibold mb-2">{awayTeam.name}</h4>
-            <TeamList players={awayTeam.players} isStarters={true} />
-          </div>
-        </div>
-        <div className="mt-4">
-          <h4 className="text-sm font-semibold mb-2">Bench Players</h4>
-          <div className="flex">
-            <div className="w-1/2 pr-1">
-              <TeamList players={homeTeam.players} isStarters={false} />
-            </div>
-            <div className="w-1/2 pl-1">
-              <TeamList players={awayTeam.players} isStarters={false} />
-            </div>
-          </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <TeamList players={homeTeam.players} isStarters={true} />
+        <TeamList players={awayTeam.players} isStarters={true} />
+      </div>
+
+      <div className="mt-4">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+          Bench
+        </h4>
+        <div className="grid grid-cols-2 gap-2">
+          <TeamList players={homeTeam.players} isStarters={false} />
+          <TeamList players={awayTeam.players} isStarters={false} />
         </div>
       </div>
     </div>

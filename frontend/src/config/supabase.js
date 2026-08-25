@@ -1,0 +1,29 @@
+// config/supabase.js
+//
+// Single source of truth for the Supabase endpoints the app talks to.
+//
+// The Edge Functions are the app's entire API — they proxy the FPL API, which
+// sends no CORS headers and so cannot be called from the browser directly.
+//
+// The fallbacks matter: components used to fall back to a FastAPI service on
+// Render that was decommissioned in 2025, using Edge Function paths that never
+// existed there, so a missing env var produced confusing 404s instead of an
+// obvious failure. Falling back to the real project is always the better guess.
+const SUPABASE_PROJECT_URL = process.env.REACT_APP_SUPABASE_URL
+  || 'https://hvgotlfiwwirfpezvxhp.supabase.co';
+
+export const SUPABASE_URL = SUPABASE_PROJECT_URL;
+
+export const API_URL = process.env.REACT_APP_API_URL
+  || `${SUPABASE_PROJECT_URL}/functions/v1`;
+
+// The anon key is a publishable client credential — it is compiled into the
+// bundle either way. Row-level security, not secrecy, is what protects data.
+export const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY
+  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
+
+/** Headers every Edge Function call needs. */
+export const apiHeaders = () => ({
+  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+  'Content-Type': 'application/json',
+});

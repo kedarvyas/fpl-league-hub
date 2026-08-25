@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge";
 
 const TransferStatsCard = ({ title, icon: Icon, value, change, subtitle, isPositive }) => (
-  <div className="bg-white rounded-lg p-4 shadow-sm">
+  <div className="bg-card rounded-lg p-4 shadow-sm">
     <div className="flex items-center justify-between mb-2">
       <div className="flex items-center space-x-2">
         <Icon className={`w-4 h-4 ${isPositive ? 'text-green-500' : 'text-purple-500'}`} />
-        <span className="text-sm text-gray-600">{title}</span>
+        <span className="text-sm text-muted-foreground">{title}</span>
       </div>
       {change && (
         <Badge variant={isPositive ? 'success' : 'destructive'} className="text-xs">
@@ -17,8 +17,8 @@ const TransferStatsCard = ({ title, icon: Icon, value, change, subtitle, isPosit
       )}
     </div>
     <div className="space-y-1">
-      <div className="text-2xl font-bold text-gray-900">{value}</div>
-      {subtitle && <div className="text-xs text-gray-500">{subtitle}</div>}
+      <div className="text-2xl font-bold text-foreground">{value}</div>
+      {subtitle && <div className="text-xs text-muted-foreground">{subtitle}</div>}
     </div>
   </div>
 );

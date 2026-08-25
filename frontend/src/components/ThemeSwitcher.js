@@ -76,16 +76,17 @@ const themes = {
 };
 
 const ThemeSwitcher = ({ currentTheme, setTheme }) => {
-    const ThemeIcon = themes[currentTheme]?.icon || Palette;
-
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger className="p-2 rounded-lg hover:bg-muted/80 transition-colors">
+            <DropdownMenuTrigger
+                aria-label="Change theme"
+                className="flex items-center justify-center w-11 h-11 rounded-lg hover:bg-muted/80 transition-colors"
+            >
                 <Palette className="w-5 h-5 text-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
-                align="left"
-                className="w-36"
+                align="start"
+                className="w-40"
             >
                 {Object.entries(themes).map(([key, theme]) => {
                     const Icon = theme.icon;
@@ -93,7 +94,7 @@ const ThemeSwitcher = ({ currentTheme, setTheme }) => {
                         <DropdownMenuItem
                             key={key}
                             onClick={() => setTheme(key)}
-                            className="flex items-center justify-between py-2 cursor-pointer"
+                            className="flex items-center justify-between min-h-[44px] py-2 cursor-pointer"
                         >
                             <div className="flex items-center gap-2">
                                 <Icon className="h-4 w-4 text-muted-foreground" />

@@ -44,6 +44,15 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
 
   return (
     <header className="relative z-50 bg-background">
+      {/* Tap outside to dismiss the mobile menu. Rendered before the nav so the
+          header controls and the menu panel both stay clickable above it. */}
+      {isMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0"
+          onClick={() => setIsMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="w-full py-4 flex items-center justify-between">
           {/* Logo */}
@@ -52,7 +61,7 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
               <div className="p-2 rounded-lg bg-muted">
                 <Home className="w-6 h-6 text-foreground" />
               </div>
-              <span className="text-2xl font-bold text-foreground">FPL League Hub</span>
+              <span className="text-xl sm:text-2xl font-bold text-foreground">FPL League Hub</span>
             </Link>
           </div>
 
@@ -78,8 +87,9 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
 
             <button
               onClick={() => setShowInfo(true)}
-              className={`p-2 rounded-lg transition-colors ${bgHover}`}
+              className={`flex items-center justify-center w-11 h-11 rounded-lg transition-colors ${bgHover}`}
               title="About"
+              aria-label="About"
             >
               <Info className="w-5 h-5 text-foreground" />
             </button>
@@ -96,8 +106,9 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
                     </div>
                     <button
                       onClick={handleSignOut}
-                      className={`p-2 rounded-lg transition-colors ${bgHover}`}
+                      className={`flex items-center justify-center w-11 h-11 rounded-lg transition-colors ${bgHover}`}
                       title="Sign Out"
+                      aria-label="Sign Out"
                     >
                       <LogOut className="w-5 h-5 text-foreground" />
                     </button>
@@ -119,7 +130,9 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
           <div className="lg:hidden">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className={`p-2 rounded-lg transition-colors ${bgHover}`}
+              aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={isMenuOpen}
+              className={`flex items-center justify-center w-11 h-11 -mr-2 rounded-lg transition-colors ${bgHover}`}
             >
               {isMenuOpen ? (
                 <X className="w-6 h-6 text-foreground" />
@@ -163,8 +176,9 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
                   setIsMenuOpen(false);
                   setShowInfo(true);
                 }}
-                className={`p-2 rounded-lg transition-colors ${bgHover}`}
+                className={`flex items-center justify-center w-11 h-11 rounded-lg transition-colors ${bgHover}`}
                 title="About"
+                aria-label="About"
               >
                 <Info className="w-5 h-5 text-foreground" />
               </button>
