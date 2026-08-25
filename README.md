@@ -1,133 +1,87 @@
 # FPL League Hub
 
-A comprehensive dashboard for Fantasy Premier League Head-to-Head leagues, providing detailed analytics, player statistics, and league performance tracking.
+A dashboard for Fantasy Premier League head-to-head leagues: weekly matchups,
+league standings, per-manager team pages, and player statistics.
 
-## Features
+Live at **https://tacticosfplhub.netlify.app**
 
-- 📊 League Performance Analytics
-- 👥 Weekly Head-to-Head Matchups
-- 📈 Player Statistics
-- 🏆 League Standings
-- 🌓 Multiple Theme Options
-- 📱 Responsive Design
+## Architecture
 
-## Tech Stack
-
-### Frontend
-- React
-- React Router
-- Tailwind CSS
-- Recharts
-- Lucide React Icons
-
-### Backend
-- FastAPI
-- SQLAlchemy
-- PostgreSQL
-
-## Prerequisites
-
-Before running the application, make sure you have the following installed:
-- Node.js (v16 or higher)
-- Python (3.8 or higher)
-- PostgreSQL
-
-## Local Development Setup
-
-### Setting up the Backend
-
-1. Navigate to the backend directory:
-```bash
-cd backend
+```
+Netlify (React SPA)  ->  Supabase Edge Functions  ->  fantasy.premierleague.com/api
+                     ->  Supabase Auth (Google, email)
 ```
 
-2. Create and activate a virtual environment:
-```bash
-# Create virtual environment
-python -m venv venv
+The Edge Functions exist because the FPL API sends no CORS headers, so the
+browser cannot call it directly. They are thin proxies plus a little
+aggregation. There is no database — every page is derived from live FPL data.
 
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-```
+| Piece | Where |
+|---|---|
+| Frontend | `frontend/` — React 18, CRA + craco, Tailwind, Recharts |
+| API | `supabase/functions/` — Deno |
+| Auth | Supabase Auth, project ref `hvgotlfiwwirfpezvxhp` |
 
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+### `backend/` is legacy
 
-4. Set up the PostgreSQL database:
-```bash
-# Create a new database
-createdb fpl_league_hub
+The FastAPI service in `backend/` was replaced by the Edge Functions in
+September 2025 and is no longer deployed or referenced by the frontend. It is
+kept only for reference. `render.yaml` describes that dead deployment.
 
-# Update the database URL in database.py:
-SQLALCHEMY_DATABASE_URL = "postgresql://username:password@localhost/fpl_league_hub"
-```
+## Local development
 
-5. Start the backend server:
-```bash
-uvicorn main:app --reload
-```
-
-The backend server will be running at `http://localhost:8000`
-
-### Setting up the Frontend
-
-1. Navigate to the frontend directory:
 ```bash
 cd frontend
-```
-
-2. Install dependencies:
-```bash
 npm install
-```
-
-3. Update the API URL:
-In the `.env` file, update the API URL to point to your local backend:
-```
-REACT_APP_API_URL=http://localhost:8000
-```
-
-4. Start the development server:
-```bash
 npm start
 ```
 
-The frontend will be running at `http://localhost:3000`
+Runs at http://localhost:3000 against the deployed Edge Functions — no local
+backend needed. `frontend/.env` holds `REACT_APP_SUPABASE_URL`,
+`REACT_APP_SUPABASE_ANON_KEY`, `REACT_APP_API_URL`, and `REACT_APP_SITE_URL`.
 
-## Environment Variables
+### Edge Functions
 
-### Backend
-Create a `.env` file in the backend directory with the following variables:
-```
-DATABASE_URL=postgresql://username:password@localhost/fpl_league_hub
-```
-
-### Frontend
-Create a `.env` file in the frontend directory with:
-```
-REACT_APP_API_URL=http://localhost:8000
+```bash
+supabase functions deploy <name> --project-ref hvgotlfiwwirfpezvxhp
 ```
 
-## Usage
+Shared helpers live in `supabase/functions/_shared/fpl.ts`. Use `fetchFPL` /
+`fetchFPLJson` for every upstream call rather than bare `fetch` — they retry
+transient failures (including the 403s the FPL WAF returns when it sees a
+burst from Supabase's shared egress IP) and preserve the upstream status code
+instead of collapsing everything into a 500.
 
-1. Access the application at `http://localhost:3000`
-2. Enter your FPL League ID to view analytics
-3. Navigate through different sections using the top navigation bar
-4. Use the theme switcher to change the application's appearance
+## Seasonal rollover — read this every August
 
-## Contributing
+**H2H league IDs do not survive the season.** The league gets a new ID each
+year and the old one starts returning 404 from the FPL API, which surfaces as
+league-scoped pages showing zeros or errors.
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+To roll over, edit one line in `frontend/src/config/league.js`:
 
-## License
+```js
+export const DEFAULT_LEAGUE_ID = '1164871'; // Tacticos Super League, 2026/27
+```
 
-[MIT](https://choosealicense.com/licenses/mit/)
+Find the new ID in the FPL URL: `fantasy.premierleague.com/leagues/<ID>/standings/h`.
 
-## Support
+This is deliberately *not* read from an environment variable. The Netlify
+dashboard holds its own copy of env vars, so a value left over from last
+season silently overrides the code with no local reproduction.
 
-For support, please open an issue in the GitHub repository.
+### Other things that change between seasons
+
+Gameweek selection is already dynamic (`events.find(e => e.is_current)`), so it
+needs no attention. But early in a season only one or two gameweeks exist —
+aggregates are near zero and per-90 figures are noisy, so UI must tolerate 0,
+`null`, and absent fields.
+
+## Deployment
+
+Netlify builds from `main` on push (`netlify.toml`). Edge Functions deploy
+separately via the Supabase CLI — pushing does not deploy them.
+
+> The Supabase free tier **pauses a project after inactivity**. A paused
+> project stops resolving in DNS, which makes the whole site look broken while
+> the code is fine. Check the Supabase dashboard before debugging anything else.
