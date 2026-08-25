@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { DEFAULT_LEAGUE_ID } from './config/league';
 import Layout from './components/Layout';
 import Home from './components/Home';
 import Dashboard from './components/Dashboard';
@@ -10,8 +11,7 @@ import PlayerStats from './components/PlayerStats';
 import MyTeam from './components/MyTeam';
 
 const App = () => {
-  // Get league ID from environment variables
-  const leagueId = process.env.REACT_APP_LEAGUE_ID || 1164871;
+  const leagueId = DEFAULT_LEAGUE_ID;
 
   return (
     <AuthProvider>

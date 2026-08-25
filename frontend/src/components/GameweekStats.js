@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Typography, CircularProgress, Select, MenuItem } from '@mui/material';
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, TrophyIcon } from '@heroicons/react/24/solid';
 import { motion } from 'framer-motion';
+import { DEFAULT_LEAGUE_ID } from '../config/league';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.supabase.co/functions/v1';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
@@ -100,7 +101,7 @@ const ManagerOfWeekCard = ({ manager }) => (
 
 
 const GameweekStats = ({ eventId, leagueId }) => {
-    const LEAGUE_ID = leagueId || process.env.REACT_APP_LEAGUE_ID || '1164871';
+    const LEAGUE_ID = leagueId || DEFAULT_LEAGUE_ID;
     const [transfers, setTransfers] = useState([]);
     const [managerOfWeek, setManagerOfWeek] = useState(null);
     const [loading, setLoading] = useState(true);

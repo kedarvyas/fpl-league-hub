@@ -14,13 +14,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./ui/dropdown-menu";
+import { DEFAULT_LEAGUE_ID } from '../config/league';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://hvgotlfiwwirfpezvxhp.supabase.co/functions/v1';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
 
 const Dashboard = ({ leagueId: propLeagueId }) => {
   const { leagueId: urlLeagueId } = useParams();
-  const leagueId = urlLeagueId || propLeagueId || process.env.REACT_APP_LEAGUE_ID || '1164871';
+  const leagueId = urlLeagueId || propLeagueId || DEFAULT_LEAGUE_ID;
   const [bootstrapData, setBootstrapData] = useState(null);
   const [leagueData, setLeagueData] = useState(null);
   const [loading, setLoading] = useState(true);
