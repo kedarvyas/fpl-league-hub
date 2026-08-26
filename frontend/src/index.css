@@ -41,6 +41,7 @@
        would otherwise be indistinguishable. */
     --accent: var(--primary);
     --accent-foreground: var(--background);
+    --accent-chip: 265 85% 53%;   /* 4.69:1 on accent/15 */
   }
 
   [data-theme="dark"] {
@@ -72,6 +73,7 @@
        would otherwise be indistinguishable. */
     --accent: var(--primary);
     --accent-foreground: var(--background);
+    --accent-chip: 265 85% 73%;   /* 4.69:1 on accent/15 */
   }
 
   [data-theme="sage"] {
@@ -101,6 +103,7 @@
        would otherwise be indistinguishable. */
     --accent: var(--primary);
     --accent-foreground: var(--background);
+    --accent-chip: 150 40% 32%;   /* 4.81:1 on accent/15 */
   }
 
   [data-theme="ocean"] {
@@ -130,6 +133,7 @@
        would otherwise be indistinguishable. */
     --accent: var(--primary);
     --accent-foreground: var(--background);
+    --accent-chip: 200 80% 35%;   /* 4.62:1 on accent/15 */
   }
 
   [data-theme="midnight"] {
@@ -160,6 +164,7 @@
        would otherwise be indistinguishable. */
     --accent: var(--primary);
     --accent-foreground: var(--background);
+    --accent-chip: 230 60% 67%;   /* 4.70:1 on accent/15 */
   }
 
   [data-theme="turf"] {
@@ -190,6 +195,7 @@
     --header-bg-to: 155 32% 20%;
     --header-text: 90 12% 94%;
     --header-text-secondary: 84 66% 62%;
+    --accent-chip: 40 90% 58%;   /* 6.04:1 on accent/15 */
   }
 
 }

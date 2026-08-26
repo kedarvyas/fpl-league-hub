@@ -51,6 +51,9 @@ module.exports = {
         // Scoreboard tokens: panel is the tile fill, live the positive/returns
         // colour, warn the cooling state, inverted the FPL-cell surface.
         panel: "hsl(var(--panel))",
+        // Accent at a per-theme lightness that reads on an accent/15 chip:
+        // dark themes lighten, light themes darken.
+        "accent-chip": "hsl(var(--accent-chip))",
         live: "hsl(var(--live))",
         warn: "hsl(var(--warn))",
         inverted: "hsl(var(--inverted))",
