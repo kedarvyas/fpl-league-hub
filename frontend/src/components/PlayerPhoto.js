@@ -3,39 +3,42 @@ import React, { useState, useEffect } from 'react';
 /**
  * Premier League player headshot with a graceful fallback chain.
  *
- * Measured against a 60-player sample of the 2026/27 element list, the PL
- * photo CDN only has an image for about 60% of players — fringe and academy
- * squad members simply aren't shot. Coverage also differs by size: a few
- * players resolve at 110x140 but 403 at 250x250, so the larger size can't be
- * used on its own.
+ * There are two photo paths, and the difference matters. The long-standing
+ * `premierleague/photos/players/<size>/p<code>.png` has an image for only
+ * about 60% of the element list. The path FPL's own player dialog uses,
+ * `premierleague25/photos/players/<size>/<code>.png` — season-prefixed, and
+ * with no `p` before the code — covers 88% of the same 60-player sample.
+ * Chaining both reaches 90%; the rest genuinely have no photo anywhere, which
+ * is why the initials fallback is a designed state rather than an error state.
+ *
+ * Note the prefix is `premierleague25` even during 2026/27 — `premierleague26`
+ * currently 502s. If photos start disappearing en masse, try bumping it.
+ *
+ * Sizes differ per path: the new one serves 40x40, 110x140 and 500x500 but no
+ * 250x250. 110x140 is what FPL itself renders and is only ~78KB, so it's the
+ * primary everywhere; 500x500 would be 241KB for a 56px circle.
  *
  * Missing images return an S3 `application/xml` 403, which reliably fires the
- * <img> error handler, so we walk: 250x250 (crisp) -> 110x140 (best coverage)
- * -> initials. The previous fallback pointed at a `#user-circle` SVG symbol
- * that was never defined in the document, so those players rendered as an
- * empty circle.
+ * <img> error handler.
  */
-
-const CDN = 'https://resources.premierleague.com/premierleague/photos/players';
+const CDN = 'https://resources.premierleague.com';
 
 // 110x140 is ~96KB and 250x250 ~317KB, so list contexts start at the smaller
 // size — twenty 250x250 headshots would be over 6MB of images for one page.
-// Framing differs per asset: the 110x140 crop is a portrait with the head at
-// the top, while 250x250/40x40 are square with the head centred. Applying
-// `object-top` to a square crop frames the empty space above the head, which
-// renders as a blank circle.
+// The 110x140 assets are portraits with the head at the top; the square crops
+// centre it. Applying `object-top` to a square frames the empty space above
+// the head, which renders as a blank circle.
+const CURRENT = `${CDN}/premierleague25/photos/players`;
+const LEGACY = `${CDN}/premierleague/photos/players`;
+
+const PRIMARY = { url: `${CURRENT}/110x140`, prefix: '', position: 'object-top' };
+// Covers the handful of players present only on the retired path.
+const FALLBACK = { url: `${LEGACY}/110x140`, prefix: 'p', position: 'object-top' };
+
 const SOURCES = {
-    lg: [
-        { url: `${CDN}/250x250`, position: 'object-center' },
-        { url: `${CDN}/110x140`, position: 'object-top' },
-    ],
-    md: [
-        { url: `${CDN}/110x140`, position: 'object-top' },
-    ],
-    sm: [
-        { url: `${CDN}/40x40`, position: 'object-center' },
-        { url: `${CDN}/110x140`, position: 'object-top' },
-    ],
+    lg: [PRIMARY, FALLBACK],
+    md: [PRIMARY, FALLBACK],
+    sm: [{ url: `${CURRENT}/40x40`, prefix: '', position: 'object-center' }, PRIMARY],
 };
 
 /**
@@ -84,13 +87,14 @@ const PlayerPhoto = ({ code, name, size = 'md', className = '' }) => {
             <span className="text-[0.9em] leading-none">{getInitials(name)}</span>
             {source && (
                 <img
-                    src={`${source.url}/p${code}.png`}
+                    src={`${source.url}/${source.prefix}${code}.png`}
                     alt=""
-                    // The hero photo is above the fold, and an absolutely
-                    // positioned image inside an overflow-hidden parent can
-                    // defeat the lazy-load heuristic entirely — it never
-                    // enters the loading queue. Only defer in list contexts.
-                    loading={size === 'lg' ? 'eager' : 'lazy'}
+                    // No loading="lazy": an absolutely positioned image inside
+                    // an overflow-hidden parent never enters the loading queue
+                    // at all here — every photo sat at complete=false with a
+                    // 0-byte resource entry, while a plain new Image() for the
+                    // same URL resolved instantly. These are ~78KB each, so
+                    // deferring them was never worth much.
                     decoding="async"
                     className={`absolute inset-0 w-full h-full object-cover bg-white ${source.position}`}
                     onError={() => setAttempt((n) => n + 1)}

@@ -569,9 +569,9 @@ const PlayerStats = () => {
                 {activeTab === 'overview' && (
                     <div className="space-y-6">
                         <PlayerSeasonSummary playerData={playerData} />
-                        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+                        <div className="bg-card rounded-lg shadow-md p-4 sm:p-6">
                             <h2 className="text-lg sm:text-xl font-semibold mb-4">Key Statistics</h2>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                                 <StatsBox
                                     title="Total Points"
                                     value={formatCount(playerData.total_points)}
@@ -737,11 +737,15 @@ const StatItem = ({ icon, label, value }) => (
 );
 
 const StatsBox = ({ title, value, subtitle, className = '' }) => (
-    <div className={`p-4 rounded-lg ${className || 'bg-gray-50'}`}>
-        <p className="text-sm text-gray-500">{title}</p>
-        <p className="text-2xl font-bold text-purple-600">{value}</p>
+    // Value first, then label: a long label like "Points Per Game" used to
+    // wrap to three lines and push its number down, so no two tiles in a row
+    // lined up. `mt-auto` pins the subtitle to the bottom of an equal-height
+    // grid cell instead of letting it float directly under a wrapped label.
+    <div className={`flex flex-col p-3 sm:p-4 rounded-lg ${className || 'bg-muted/60'}`}>
+        <p className="text-2xl font-bold text-purple-600 tabular-nums leading-none">{value}</p>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-tight">{title}</p>
         {subtitle && (
-            <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+            <p className="text-[11px] text-muted-foreground/80 mt-auto pt-1.5 leading-tight">{subtitle}</p>
         )}
     </div>
 );

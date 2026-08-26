@@ -46,7 +46,11 @@ const PlayerSeasonSummary = ({ playerData }) => {
                     Premier League 2026/27 · {getPositionShort(type)}
                 </span>
             </div>
-            <dl className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
+            {/* Columns track the tile count: a forward has four tiles and a
+                fixed five-column grid left a dead cell at the end of the row. */}
+            <dl className={`grid grid-cols-2 gap-2 sm:gap-3 ${
+                tiles.length === 5 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'
+            }`}>
                 {tiles.map((tile, i) => (
                     <div
                         key={tile.label}
