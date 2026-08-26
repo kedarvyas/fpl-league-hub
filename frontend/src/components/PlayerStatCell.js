@@ -67,7 +67,7 @@ const PlayerStatCell = ({
                 {rank != null && (
                     <span
                         className={`mb-0.5 shrink-0 px-1 py-[3px] text-[8px] font-medium tracking-[0.1em] ${
-                            fpl ? 'bg-background/15 text-background' : 'bg-primary/15 text-primary'
+                            fpl ? 'bg-background/15 text-background' : 'bg-accent/15 text-accent'
                         }`}
                     >
                         R{rank}

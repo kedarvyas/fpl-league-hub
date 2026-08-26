@@ -80,7 +80,7 @@ const PlayerExpectedStats = ({ playerData }) => {
                                      style={{ width: `${Math.min(100, (actual / scale) * 100)}%` }} />
                             </div>
                             <div className="h-1.5 w-full bg-border">
-                                <div className="h-full bg-primary transition-[width] duration-500 ease-out"
+                                <div className="h-full bg-accent transition-[width] duration-500 ease-out"
                                      style={{ width: `${Math.min(100, (expected / scale) * 100)}%` }} />
                             </div>
                         </div>
@@ -93,7 +93,7 @@ const PlayerExpectedStats = ({ playerData }) => {
                     <span className="h-1.5 w-2 bg-live" /> ACTUAL
                 </span>
                 <span className="flex items-center gap-1.5 text-[7.5px] tracking-[0.12em] text-muted-foreground">
-                    <span className="h-1.5 w-2 bg-primary" /> EXPECTED
+                    <span className="h-1.5 w-2 bg-accent" /> EXPECTED
                 </span>
             </div>
         </div>

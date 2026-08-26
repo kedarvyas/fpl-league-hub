@@ -36,6 +36,11 @@
     --live: 84 62% 38%;
     --warn: 38 92% 42%;
     --inverted: var(--foreground);
+    /* Secondary accent. Tracks --primary everywhere except Turf, where
+       --primary and --live are the same lime and the expected/actual bars
+       would otherwise be indistinguishable. */
+    --accent: var(--primary);
+    --accent-foreground: var(--background);
   }
 
   [data-theme="dark"] {
@@ -62,6 +67,11 @@
     --live: 84 70% 50%;
     --warn: 38 92% 55%;
     --inverted: var(--foreground);
+    /* Secondary accent. Tracks --primary everywhere except Turf, where
+       --primary and --live are the same lime and the expected/actual bars
+       would otherwise be indistinguishable. */
+    --accent: var(--primary);
+    --accent-foreground: var(--background);
   }
 
   [data-theme="sage"] {
@@ -86,6 +96,11 @@
     --live: 150 45% 38%;
     --warn: 38 80% 40%;
     --inverted: var(--foreground);
+    /* Secondary accent. Tracks --primary everywhere except Turf, where
+       --primary and --live are the same lime and the expected/actual bars
+       would otherwise be indistinguishable. */
+    --accent: var(--primary);
+    --accent-foreground: var(--background);
   }
 
   [data-theme="ocean"] {
@@ -110,6 +125,11 @@
     --live: 160 60% 38%;
     --warn: 38 88% 44%;
     --inverted: var(--foreground);
+    /* Secondary accent. Tracks --primary everywhere except Turf, where
+       --primary and --live are the same lime and the expected/actual bars
+       would otherwise be indistinguishable. */
+    --accent: var(--primary);
+    --accent-foreground: var(--background);
   }
 
   [data-theme="midnight"] {
@@ -135,6 +155,11 @@
     --live: 84 65% 55%;
     --warn: 38 92% 58%;
     --inverted: var(--foreground);
+    /* Secondary accent. Tracks --primary everywhere except Turf, where
+       --primary and --live are the same lime and the expected/actual bars
+       would otherwise be indistinguishable. */
+    --accent: var(--primary);
+    --accent-foreground: var(--background);
   }
 
   [data-theme="turf"] {
@@ -158,6 +183,7 @@
     --warn: 40 90% 58%;
     /* Amber, so the rank chips and expected bars aren't a second green. */
     --accent: 40 90% 58%;
+    --accent-foreground: 155 32% 8%;
     /* The FPL inversion goes warm here, or the two greens fight. */
     --inverted: 84 22% 92%;
     --header-bg-from: 155 32% 14%;
