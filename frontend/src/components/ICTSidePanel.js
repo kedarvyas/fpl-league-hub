@@ -1,142 +1,79 @@
-import React, { useState } from 'react';
-import { Sparkles, Zap, Flame, Info } from 'lucide-react';
-import { PlayerDefconCompact } from './PlayerDefensiveContribution';
-import { formatCount, ordinal, toNumber } from '../lib/playerStats';
+import React from 'react';
+import { toNumber, formatDecimal, percentileFor } from '../lib/playerStats';
+import { rankToPercentile } from '../lib/playerVerdict';
 
-const ICTCard = ({ title, value, positionRank, icon: Icon, description, metrics }) => {
-  const [showTooltip, setShowTooltip] = useState(false);
-  
-  const getBgColor = () => {
-    switch (title) {
-      case 'Influence': return 'bg-purple-50 hover:bg-purple-100';
-      case 'Creativity': return 'bg-blue-50 hover:bg-blue-100';
-      case 'Threat': return 'bg-red-50 hover:bg-red-100';
-      default: return 'bg-gray-50 hover:bg-gray-100';
-    }
-  };
+/**
+ * ICT. No longer a right rail — it is a panel in the Scoring tab, because ICT
+ * is FPL's own invented index rather than anything that happened on a pitch.
+ */
+const METRICS = [
+    { key: 'influence', rank: 'influence_rank_type', label: 'Influence' },
+    { key: 'creativity', rank: 'creativity_rank_type', label: 'Creativity' },
+    { key: 'threat', rank: 'threat_rank_type', label: 'Threat' },
+];
 
-  const getIconColor = () => {
-    switch (title) {
-      case 'Influence': return 'text-purple-500';
-      case 'Creativity': return 'text-blue-500';
-      case 'Threat': return 'text-red-500';
-      default: return 'text-gray-500';
-    }
-  };
+const ICTSidePanel = ({ playerData, elements = [] }) => {
+    if (!playerData) return null;
 
-  return (
-    <div className="relative w-full">
-      <div className={`p-4 rounded-lg transition-colors duration-200 ${getBgColor()}`}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-2">
-            <Icon className={`w-4 h-4 ${getIconColor()}`} />
-            <span className="font-medium text-sm text-gray-900">{title}</span>
-          </div>
-          <button
-            className="p-1 hover:bg-white rounded-full transition-colors duration-200"
-            onMouseEnter={() => setShowTooltip(true)}
-            onMouseLeave={() => setShowTooltip(false)}
-            aria-label={`More information about ${title}`}
-          >
-            <Info className="w-3 h-3 text-gray-400 hover:text-gray-600" />
-          </button>
-        </div>
-        
-        <div className="space-y-1">
-          <div className="text-2xl font-bold text-gray-900">{value}</div>
-          {positionRank && (
-            <div className="text-xs text-gray-600">{positionRank} in position</div>
-          )}
-        </div>
+    const positionTotal = elements.filter(
+        (e) => e.element_type === playerData.element_type,
+    ).length;
 
-        {showTooltip && (
-          <div className="absolute z-50 w-72 p-4 bg-white rounded-lg shadow-xl border border-gray-200 mt-2 left-0 lg:left-full lg:ml-4">
-            <div className="space-y-3">
-              <h3 className="font-semibold text-lg text-gray-900">{title}</h3>
-              <p className="text-sm text-gray-600">{description}</p>
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm text-gray-900">Key Metrics:</h4>
-                <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                  {metrics.map((metric, index) => (
-                    <li key={index}>{metric}</li>
-                  ))}
-                </ul>
-              </div>
+    const rows = METRICS.map((m) => {
+        const rank = toNumber(playerData[m.rank], null);
+        return {
+            ...m,
+            value: toNumber(playerData[m.key]),
+            rank,
+            percentile: rank
+                ? rankToPercentile(rank, positionTotal)
+                : percentileFor(playerData, elements, m.key),
+        };
+    });
+
+    // The reading is the highest-ranked of the three — derived, and kept
+    // factual rather than editorial.
+    const leader = rows.reduce(
+        (best, r) => (r.percentile > best.percentile ? r : best),
+        rows[0],
+    );
+    const hasAny = rows.some((r) => r.value > 0);
+
+    return (
+        <div className="bg-panel p-[14px]">
+            <div className="flex flex-col gap-3">
+                {rows.map((r) => (
+                    <div key={r.key}>
+                        <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-[9.5px] uppercase tracking-[0.12em] text-foreground">
+                                {r.label}
+                            </span>
+                            <span className="text-[8px] tracking-[0.08em] text-muted-foreground">
+                                {r.rank ? `${r.rank} OF ${positionTotal}` : '—'}
+                            </span>
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-2.5">
+                            <span className="w-12 shrink-0 text-[19px] font-bold leading-none tracking-[-0.03em] text-foreground">
+                                {formatDecimal(r.value, r.value >= 100 ? 0 : 1, '0.0')}
+                            </span>
+                            <span className="h-1 flex-1 bg-border">
+                                <span
+                                    className="block h-full bg-primary transition-[width] duration-500 ease-out"
+                                    style={{ width: `${r.percentile}%` }}
+                                />
+                            </span>
+                        </div>
+                    </div>
+                ))}
             </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
-const ICTSidePanel = ({ playerData }) => {
-  const ictDescription = {
-    influence: {
-      description: "Measures a player's impact on a single match. It takes into account game-winning goals, defensive actions, and creating big chances.",
-      metrics: [
-        "Goals scored",
-        "Assists",
-        "Key defensive actions",
-        "Big chances created"
-      ]
-    },
-    creativity: {
-      description: "Assesses a player's ability to create scoring chances for others. It considers key passes, successful crosses, and potential assists.",
-      metrics: [
-        "Key passes",
-        "Successful crosses",
-        "Pass completion in final third",
-        "Big chances created"
-      ]
-    },
-    threat: {
-      description: "Evaluates a player's threat on goal. It analyzes shots, touches in the box, and the quality of scoring opportunities.",
-      metrics: [
-        "Shots on target",
-        "Touches in opposition box",
-        "Expected goals (xG)",
-        "Big chances"
-      ]
-    }
-  };
-
-  if (!playerData) return null;
-
-  const rankLabel = (rank) => {
-    const value = toNumber(rank, null);
-    return value !== null && value > 0 ? ordinal(value) : null;
-  };
-
-  return (
-    <div className="space-y-3">
-      <PlayerDefconCompact playerData={playerData} />
-      <ICTCard
-        title="Influence"
-        value={formatCount(playerData.influence_rank, '—')}
-        positionRank={rankLabel(playerData.influence_rank_type)}
-        icon={Sparkles}
-        description={ictDescription.influence.description}
-        metrics={ictDescription.influence.metrics}
-      />
-      <ICTCard
-        title="Creativity"
-        value={formatCount(playerData.creativity_rank, '—')}
-        positionRank={rankLabel(playerData.creativity_rank_type)}
-        icon={Zap}
-        description={ictDescription.creativity.description}
-        metrics={ictDescription.creativity.metrics}
-      />
-      <ICTCard
-        title="Threat"
-        value={formatCount(playerData.threat_rank, '—')}
-        positionRank={rankLabel(playerData.threat_rank_type)}
-        icon={Flame}
-        description={ictDescription.threat.description}
-        metrics={ictDescription.threat.metrics}
-      />
-    </div>
-  );
+            <p className="mt-3.5 text-[8px] tracking-[0.06em] text-muted-foreground">
+                {hasAny
+                    ? `${leader.label.toUpperCase()} IS CARRYING THE INDEX`
+                    : 'NO ICT RECORDED YET THIS SEASON'}
+            </p>
+        </div>
+    );
 };
 
 export default ICTSidePanel;

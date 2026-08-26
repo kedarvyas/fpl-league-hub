@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Palette, Sun, Moon, Leaf, Waves, Moon as MoonIcon } from 'lucide-react';
+import { Check, Palette, Sun, Moon, Leaf, Waves, Moon as MoonIcon, Trophy } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -59,6 +59,11 @@ const themes = {
             muted: '200 15% 92%',
             card: '0 0% 100%',
         }
+    },
+    turf: {
+        name: 'Turf',
+        icon: Trophy,
+        colors: {}
     },
     midnight: {
         name: 'Midnight',

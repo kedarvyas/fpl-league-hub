@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,9 +16,9 @@
     --input: 214.3 31.8% 91.4%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 47.4% 11.2%;
-    --primary: 271 81% 56%;
-    --primary-darker: 271 81% 46%;
-    --primary-lighter: 271 81% 66%;
+    --primary: 265 85% 54%;
+    --primary-darker: 265 85% 44%;
+    --primary-lighter: 265 85% 64%;
     --success: 142 71% 45%;  /* A green that works in all themes */
     --destructive: 0 84% 60%; /* A red that works in all themes */
     --primary-foreground: 0 0% 100%; /* White text for primary backgrounds */
@@ -26,28 +28,40 @@
     --header-bg-to: 271 81% 56%;
     --header-text: 0 0% 0%;          /* Dark text for light theme */
     --header-text-secondary: 271 81% 40%;
+    /* Scoreboard tokens. --panel is required because Dark and Midnight set
+       --card equal to --background, leaving a tile grid with no fill to sit on.
+       --live is only ever a fill behind --background-coloured text, never text
+       on a background — that is what keeps it legible in Sage and Ocean. */
+    --panel: 210 40% 96%;
+    --live: 84 62% 38%;
+    --warn: 38 92% 42%;
+    --inverted: var(--foreground);
   }
 
   [data-theme="dark"] {
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
     --muted: 217 32% 17%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted-foreground: 215 22% 73%;
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
     --border: 217 32% 17%;
     --input: 217 32% 17%;
     --card: 222 47% 11%;
     --card-foreground: 210 40% 98%;
-    --primary: 271 81% 56%;
-    --primary-darker: 271 81% 46%;
-    --primary-lighter: 271 81% 66%;
+    --primary: 265 85% 62%;
+    --primary-darker: 265 85% 50%;
+    --primary-lighter: 265 85% 72%;
     --success: 142 71% 45%;
     --destructive: 0 84% 60%;
     --header-bg-from: 271 81% 36%;
     --header-bg-to: 271 81% 46%;
     --header-text: 0 0% 100%;        /* Keep white text for dark theme */
     --header-text-secondary: 271 81% 80%;
+    --panel: 217 32% 15%;
+    --live: 84 70% 50%;
+    --warn: 38 92% 55%;
+    --inverted: var(--foreground);
   }
 
   [data-theme="sage"] {
@@ -68,13 +82,17 @@
     --header-bg-to: 150 40% 85%;     /* Lighter background */
     --header-text: 150 40% 20%;      /* Dark sage text */
     --header-text-secondary: 150 40% 30%;
+    --panel: 0 0% 100%;
+    --live: 150 45% 38%;
+    --warn: 38 80% 40%;
+    --inverted: var(--foreground);
   }
 
   [data-theme="ocean"] {
     --background: 200 20% 98%;
     --foreground: 200 50% 20%;
     --muted: 200 15% 92%;
-    --muted-foreground: 200 50% 40%;
+    --muted-foreground: 200 55% 32%;
     --popover: 200 20% 98%;
     --popover-foreground: 200 50% 20%;
     --border: 200 15% 92%;
@@ -88,6 +106,10 @@
     --header-bg-to: 200 80% 85%;     /* Lighter background */
     --header-text: 200 50% 20%;      /* Dark ocean text */
     --header-text-secondary: 200 50% 30%;
+    --panel: 0 0% 100%;
+    --live: 160 60% 38%;
+    --warn: 38 88% 44%;
+    --inverted: var(--foreground);
   }
 
   [data-theme="midnight"] {
@@ -109,7 +131,41 @@
     --header-text: 0 0% 100%;
     --header-text-secondary: 230 50% 90%;
 
+    --panel: 230 25% 13%;
+    --live: 84 65% 55%;
+    --warn: 38 92% 58%;
+    --inverted: var(--foreground);
   }
+
+  [data-theme="turf"] {
+    --background: 155 32% 8%;
+    --foreground: 90 12% 94%;
+    --muted: 155 24% 16%;
+    --muted-foreground: 140 10% 66%;
+    --popover: 155 34% 6%;
+    --popover-foreground: 90 12% 94%;
+    --border: 155 20% 20%;
+    --input: 155 20% 20%;
+    --card: 155 24% 13%;
+    --card-foreground: 90 12% 94%;
+    --primary: 84 66% 52%;
+    --primary-darker: 84 66% 42%;
+    --primary-lighter: 84 66% 62%;
+    --success: 142 60% 44%;
+    --destructive: 8 80% 58%;
+    --panel: 155 24% 13%;
+    --live: 84 66% 52%;
+    --warn: 40 90% 58%;
+    /* Amber, so the rank chips and expected bars aren't a second green. */
+    --accent: 40 90% 58%;
+    /* The FPL inversion goes warm here, or the two greens fight. */
+    --inverted: 84 22% 92%;
+    --header-bg-from: 155 32% 14%;
+    --header-bg-to: 155 32% 20%;
+    --header-text: 90 12% 94%;
+    --header-text-secondary: 84 66% 62%;
+  }
+
 }
 
 @layer utilities {

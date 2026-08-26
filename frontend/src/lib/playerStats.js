@@ -413,3 +413,53 @@ export const getStatGroups = (player) => {
 
 /** Sortable numeric accessor for leaderboards. */
 export const statValue = (player, key) => toNumber(player?.[key]);
+
+/**
+ * Percentile of a player against everyone in their position, for one stat.
+ *
+ * The API ranks only a handful of fields (points per game, form, ICT, price,
+ * ownership). For goals, assists, minutes and the rest there is no rank, so we
+ * derive it from the element list we already hold. A percentile of 100 means
+ * best in position, which is what makes a full percentile track meaningful.
+ *
+ * Players who have not played are excluded from the comparison set: with the
+ * season one gameweek old they are the majority, and including them would put
+ * anyone with a single goal in the 99th percentile.
+ */
+export const percentileFor = (player, elements, key, { lowerIsBetter = false } = {}) => {
+    if (!player || !Array.isArray(elements)) return 0;
+
+    const peers = elements.filter(
+        (e) => e.element_type === player.element_type && toNumber(e.minutes) > 0,
+    );
+    if (peers.length < 2) return 0;
+
+    const mine = toNumber(player[key]);
+    const worse = peers.filter((e) => {
+        const theirs = toNumber(e[key]);
+        return lowerIsBetter ? theirs > mine : theirs < mine;
+    }).length;
+
+    return Math.round((worse / (peers.length - 1)) * 100);
+};
+
+/** How many players share this position — the denominator behind "R4 OF 210". */
+export const positionCount = (player, elements) => {
+    if (!player || !Array.isArray(elements)) return 0;
+    return elements.filter((e) => e.element_type === player.element_type).length;
+};
+
+/** The player's 1-based rank within position for a stat, for the "R4" chip. */
+export const rankFor = (player, elements, key, { lowerIsBetter = false } = {}) => {
+    if (!player || !Array.isArray(elements)) return null;
+    const peers = elements.filter(
+        (e) => e.element_type === player.element_type && toNumber(e.minutes) > 0,
+    );
+    if (peers.length < 2) return null;
+    const mine = toNumber(player[key]);
+    const better = peers.filter((e) => {
+        const theirs = toNumber(e[key]);
+        return lowerIsBetter ? theirs < mine : theirs > mine;
+    }).length;
+    return better + 1;
+};

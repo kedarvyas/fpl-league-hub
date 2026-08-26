@@ -1,50 +1,42 @@
 import React from 'react';
-import { Target } from 'lucide-react';
-import { getSetPieces, ordinal } from '../lib/playerStats';
+import { toNumber } from '../lib/playerStats';
 
-const orderTone = (order) => {
-    if (order === 1) return 'bg-green-100 text-green-800';
-    if (order === 2) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-gray-100 text-gray-700';
-};
+const DUTIES = [
+    { order: 'penalties_order', text: 'penalties_text', label: 'Penalties' },
+    { order: 'direct_freekicks_order', text: 'direct_freekicks_text', label: 'Direct free kicks' },
+    { order: 'corners_and_indirect_freekicks_order', text: 'corners_and_indirect_freekicks_text', label: 'Corners & indirect' },
+];
 
 /**
- * Set-piece duties (penalties / direct free kicks / corners).
- * Renders nothing when the player has no listed duties.
+ * Set-piece duties. Only about 15% of players have any recorded order, so when
+ * there is nothing the panel is absent rather than an empty box.
  */
 const PlayerSetPieces = ({ playerData }) => {
-    const duties = getSetPieces(playerData);
+    if (!playerData) return null;
+
+    const duties = DUTIES
+        .map((d) => ({ ...d, value: toNumber(playerData[d.order], null) }))
+        .filter((d) => d.value !== null && d.value > 0);
+
     if (duties.length === 0) return null;
 
     return (
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-            <div className="flex items-center space-x-3 mb-4">
-                <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                    <Target className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900 leading-tight">Set-Piece Duties</h2>
-                    <p className="text-xs sm:text-sm text-gray-500">Team order as listed by FPL</p>
-                </div>
-            </div>
-
-            <div className="space-y-2">
-                {duties.map((duty) => (
-                    <div key={duty.key} className="flex items-start justify-between gap-3 p-3 bg-gray-50 rounded-lg">
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-900">{duty.label}</p>
-                            {duty.text && (
-                                <p className="text-xs text-gray-500 mt-0.5">{duty.text}</p>
-                            )}
-                        </div>
-                        {duty.order !== null && (
-                            <span className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-semibold ${orderTone(duty.order)}`}>
-                                {ordinal(duty.order)} choice
-                            </span>
+        <div className="flex flex-col gap-px bg-border">
+            {duties.map((d) => (
+                <div key={d.order} className="flex items-center justify-between gap-3 bg-panel px-[14px] py-3">
+                    <div className="min-w-0">
+                        <div className="text-[9.5px] uppercase tracking-[0.12em] text-foreground">{d.label}</div>
+                        {playerData[d.text] && (
+                            <div className="mt-0.5 truncate text-[7.5px] tracking-[0.06em] text-muted-foreground">
+                                {playerData[d.text]}
+                            </div>
                         )}
                     </div>
-                ))}
-            </div>
+                    <span className="shrink-0 bg-primary/15 px-1.5 py-1 text-[11px] font-bold text-primary">
+                        #{d.value}
+                    </span>
+                </div>
+            ))}
         </div>
     );
 };

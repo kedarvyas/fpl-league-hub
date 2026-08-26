@@ -48,6 +48,15 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Scoreboard tokens: panel is the tile fill, live the positive/returns
+        // colour, warn the cooling state, inverted the FPL-cell surface.
+        panel: "hsl(var(--panel))",
+        live: "hsl(var(--live))",
+        warn: "hsl(var(--warn))",
+        inverted: "hsl(var(--inverted))",
+      },
+      fontFamily: {
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       borderRadius: {
         lg: "var(--radius)",

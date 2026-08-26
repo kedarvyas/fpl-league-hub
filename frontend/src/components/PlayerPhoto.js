@@ -80,7 +80,10 @@ const PlayerPhoto = ({ code, name, size = 'md', className = '' }) => {
     // circle for a beat; underneath, the photo simply paints over them.
     return (
         <div
-            className={`relative flex items-center justify-center overflow-hidden font-semibold select-none ${className} ${tint}`}
+            // The tint belongs to the initials only. PL headshots are cutouts
+            // on transparency, so leaving it on when a photo loads paints the
+            // fallback colour in behind the player.
+            className={`relative flex items-center justify-center overflow-hidden font-semibold select-none ${className} ${source ? '' : tint}`}
             role="img"
             aria-label={name || 'Player'}
         >
@@ -96,7 +99,7 @@ const PlayerPhoto = ({ code, name, size = 'md', className = '' }) => {
                     // same URL resolved instantly. These are ~78KB each, so
                     // deferring them was never worth much.
                     decoding="async"
-                    className={`absolute inset-0 w-full h-full object-cover bg-white ${source.position}`}
+                    className={`absolute inset-0 w-full h-full object-cover ${source.position}`}
                     onError={() => setAttempt((n) => n + 1)}
                 />
             )}

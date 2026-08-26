@@ -1,122 +1,66 @@
 import React from 'react';
-import { ListChecks } from 'lucide-react';
-import {
-    DEFCON_THRESHOLDS,
-    formatCount,
-    toNumber
-} from '../lib/playerStats';
+import { toNumber, formatCount } from '../lib/playerStats';
 
 /**
- * Per-gameweek log from element-summary history. Surfaces the raw match
- * stats the app never showed: BPS, defensive contribution and its
- * components, saves, starts.
+ * Per-gameweek log. The season is one gameweek old, so the block says how many
+ * remain rather than looking like a table that failed to load.
  */
-const PlayerMatchLog = ({ history, elementType, teams = {} }) => {
-    const games = Array.isArray(history)
-        ? [...history].sort((a, b) => toNumber(b?.round) - toNumber(a?.round))
-        : [];
+const PlayerMatchLog = ({ history, teams }) => {
+    const games = history?.history || [];
 
-    const isKeeper = elementType === 1;
-    const threshold = DEFCON_THRESHOLDS[elementType] ?? null;
+    if (games.length === 0) {
+        return (
+            <div className="bg-panel p-[14px] text-center text-[9px] tracking-[0.08em] text-muted-foreground">
+                NO GAMEWEEKS PLAYED YET
+            </div>
+        );
+    }
+
+    const opponentName = (id) => teams?.[id]?.short_name || `T${id}`;
 
     return (
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-            <div className="flex items-center space-x-3 mb-4">
-                <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                    <ListChecks className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900 leading-tight">Match Log</h2>
-                    <p className="text-xs sm:text-sm text-gray-500">Gameweek by gameweek breakdown</p>
-                </div>
+        <div>
+            <div className="flex gap-2 px-2 pb-1.5 text-[7.5px] tracking-[0.1em] text-muted-foreground">
+                <span className="flex-[2.4]">OPP</span>
+                <span className="flex-1 text-right">MIN</span>
+                <span className="flex-1 text-right">G</span>
+                <span className="flex-1 text-right">A</span>
+                <span className="hidden flex-1 text-right min-[360px]:block">BPS</span>
+                <span className="flex-1 text-right">PTS</span>
             </div>
 
-            {games.length === 0 ? (
-                <div className="rounded-lg bg-gray-50 p-4 text-sm text-gray-500">
-                    No match data for this season yet.
-                </div>
-            ) : (
-                <>
-                    <div className="-mx-4 sm:mx-0 overflow-x-auto">
-                        <table className="w-full min-w-[560px] text-sm">
-                            <thead>
-                                <tr className="text-xs text-gray-500 border-b border-gray-100">
-                                    <th className="text-left font-medium py-2 pl-4 sm:pl-0">GW</th>
-                                    <th className="text-left font-medium py-2 px-2">Opp</th>
-                                    <th className="text-right font-medium py-2 px-2">Pts</th>
-                                    <th className="text-right font-medium py-2 px-2">Min</th>
-                                    <th className="text-right font-medium py-2 px-2">
-                                        {isKeeper ? 'Sv' : 'DC'}
-                                    </th>
-                                    <th className="text-right font-medium py-2 px-2">Tkl</th>
-                                    <th className="text-right font-medium py-2 px-2">CBI</th>
-                                    <th className="text-right font-medium py-2 px-2">Rec</th>
-                                    <th className="text-right font-medium py-2 px-2">BPS</th>
-                                    <th className="text-right font-medium py-2 pr-4 sm:pr-0">Bon</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {games.map((game, index) => {
-                                    const opponent = teams?.[game?.opponent_team]?.short_name || '—';
-                                    const dc = toNumber(game?.defensive_contribution);
-                                    const hit = threshold !== null && dc >= threshold;
-                                    return (
-                                        <tr
-                                            key={`${game?.fixture ?? 'fx'}-${game?.round ?? index}`}
-                                            className="border-b border-gray-50 last:border-b-0"
-                                        >
-                                            <td className="py-2.5 pl-4 sm:pl-0 font-medium text-gray-900 whitespace-nowrap">
-                                                GW{formatCount(game?.round)}
-                                            </td>
-                                            <td className="py-2.5 px-2 text-gray-700 whitespace-nowrap">
-                                                {opponent}
-                                                <span className="text-gray-400 ml-1">
-                                                    {game?.was_home ? '(H)' : '(A)'}
-                                                </span>
-                                            </td>
-                                            <td className="py-2.5 px-2 text-right font-bold text-purple-600">
-                                                {formatCount(game?.total_points)}
-                                            </td>
-                                            <td className="py-2.5 px-2 text-right text-gray-700">
-                                                {formatCount(game?.minutes)}
-                                            </td>
-                                            <td className="py-2.5 px-2 text-right">
-                                                {isKeeper ? (
-                                                    <span className="text-gray-700">{formatCount(game?.saves)}</span>
-                                                ) : (
-                                                    <span className={hit ? 'font-semibold text-green-600' : 'text-gray-700'}>
-                                                        {formatCount(dc)}
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="py-2.5 px-2 text-right text-gray-700">
-                                                {formatCount(game?.tackles)}
-                                            </td>
-                                            <td className="py-2.5 px-2 text-right text-gray-700">
-                                                {formatCount(game?.clearances_blocks_interceptions)}
-                                            </td>
-                                            <td className="py-2.5 px-2 text-right text-gray-700">
-                                                {formatCount(game?.recoveries)}
-                                            </td>
-                                            <td className="py-2.5 px-2 text-right text-gray-700">
-                                                {formatCount(game?.bps)}
-                                            </td>
-                                            <td className="py-2.5 pr-4 sm:pr-0 text-right text-gray-700">
-                                                {formatCount(game?.bonus)}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-3">
-                        {isKeeper
-                            ? 'Sv = saves. Goalkeepers do not score Defensive Contribution, but tackles, CBI and recoveries are still tracked.'
-                            : `DC = defensive contribution; ${threshold ?? '—'}+ in a match is worth 2 points. Swipe the table sideways for more columns.`}
-                    </p>
-                </>
-            )}
+            <div className="flex flex-col gap-px bg-border">
+                {games.map((g) => {
+                    const scored = toNumber(g.team_h_score);
+                    const conceded = toNumber(g.team_a_score);
+                    const home = g.was_home;
+                    const mine = home ? scored : conceded;
+                    const theirs = home ? conceded : scored;
+                    const result = mine > theirs ? 'W' : mine < theirs ? 'L' : 'D';
+
+                    return (
+                        <div key={g.round} className="flex items-center gap-2 bg-panel px-2 py-2.5 text-[11px] font-medium">
+                            <span className="flex-[2.4] whitespace-nowrap text-foreground">
+                                {opponentName(g.opponent_team)} {home ? '(H)' : '(A)'}{' '}
+                                <span className={result === 'W' ? 'text-live' : 'text-muted-foreground'}>
+                                    {mine}–{theirs} {result}
+                                </span>
+                            </span>
+                            <span className="flex-1 text-right text-muted-foreground">{formatCount(g.minutes)}</span>
+                            <span className="flex-1 text-right text-foreground">{formatCount(g.goals_scored)}</span>
+                            <span className="flex-1 text-right text-foreground">{formatCount(g.assists)}</span>
+                            <span className="hidden flex-1 text-right text-muted-foreground min-[360px]:block">
+                                {formatCount(g.bps)}
+                            </span>
+                            <span className="flex-1 text-right font-bold text-live">{formatCount(g.total_points)}</span>
+                        </div>
+                    );
+                })}
+            </div>
+
+            <p className="pt-2.5 text-center text-[9px] tracking-[0.08em] text-muted-foreground">
+                {38 - games.length} GAMEWEEKS REMAIN
+            </p>
         </div>
     );
 };

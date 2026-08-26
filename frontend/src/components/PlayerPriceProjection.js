@@ -1,173 +1,64 @@
 import React from 'react';
-import { ArrowUp, ArrowDown, Minus, Lock, LineChart } from 'lucide-react';
-import {
-    getPriceOutlook,
-    formatPrice,
-    formatPriceDelta,
-    formatLockedUntil,
-    formatSignedPercent,
-    priceConfidence,
-    priceMoveWord,
-    toNumber
-} from '../lib/playerStats';
-
-const DirectionIcon = ({ direction, className = 'w-4 h-4' }) => {
-    if (direction > 0) return <ArrowUp className={`${className} text-green-600`} />;
-    if (direction < 0) return <ArrowDown className={`${className} text-red-600`} />;
-    return <Minus className={`${className} text-gray-400`} />;
-};
-
-const directionText = (direction) => {
-    if (direction > 0) return 'text-green-600';
-    if (direction < 0) return 'text-red-600';
-    return 'text-gray-500';
-};
-
-const PriceDeltaChip = ({ label, tenths }) => {
-    const value = toNumber(tenths);
-    const tone = value > 0
-        ? 'bg-green-50 text-green-700'
-        : value < 0
-            ? 'bg-red-50 text-red-700'
-            : 'bg-gray-100 text-gray-600';
-    return (
-        <div className="bg-gray-50 rounded-lg p-3">
-            <p className="text-xs text-gray-500">{label}</p>
-            <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-sm font-semibold ${tone}`}>
-                {formatPriceDelta(value)}
-            </span>
-        </div>
-    );
-};
+import { toNumber, formatDecimal, formatCount } from '../lib/playerStats';
 
 /**
- * 2026/27 dynamic pricing: current momentum plus FPL's own three-day
- * projection. Renders an explicit empty state when no projection exists.
+ * Dynamic pricing, new for 2026/27.
+ *
+ * `price_change_percent` is progress toward the next change, where 100% is the
+ * threshold — not a price and not a probability, so it is labelled as progress
+ * and never rendered as an amount.
  */
 const PlayerPriceProjection = ({ playerData }) => {
     if (!playerData) return null;
 
-    const outlook = getPriceOutlook(playerData);
-    const momentum = outlook ? outlook.momentum : 0;
-    const magnitude = Math.min(Math.abs(momentum), 100);
-    const lockedUntil = outlook ? formatLockedUntil(outlook.lockedUntil) : null;
+    const cost = toNumber(playerData.now_cost) / 10;
+    const percent = toNumber(playerData.price_change_percent);
+    const rising = percent >= 0;
+    const nextPrice = cost + (rising ? 0.1 : -0.1);
+
+    const projections = Array.isArray(playerData.price_change_projections)
+        ? playerData.price_change_projections.slice(0, 3)
+        : [];
 
     return (
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-            <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="flex items-start space-x-3 min-w-0">
-                    <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                        <LineChart className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div className="min-w-0">
-                        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 leading-tight">Price Watch</h2>
-                        <p className="text-xs sm:text-sm text-gray-500">Dynamic pricing projection</p>
+        <div className="bg-panel p-[14px]">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <span className={`text-[26px] font-bold leading-none tracking-[-0.04em] ${
+                        rising ? 'text-live' : 'text-destructive'
+                    }`}>
+                        {formatDecimal(Math.abs(percent), 1, '0.0')}%
+                    </span>
+                    <div className="mt-1.5 text-[8px] tracking-[0.12em] text-muted-foreground">
+                        TO {rising ? 'RISE' : 'FALL'} · £{cost.toFixed(1)}M → £{nextPrice.toFixed(1)}M
                     </div>
                 </div>
-                <span className="flex-shrink-0 text-xl sm:text-2xl font-bold text-purple-600">
-                    {formatPrice(playerData.now_cost)}
-                </span>
+                <div className="text-right text-[8.5px] leading-[1.6] tracking-[0.06em]">
+                    <span className="text-live">+{formatCount(playerData.transfers_in_event)}</span>
+                    <br />
+                    <span className="text-destructive">−{formatCount(playerData.transfers_out_event)}</span>
+                </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-4">
-                <PriceDeltaChip label="This gameweek" tenths={playerData.cost_change_event} />
-                <PriceDeltaChip label="Since season start" tenths={playerData.cost_change_start} />
+            <div className="mt-3 h-1 w-full bg-border">
+                <div
+                    className={`h-full transition-[width] duration-500 ease-out ${rising ? 'bg-live' : 'bg-destructive'}`}
+                    style={{ width: `${Math.min(100, Math.abs(percent))}%` }}
+                />
             </div>
 
-            {outlook ? (
-                <>
-                    <div className="mb-4">
-                        <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
-                            <span>Price momentum</span>
-                            <span className={`font-semibold ${directionText(outlook.direction)}`}>
-                                {formatSignedPercent(momentum)}
-                            </span>
-                        </div>
-                        <div className="flex items-center h-2.5 w-full rounded-full bg-gray-100 overflow-hidden">
-                            <div className="w-1/2 h-full flex justify-end">
-                                {momentum < 0 && (
-                                    <div
-                                        className="h-full bg-red-500 rounded-l-full transition-all duration-500"
-                                        style={{ width: `${magnitude}%` }}
-                                    />
-                                )}
+            {projections.length > 0 && (
+                <div className="mt-3 flex gap-px bg-border">
+                    {projections.map((p, i) => (
+                        <div key={i} className="flex-1 bg-panel px-2 py-2 text-center">
+                            <div className="text-[7px] tracking-[0.1em] text-muted-foreground">
+                                {i === 0 ? 'TONIGHT' : `+${i} DAY${i > 1 ? 'S' : ''}`}
                             </div>
-                            <div className="w-1/2 h-full flex justify-start">
-                                {momentum > 0 && (
-                                    <div
-                                        className="h-full bg-green-500 rounded-r-full transition-all duration-500"
-                                        style={{ width: `${magnitude}%` }}
-                                    />
-                                )}
+                            <div className="mt-1 text-[10px] font-medium text-foreground">
+                                {formatDecimal(Math.abs(toNumber(p.projected_percent)), 0, '0')}%
                             </div>
                         </div>
-                        <div className="flex items-center justify-between text-[11px] text-gray-400 mt-1">
-                            <span>Falling</span>
-                            <span>Rising</span>
-                        </div>
-                    </div>
-
-                    {outlook.projections.length > 0 ? (
-                        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                            {outlook.projections.map((projection) => (
-                                <div
-                                    key={projection.offset}
-                                    className={`rounded-lg p-3 text-center ${projection.direction === 0 ? 'bg-gray-50' : projection.direction > 0 ? 'bg-green-50' : 'bg-red-50'}`}
-                                >
-                                    <p className="text-[11px] text-gray-500 truncate">{projection.label}</p>
-                                    <div className="flex items-center justify-center space-x-1 mt-1">
-                                        <DirectionIcon direction={projection.direction} className="w-3.5 h-3.5" />
-                                        <span className={`text-sm font-bold ${directionText(projection.direction)}`}>
-                                            {priceMoveWord(projection.direction)}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm font-semibold text-gray-700 mt-0.5">
-                                        {formatSignedPercent(projection.percent)}
-                                    </p>
-                                    <div
-                                        className="flex items-center justify-center space-x-0.5 mt-1.5"
-                                        title={`Likelihood ${priceConfidence(projection.steps)} of 5`}
-                                    >
-                                        {[1, 2, 3, 4, 5].map((dot) => (
-                                            <span
-                                                key={dot}
-                                                className={`w-1.5 h-1.5 rounded-full ${dot <= priceConfidence(projection.steps)
-                                                    ? projection.direction > 0 ? 'bg-green-500' : projection.direction < 0 ? 'bg-red-500' : 'bg-gray-400'
-                                                    : 'bg-gray-200'}`}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">
-                            No day-by-day projection published for this player yet.
-                        </div>
-                    )}
-
-                    <div className="mt-4 pt-4 border-t border-gray-100 space-y-1.5">
-                        <p className="text-xs text-gray-500">
-                            Projections come from FPL's dynamic pricing model. The percentage tracks how
-                            far the player has moved toward a price change; the dots are FPL's own
-                            likelihood rating out of five.
-                        </p>
-                        {outlook.calibrating && (
-                            <p className="text-xs font-medium text-amber-700">
-                                FPL is still calibrating this player's price — treat the projection as provisional.
-                            </p>
-                        )}
-                        {lockedUntil && (
-                            <p className="flex items-center space-x-1 text-xs font-medium text-gray-700">
-                                <Lock className="w-3.5 h-3.5 text-gray-400" />
-                                <span>Price locked until {lockedUntil}</span>
-                            </p>
-                        )}
-                    </div>
-                </>
-            ) : (
-                <div className="rounded-lg bg-gray-50 p-4 text-sm text-gray-500">
-                    FPL has not published a price projection for this player.
+                    ))}
                 </div>
             )}
         </div>
