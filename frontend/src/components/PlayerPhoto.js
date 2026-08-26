@@ -86,7 +86,12 @@ const PlayerPhoto = ({ code, name, size = 'md', className = '' }) => {
                 <img
                     src={`${source.url}/p${code}.png`}
                     alt=""
-                    loading="lazy"
+                    // The hero photo is above the fold, and an absolutely
+                    // positioned image inside an overflow-hidden parent can
+                    // defeat the lazy-load heuristic entirely — it never
+                    // enters the loading queue. Only defer in list contexts.
+                    loading={size === 'lg' ? 'eager' : 'lazy'}
+                    decoding="async"
                     className={`absolute inset-0 w-full h-full object-cover bg-white ${source.position}`}
                     onError={() => setAttempt((n) => n + 1)}
                 />
