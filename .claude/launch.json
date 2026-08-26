@@ -4,8 +4,12 @@
     {
       "name": "frontend",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd frontend && BROWSER=none npm start"],
-      "port": 3000
+      "runtimeArgs": [
+        "-c",
+        "cd frontend && BROWSER=none npm start"
+      ],
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }

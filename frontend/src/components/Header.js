@@ -3,26 +3,57 @@ import { Link, useLocation } from 'react-router-dom';
 import ThemeSwitcher from './ThemeSwitcher';
 import LoginModal from './LoginModal';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  Home,
-  Users,
-  Table,
-  ChartBar,
-  X,
-  Menu,
-  Info,
-  User,
-  LogIn,
-  LogOut,
-} from 'lucide-react';
+import { cn } from '../lib/utils';
+
+/**
+ * The header on the Scoreboard system.
+ *
+ * Three decisions carry it:
+ *
+ * 1. Two bands, not one. The wordmark and the account controls sit in the top
+ *    band; navigation gets its own strip below. Cramming five destinations plus
+ *    theme, about and auth into a single row is what made the old header the
+ *    busiest thing on a page whose whole point is density.
+ *
+ * 2. The nav strip is the same object as the player page's tab bar — hairline
+ *    rule, 9.5px tracked caps, a 2px underline on the active item. The only
+ *    difference is the colour of that underline: --primary marks structure
+ *    (where you are in the app), --live is reserved for real returns.
+ *
+ * 3. No icons. The controls are wide-tracked words in a gap-px strip, so the
+ *    hairlines between them are the same hairlines as everywhere else. The one
+ *    glyph left is the caret on the theme menu.
+ *
+ * Gutters match the page (max-w-[1280px], px-4 / md:px-7) so the wordmark sits
+ * on the same left edge as the content below it.
+ */
 
 const navigation = [
-  { name: 'Home', href: '/', icon: <Home className="w-4 h-4" /> },
-  { name: 'My Team', href: '/my-team', icon: <User className="w-4 h-4" /> },
-  { name: 'Dashboard', href: '/dashboard', icon: <ChartBar className="w-4 h-4" /> },
-  { name: 'H2H League Info', href: '/weekly-matchups', icon: <Users className="w-4 h-4" /> },
-  { name: 'Player Statistics', href: '/player-statistics', icon: <ChartBar className="w-4 h-4" /> },
+  { name: 'HOME', href: '/' },
+  { name: 'MY TEAM', href: '/my-team' },
+  { name: 'DASHBOARD', href: '/dashboard' },
+  { name: 'H2H LEAGUE', href: '/weekly-matchups' },
+  // A player page is part of the Players section, so it lights the same item.
+  { name: 'PLAYERS', href: '/player-statistics', also: ['/player/'] },
 ];
+
+const isActive = (pathname, item) => {
+  if (item.href === '/') return pathname === '/';
+  const prefixes = [item.href, ...(item.also || [])];
+  return prefixes.some((p) => pathname.startsWith(p));
+};
+
+/** A cell in the top-right control strip. Full band height, hairline gaps. */
+const controlCell =
+  'flex items-center bg-panel px-3.5 text-[9px] font-medium tracking-[0.18em] ' +
+  'text-muted-foreground transition-colors hover:text-foreground';
+
+/** A row in the mobile menu stack. No left padding: the label sits on the page
+    gutter, in line with the wordmark above it, and the hairlines between rows
+    run from the same edge. */
+const menuRow =
+  'flex min-h-[48px] items-center bg-panel pr-4 text-[10px] font-medium tracking-[0.16em] ' +
+  'transition-colors';
 
 const Header = ({ currentTheme, setTheme, setShowInfo }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -30,9 +61,7 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
   const location = useLocation();
   const { user, signOut, loading } = useAuth();
 
-  // Updated theme-based styling
-  const bgHover = "hover:bg-muted/80";
-  const activeBg = "bg-muted";
+  const accountName = user?.user_metadata?.full_name || user?.email || '';
 
   const handleSignOut = async () => {
     const { error } = await signOut();
@@ -43,7 +72,7 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
   };
 
   return (
-    <header className="relative z-50 bg-background">
+    <header className="relative z-50 border-b border-border bg-panel font-mono">
       {/* Tap outside to dismiss the mobile menu. Rendered before the nav so the
           header controls and the menu panel both stay clickable above it. */}
       {isMenuOpen && (
@@ -53,177 +82,162 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
           aria-hidden="true"
         />
       )}
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="w-full py-4 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-3">
-              <div className="p-2 rounded-lg bg-muted">
-                <Home className="w-6 h-6 text-foreground" />
-              </div>
-              <span className="text-xl sm:text-2xl font-bold text-foreground">FPL League Hub</span>
-            </Link>
-          </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex lg:items-center lg:space-x-2">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`
-                  px-4 py-2 rounded-lg text-sm font-medium transition-colors text-foreground
-                  ${location.pathname === item.href ? activeBg : bgHover}
-                `}
-              >
-                <div className="flex items-center space-x-2">
-                  <span>{item.icon}</span>
-                  <span>{item.name}</span>
-                </div>
-              </Link>
-            ))}
+      {/* Band one: wordmark and account controls. */}
+      <div className="relative mx-auto max-w-[1280px] px-4 md:px-7">
+        <div className="flex h-[52px] items-center justify-between">
+          {/* Type-only lockup. Split by weight rather than size, so it names the
+              app without competing with a 25px hero name below it. */}
+          <Link
+            to="/"
+            aria-label="FPL League Hub — home"
+            className="flex items-baseline gap-[7px] leading-none"
+          >
+            <span className="text-[13px] font-bold tracking-[0.2em] text-foreground">FPL</span>
+            <span className="text-[13px] tracking-[0.2em] text-muted-foreground">
+              LEAGUE&nbsp;HUB
+            </span>
+          </Link>
 
+          {/* Desktop controls. pl-px puts a hairline before the first cell too,
+              so the strip reads as a segment of the bar rather than a floater. */}
+          <div className="hidden self-stretch gap-px bg-border pl-px lg:flex">
             <ThemeSwitcher currentTheme={currentTheme} setTheme={setTheme} />
 
-            <button
-              onClick={() => setShowInfo(true)}
-              className={`flex items-center justify-center w-11 h-11 rounded-lg transition-colors ${bgHover}`}
-              title="About"
-              aria-label="About"
-            >
-              <Info className="w-5 h-5 text-foreground" />
+            <button onClick={() => setShowInfo(true)} className={controlCell}>
+              ABOUT
             </button>
 
-            {/* Auth Button */}
-            {!loading && (
-              <>
-                {user ? (
-                  <div className="flex items-center gap-2">
-                    <div className="px-3 py-2 rounded-lg bg-muted">
-                      <span className="text-sm font-medium text-foreground">
-                        {user.user_metadata?.full_name || user.email}
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleSignOut}
-                      className={`flex items-center justify-center w-11 h-11 rounded-lg transition-colors ${bgHover}`}
-                      title="Sign Out"
-                      aria-label="Sign Out"
-                    >
-                      <LogOut className="w-5 h-5 text-foreground" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setIsLoginModalOpen(true)}
-                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-2"
+            {!loading &&
+              (user ? (
+                <>
+                  <span
+                    className="flex max-w-[168px] items-center bg-panel px-3.5 text-[9px] font-medium tracking-[0.18em] text-foreground"
+                    title={accountName}
                   >
-                    <LogIn className="w-4 h-4" />
-                    <span className="font-medium">Log In</span>
+                    <span className="truncate">{accountName}</span>
+                  </span>
+                  <button onClick={handleSignOut} className={controlCell}>
+                    SIGN OUT
                   </button>
-                )}
-              </>
-            )}
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsLoginModalOpen(true)}
+                  className={cn(controlCell, 'text-foreground')}
+                >
+                  LOG IN
+                </button>
+              ))}
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="lg:hidden">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-              aria-expanded={isMenuOpen}
-              className={`flex items-center justify-center w-11 h-11 -mr-2 rounded-lg transition-colors ${bgHover}`}
-            >
-              {isMenuOpen ? (
-                <X className="w-6 h-6 text-foreground" />
-              ) : (
-                <Menu className="w-6 h-6 text-foreground" />
-              )}
-            </button>
+          {/* Mobile menu button. -mr-3.5 keeps the label's right edge on the
+              gutter while the tap target stays the full band height. */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={isMenuOpen}
+            className="-mr-3.5 flex h-[52px] items-center px-3.5 text-[9px] font-medium tracking-[0.18em] text-foreground lg:hidden"
+          >
+            {isMenuOpen ? 'CLOSE' : 'MENU'}
+          </button>
+        </div>
+      </div>
+
+      {/* Band two: navigation. Desktop only — five tracked caps will not sit in
+          375px without scrolling, and mobile gets the same list in the menu. */}
+      <nav className="hidden border-t border-border lg:block">
+        <div className="mx-auto max-w-[1280px] px-4 md:px-7">
+          {/* No horizontal padding on the items: the first label and its
+              underline both start on the gutter, in line with the wordmark. */}
+          <div className="flex gap-7">
+            {navigation.map((item) => {
+              const active = isActive(location.pathname, item);
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`border-b-2 py-[13px] text-[9.5px] font-medium leading-none tracking-[0.14em] transition-colors ${
+                    active
+                      ? 'border-primary text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </nav>
 
-      {/* Mobile Navigation */}
+      {/* Mobile menu. Same panel behaviour as before — full width, tap outside
+          to dismiss — restyled as a hairline-gapped stack. */}
       <div
-        className={`lg:hidden absolute w-full shadow-lg transition-all duration-200 ease-in-out
-          bg-background/95 backdrop-blur-sm
-          ${isMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}
-        `}
+        className={`absolute inset-x-0 top-full border-b border-border bg-panel transition-all duration-200 ease-in-out lg:hidden ${
+          isMenuOpen ? 'opacity-100 translate-y-0' : 'pointer-events-none -translate-y-2 opacity-0'
+        }`}
       >
-        <div className="max-w-7xl mx-auto px-4 py-3 space-y-2">
-          {navigation.map((item) => (
-            <Link
-              key={item.name}
-              to={item.href}
-              onClick={() => setIsMenuOpen(false)}
-              className={`
-                flex items-center space-x-2 px-4 py-3 rounded-lg text-sm font-medium transition-colors text-foreground
-                ${location.pathname === item.href ? activeBg : bgHover}
-              `}
+        <div className="mx-auto max-w-[1280px] px-4 pb-4">
+          <div className="flex flex-col gap-px bg-border">
+            {navigation.map((item) => {
+              const active = isActive(location.pathname, item);
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  onClick={() => setIsMenuOpen(false)}
+                  aria-current={active ? 'page' : undefined}
+                  className={`${menuRow} border-l-2 ${
+                    active
+                      ? 'border-primary text-foreground'
+                      : 'border-transparent text-muted-foreground'
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              );
+            })}
+
+            <ThemeSwitcher currentTheme={currentTheme} setTheme={setTheme} variant="row" />
+
+            <button
+              onClick={() => {
+                setIsMenuOpen(false);
+                setShowInfo(true);
+              }}
+              className={`${menuRow} border-l-2 border-transparent text-muted-foreground`}
             >
-              <span>{item.icon}</span>
-              <span>{item.name}</span>
-            </Link>
-          ))}
-          <div className="flex items-center justify-between px-4 py-2">
-            <div className="w-[160px]"> {/* Fixed width container */}
-              <ThemeSwitcher currentTheme={currentTheme} setTheme={setTheme} />
-            </div>
-            <div className="flex-shrink-0">
-              <button
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  setShowInfo(true);
-                }}
-                className={`flex items-center justify-center w-11 h-11 rounded-lg transition-colors ${bgHover}`}
-                title="About"
-                aria-label="About"
+              ABOUT
+            </button>
+
+            {!loading && user && (
+              <span
+                className={`${menuRow} border-l-2 border-transparent text-muted-foreground`}
+                title={accountName}
               >
-                <Info className="w-5 h-5 text-foreground" />
-              </button>
-            </div>
+                <span className="truncate">{accountName}</span>
+              </span>
+            )}
           </div>
 
-          {/* Mobile Auth Button */}
+          {/* Auth sits outside the stack: it is an action, not a destination. */}
           {!loading && (
-            <div className="px-4 pb-2">
-              {user ? (
-                <div className="space-y-2">
-                  <div className="px-4 py-3 rounded-lg bg-muted">
-                    <span className="text-sm font-medium text-foreground">
-                      {user.user_metadata?.full_name || user.email}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleSignOut();
-                    }}
-                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${bgHover}`}
-                  >
-                    <LogOut className="w-5 h-5 text-foreground" />
-                    <span className="font-medium text-foreground">Sign Out</span>
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    setIsLoginModalOpen(true);
-                  }}
-                  className="w-full px-4 py-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
-                >
-                  <LogIn className="w-5 h-5" />
-                  <span className="font-medium">Log In</span>
-                </button>
-              )}
-            </div>
+            <button
+              onClick={() => {
+                setIsMenuOpen(false);
+                if (user) handleSignOut();
+                else setIsLoginModalOpen(true);
+              }}
+              className="mt-3 min-h-[44px] w-full border border-border text-[9.5px] font-medium tracking-[0.14em] text-primary-lighter"
+            >
+              {user ? 'SIGN OUT' : 'LOG IN →'}
+            </button>
           )}
         </div>
       </div>
 
-      {/* Login Modal */}
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </header>
   );

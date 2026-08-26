@@ -24,8 +24,6 @@
     --primary-foreground: 0 0% 100%; /* White text for primary backgrounds */
     --success-lighter: 142 71% 60%;
     --destructive-lighter: 0 84% 70%;
-    --header-bg-from: 271 81% 46%;
-    --header-bg-to: 271 81% 56%;
     --header-text: 0 0% 0%;          /* Dark text for light theme */
     --header-text-secondary: 271 81% 40%;
     /* Scoreboard tokens. --panel is required because Dark and Midnight set
@@ -60,8 +58,6 @@
     --primary-lighter: 265 85% 72%;
     --success: 142 71% 45%;
     --destructive: 0 84% 60%;
-    --header-bg-from: 271 81% 36%;
-    --header-bg-to: 271 81% 46%;
     --header-text: 0 0% 100%;        /* Keep white text for dark theme */
     --header-text-secondary: 271 81% 80%;
     --panel: 217 32% 15%;
@@ -90,8 +86,6 @@
     --primary: 150 40% 40%;
     --primary-darker: 150 40% 30%;
     --primary-lighter: 150 30% 50%;
-    --header-bg-from: 150 40% 90%;   /* Lighter background */
-    --header-bg-to: 150 40% 85%;     /* Lighter background */
     --header-text: 150 40% 20%;      /* Dark sage text */
     --header-text-secondary: 150 40% 30%;
     --panel: 0 0% 100%;
@@ -120,8 +114,6 @@
     --primary: 200 80% 50%;
     --primary-darker: 200 80% 40%;
     --primary-lighter: 200 70% 60%;
-    --header-bg-from: 200 80% 90%;   /* Lighter background */
-    --header-bg-to: 200 80% 85%;     /* Lighter background */
     --header-text: 200 50% 20%;      /* Dark ocean text */
     --header-text-secondary: 200 50% 30%;
     --panel: 0 0% 100%;
@@ -150,8 +142,6 @@
     --primary: 230 60% 50%;
     --primary-darker: 230 60% 40%;
     --primary-lighter: 230 50% 60%;
-    --header-bg-from: 230 60% 30%;
-    --header-bg-to: 230 60% 40%;
     --header-text: 0 0% 100%;
     --header-text-secondary: 230 50% 90%;
 
@@ -191,8 +181,6 @@
     --accent-foreground: 155 32% 8%;
     /* The FPL inversion goes warm here, or the two greens fight. */
     --inverted: 84 22% 92%;
-    --header-bg-from: 155 32% 14%;
-    --header-bg-to: 155 32% 20%;
     --header-text: 90 12% 94%;
     --header-text-secondary: 84 66% 62%;
     --accent-chip: 40 90% 58%;   /* 6.04:1 on accent/15 */
@@ -201,12 +189,6 @@
 }
 
 @layer utilities {
-  .card-header-gradient {
-    @apply bg-gradient-to-r;
-    --tw-gradient-from: hsl(var(--header-bg-from));
-    --tw-gradient-to: hsl(var(--header-bg-to));
-  }
-
   .card-header-text {
     color: hsl(var(--header-text));
   }
@@ -229,3 +211,36 @@
 * {
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
+
+/* Theme-picker swatches. These are the only colours in the app that cannot come
+   from the active theme's tokens — a swatch has to show the theme you are about
+   to switch to — so they live here as a static palette rather than as literals
+   inside ThemeSwitcher. Plain CSS, not @layer components: the class names are
+   looked up by key, and Tailwind's content scan would drop layered rules it
+   could not see spelled out. Keep in step with the theme blocks above. */
+.theme-swatch {
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  background: hsl(var(--sw-bg));
+  box-shadow: inset 0 0 0 1px hsl(var(--border));
+}
+
+.theme-swatch::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 5px;
+  background: hsl(var(--sw-ink));
+}
+
+.theme-swatch-light    { --sw-bg: 0 0% 100%;    --sw-ink: 265 85% 54%; }
+.theme-swatch-dark     { --sw-bg: 222 47% 11%;  --sw-ink: 265 85% 62%; }
+.theme-swatch-sage     { --sw-bg: 150 20% 96%;  --sw-ink: 150 40% 40%; }
+.theme-swatch-ocean    { --sw-bg: 200 20% 98%;  --sw-ink: 200 80% 50%; }
+.theme-swatch-midnight { --sw-bg: 230 35% 7%;   --sw-ink: 230 60% 50%; }
+.theme-swatch-turf     { --sw-bg: 155 32% 8%;   --sw-ink: 84 66% 52%; }

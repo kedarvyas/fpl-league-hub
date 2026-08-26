@@ -1,5 +1,4 @@
 import React from 'react';
-import { Check, Palette, Sun, Moon, Leaf, Waves, Moon as MoonIcon, Trophy } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -7,107 +6,79 @@ import {
     DropdownMenuTrigger,
 } from "./ui/dropdown-menu"
 
-const themes = {
-    light: {
-        name: 'Light',
-        icon: Sun,
-        colors: {
-            background: '0 0% 100%',
-            foreground: '222 47% 11%',
-            primary: '271 81% 56%',
-            'primary-darker': '271 81% 46%',
-            'primary-lighter': '271 81% 66%',
-            muted: '210 40% 96%',
-            card: '0 0% 100%',
-        }
-    },
-    dark: {
-        name: 'Dark',
-        icon: Moon,
-        colors: {
-            background: '222 47% 11%',
-            foreground: '210 40% 98%',
-            primary: '271 81% 56%',
-            'primary-darker': '271 81% 46%',
-            'primary-lighter': '271 81% 66%',
-            muted: '217 32% 17%',
-            card: '222 47% 11%',
-        }
-    },
-    sage: {
-        name: 'Sage',
-        icon: Leaf,
-        colors: {
-            background: '150 20% 96%',
-            foreground: '150 40% 20%',
-            primary: '150 40% 40%',
-            'primary-darker': '150 40% 30%',
-            'primary-lighter': '150 30% 50%',
-            muted: '150 15% 90%',
-            card: '0 0% 100%',
-        }
-    },
-    ocean: {
-        name: 'Ocean',
-        icon: Waves,
-        colors: {
-            background: '200 20% 98%',
-            foreground: '200 50% 20%',
-            primary: '200 80% 50%',
-            'primary-darker': '200 80% 40%',
-            'primary-lighter': '200 70% 60%',
-            muted: '200 15% 92%',
-            card: '0 0% 100%',
-        }
-    },
-    turf: {
-        name: 'Turf',
-        icon: Trophy,
-        colors: {}
-    },
-    midnight: {
-        name: 'Midnight',
-        icon: MoonIcon,
-        colors: {
-            background: '230 35% 7%',
-            foreground: '213 31% 91%',
-            primary: '230 60% 50%',
-            'primary-darker': '230 60% 40%',
-            'primary-lighter': '230 50% 60%',
-            muted: '230 25% 15%',
-            card: '230 35% 7%',
-        }
-    }
+/**
+ * Theme picker on the Scoreboard system.
+ *
+ * The six lucide icons are gone. A theme is a set of colours, so the affordance
+ * is a two-tone swatch of the theme's own background and primary — it previews
+ * the thing it switches to, which an icon never did. Those colours cannot come
+ * from the current theme's tokens (they belong to the other five), so they are
+ * declared once as .theme-swatch-* classes in index.css rather than inlined
+ * here; nothing in a component hardcodes a colour.
+ */
+const themes = [
+    { key: 'light', name: 'LIGHT' },
+    { key: 'dark', name: 'DARK' },
+    { key: 'sage', name: 'SAGE' },
+    { key: 'ocean', name: 'OCEAN' },
+    { key: 'midnight', name: 'MIDNIGHT' },
+    { key: 'turf', name: 'TURF' },
+];
+
+// Written out rather than built from the key so Tailwind's content scan and a
+// reader both see the real class names.
+const SWATCH = {
+    light: 'theme-swatch theme-swatch-light',
+    dark: 'theme-swatch theme-swatch-dark',
+    sage: 'theme-swatch theme-swatch-sage',
+    ocean: 'theme-swatch theme-swatch-ocean',
+    midnight: 'theme-swatch theme-swatch-midnight',
+    turf: 'theme-swatch theme-swatch-turf',
 };
 
-const ThemeSwitcher = ({ currentTheme, setTheme }) => {
+const ThemeSwitcher = ({ currentTheme, setTheme, variant = 'bar' }) => {
+    const current = themes.find((t) => t.key === currentTheme) || themes[0];
+    const row = variant === 'row';
+
     return (
-        <DropdownMenu>
+        <DropdownMenu className={row ? 'block w-full' : 'flex'}>
             <DropdownMenuTrigger
                 aria-label="Change theme"
-                className="flex items-center justify-center w-11 h-11 rounded-lg hover:bg-muted/80 transition-colors"
+                className={
+                    row
+                        ? 'flex min-h-[48px] w-full items-center justify-between border-l-2 border-transparent bg-panel pr-4 text-[10px] font-medium tracking-[0.16em] text-muted-foreground'
+                        : 'flex items-center gap-2 bg-panel px-3.5 text-[9px] font-medium tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground'
+                }
             >
-                <Palette className="w-5 h-5 text-foreground" />
+                <span>THEME</span>
+                {row ? (
+                    <span className="flex items-center gap-2 text-foreground">
+                        <span className={SWATCH[current.key]} aria-hidden="true" />
+                        {current.name}
+                    </span>
+                ) : (
+                    <span className={SWATCH[current.key]} aria-hidden="true" />
+                )}
             </DropdownMenuTrigger>
+
             <DropdownMenuContent
-                align="start"
-                className="w-40"
+                align="right"
+                className="w-[164px]"
             >
-                {Object.entries(themes).map(([key, theme]) => {
-                    const Icon = theme.icon;
+                {themes.map((theme) => {
+                    const active = currentTheme === theme.key;
                     return (
                         <DropdownMenuItem
-                            key={key}
-                            onClick={() => setTheme(key)}
-                            className="flex items-center justify-between min-h-[44px] py-2 cursor-pointer"
+                            key={theme.key}
+                            onClick={() => setTheme(theme.key)}
+                            className={`flex min-h-[44px] items-center gap-2.5 px-3.5 text-[9px] font-medium tracking-[0.16em] hover:bg-muted ${
+                                active ? 'text-foreground' : 'text-muted-foreground'
+                            }`}
                         >
-                            <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">{theme.name}</span>
-                            </div>
-                            {currentTheme === key && (
-                                <Check className="h-4 w-4 text-primary" />
-                            )}
+                            <span className={SWATCH[theme.key]} aria-hidden="true" />
+                            <span className="flex-1 text-left">{theme.name}</span>
+                            {/* The active mark is structure, so it takes --primary. */}
+                            {active && <span className="h-1.5 w-1.5 bg-primary" aria-hidden="true" />}
                         </DropdownMenuItem>
                     );
                 })}
@@ -115,4 +86,5 @@ const ThemeSwitcher = ({ currentTheme, setTheme }) => {
         </DropdownMenu>
     );
 };
+
 export default ThemeSwitcher;
