@@ -1,537 +1,504 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Typography, CircularProgress, Select, MenuItem, Collapse } from '@mui/material';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Users } from 'lucide-react';
-import FootballPitchMatchup from './FootballPitchMatchup';
-import VerticalFootballPitchMatchup from './VerticalFootballPitchMatchup';
 import LeagueTable from './LeagueTable';
 import GameweekStats from './GameweekStats';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import MatchupLedger from './MatchupLedger';
+import { SectionHeader } from './PlayerStatCell';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { API_URL, SUPABASE_ANON_KEY } from '../config/supabase';
+import { API_URL, apiHeaders } from '../config/supabase';
+import { formatCount, toNumber } from '../lib/playerStats';
+import { homeShare, summariseGameweek } from '../lib/h2h';
 
+/**
+ * The H2H league page, on the Scoreboard system.
+ *
+ * The old page was three columns of equally-weighted rounded cards — nine card
+ * headers, four superlative lists ranking the same 22 managers by one of two
+ * numbers, and the reader's own fixture sitting anonymously among eleven
+ * identical rows. Nothing was primary.
+ *
+ * The order here follows the order the questions actually get asked in: am I
+ * winning, why, and where does that leave me. So the reader's own fixture is
+ * lifted out and named, the expanded fixture explains the scoreline instead of
+ * drawing a pitch, and the standings carry the W-D-L record that a H2H table is
+ * actually made of.
+ */
 
-const MatchupRow = ({ matchup, isExpanded, onToggle, eventId, leagueId, onManagerClick }) => {
-  const [matchDetails, setMatchDetails] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+/** Collapsed fixture. The split bar is the "who's ahead" read at a glance. */
+const FixtureRow = ({ matchup, isExpanded, onToggle, eventId, leagueId, myEntry }) => {
+    const [detail, setDetail] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (isExpanded && !matchDetails && leagueId) {
-      setLoading(true);
-      const headers = {
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json'
-      };
-      fetch(`${API_URL}/matchup/${matchup.id}?event=${eventId}&leagueId=${leagueId}`, { headers })
-      .then(response => {
-          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-          return response.json();
-        })
-        .then(data => {
-          setMatchDetails(data);
-          setLoading(false);
-        })
-        .catch(error => {
-          console.error('Error fetching matchup details:', error);
-          setError(error.message);
-          setLoading(false);
-        });
-    }
-  }, [isExpanded, matchup.id, eventId, leagueId, matchDetails]);
+    useEffect(() => {
+        if (!isExpanded || detail || !leagueId) return;
 
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="bg-card text-card-foreground rounded-lg shadow-md mb-4 overflow-hidden"
-    >
-      <div
-        role="button"
-        tabIndex={0}
-        aria-expanded={isExpanded}
-        className="flex justify-between items-center gap-2 p-3 md:p-4 min-h-[64px] cursor-pointer hover:bg-muted/50 transition-colors duration-150"
-        onClick={onToggle}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onToggle();
-          }
-        }}
-      >
-        <div className="flex-1 min-w-0 text-left">
-          <p className="font-semibold text-sm md:text-base truncate leading-tight">{matchup.entry_1_name}</p>
-          <button
-            type="button"
-            className="text-xs text-muted-foreground truncate max-w-full block text-left py-2.5 -my-1 hover:text-primary hover:underline transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              onManagerClick(matchup.entry_1_entry);
-            }}
-          >
-            {matchup.entry_1_player_name}
-          </button>
-        </div>
-        <div className="flex-shrink-0">
-          <p className="text-lg md:text-xl font-bold whitespace-nowrap">
-            <span className="text-purple-700">{matchup.entry_1_points}</span>
-            {' - '}
-            <span className="text-purple-700">{matchup.entry_2_points}</span>
-          </p>
-        </div>
-        <div className="flex-1 min-w-0 text-right">
-          <p className="font-semibold text-sm md:text-base truncate leading-tight">{matchup.entry_2_name}</p>
-          <button
-            type="button"
-            className="text-xs text-muted-foreground truncate max-w-full block text-right w-full py-2.5 -my-1 hover:text-primary hover:underline transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              onManagerClick(matchup.entry_2_entry);
-            }}
-          >
-            {matchup.entry_2_player_name}
-          </button>
-        </div>
-      </div>
-      <Collapse in={isExpanded} unmountOnExit>
-        <div className="p-2 md:p-4 bg-muted">
-          {loading && <CircularProgress />}
-          {error && <div className="text-red-500">{error}</div>}
-          {!loading && !error && matchDetails && (
-            <>
-              {/* Stacked list on phones/tablets, pitch graphic from xl up, where it has room - CSS, not JS */}
-              <div className="xl:hidden">
-                <VerticalFootballPitchMatchup matchData={matchDetails} />
-              </div>
-              <div className="hidden xl:block">
-                <FootballPitchMatchup matchData={matchDetails} />
-              </div>
-            </>
-          )}
-        </div>
-      </Collapse>
-    </motion.div>
-  );
-};
-
-// Shared list used by League Performance / League Insights. Rows are real
-// buttons with a finger-sized hit area on touch, compact again from lg up.
-const ManagerRankList = ({ title, managers, valueKey, tone, onManagerClick }) => {
-  const toneClass = tone === 'negative' ? 'text-red-600' : 'text-primary';
-  return (
-    <div>
-      <h3 className="font-semibold mb-1 text-xs">{title}</h3>
-      <ul className="divide-y divide-border">
-        {managers.map((manager, index) => (
-          <li key={manager.entry}>
-            <button
-              type="button"
-              onClick={() => onManagerClick(manager.entry)}
-              className="w-full flex items-center justify-between gap-2 text-xs text-left min-h-[44px] py-2 lg:min-h-0 lg:py-1.5 hover:text-primary transition-colors"
-            >
-              <span className="flex items-center min-w-0">
-                <span className={`font-bold mr-2 flex-shrink-0 ${toneClass}`}>{index + 1}.</span>
-                <span className="truncate">{manager.display_name}</span>
-              </span>
-              <span className={`font-bold flex-shrink-0 ${toneClass}`}>
-                {manager[valueKey]} pts
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
-
-const WeeklyMatchups = () => {
-  const navigate = useNavigate();
-  const { leagueId: urlLeagueId } = useParams();
-
-  // Use localStorage to persist league ID
-  const [savedLeagueId, setSavedLeagueId] = useLocalStorage('fpl_league_id', '');
-
-  // Determine which league ID to use: URL > saved > nothing (no env fallback)
-  const LEAGUE_ID = urlLeagueId || savedLeagueId || null;
-
-  // State for showing input form
-  const [showInput, setShowInput] = useState(!LEAGUE_ID);
-  const [inputLeagueId, setInputLeagueId] = useState('');
-
-  const [matchups, setMatchups] = useState([]);
-  const [standings, setStandings] = useState([]);
-  const [loading, setLoading] = useState(!!LEAGUE_ID);
-  const [error, setError] = useState(null);
-  const [expandedMatchup, setExpandedMatchup] = useState(null);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [events, setEvents] = useState([]);
-  const [leaguePerformance, setLeaguePerformance] = useState({ topManagers: [], bottomManagers: [] });
-  const [leagueInsights, setLeagueInsights] = useState({ topFour: [], bottomThree: [] });
-
-  // Save league ID to localStorage when URL param changes
-  useEffect(() => {
-    if (urlLeagueId && urlLeagueId !== savedLeagueId) {
-      setSavedLeagueId(urlLeagueId);
-      setShowInput(false);
-    }
-  }, [urlLeagueId, savedLeagueId, setSavedLeagueId]);
-
-  // Navigate to manager's team page
-  const handleManagerClick = (teamId) => {
-    navigate('/my-team', { state: { teamId: teamId.toString() } });
-  };
-
-  // Handle league ID form submission
-  const handleLeagueIdSubmit = (e) => {
-    e.preventDefault();
-    if (inputLeagueId.trim()) {
-      setSavedLeagueId(inputLeagueId.trim());
-      setShowInput(false);
-      // Navigate with the new league ID
-      navigate(`/weekly-matchups/${inputLeagueId.trim()}`);
-    }
-  };
-
-
-  useEffect(() => {
-    if (!LEAGUE_ID) return;
-
-    const fetchEvents = async () => {
-      try {
-        const headers = {
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json'
-        };
-        const response = await fetch(`${API_URL}/bootstrap-static`, { headers });
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        const eventsList = data.events.map(event => ({
-          id: event.id,
-          name: `Gameweek ${event.id}`,
-          isCurrent: event.is_current,
-          isNext: event.is_next,
-        }));
-        setEvents(eventsList);
-        const current = eventsList.find(event => event.isCurrent);
-        if (current) {
-          setSelectedEvent(current.id);
-        } else {
-          const next = eventsList.find(event => event.isNext);
-          if (next) {
-            setSelectedEvent(next.id);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching events:', error);
-        setError('Failed to fetch events: ' + error.message);
-      }
-    };
-
-    fetchEvents();
-  }, [LEAGUE_ID]);
-
-  useEffect(() => {
-    if (selectedEvent) {
-      const fetchMatchups = async () => {
         setLoading(true);
         setError(null);
-        try {
-          const headers = {
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json'
-          };
-          const url = `${API_URL}/weekly-matchups/${LEAGUE_ID}?event=${selectedEvent}`;
-          console.log('Fetching matchups from:', url); // Debug log
-          const response = await fetch(url, { headers });
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Error response:', errorText); // Debug log
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          if (!data.results && !Array.isArray(data)) {
-            throw new Error('Invalid data format received');
-          }
-          
-          // Handle both data formats (with .results and direct array)
-          const matchupsData = data.results || data;
-          setMatchups(matchupsData);
-        } catch (error) {
-          console.error('Error fetching matchups:', error);
-          setError('Failed to load matchups: ' + error.message);
-        } finally {
-          setLoading(false);
-        }
-      };
+        fetch(`${API_URL}/matchup/${matchup.id}?event=${eventId}&leagueId=${leagueId}`, {
+            headers: apiHeaders(),
+        })
+            .then((r) => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then((data) => setDetail(data))
+            .catch((err) => {
+                console.error('Error fetching matchup details:', err);
+                setError('Could not load this fixture');
+            })
+            .finally(() => setLoading(false));
+    }, [isExpanded, matchup.id, eventId, leagueId, detail]);
 
-      fetchMatchups();
-    }
-  }, [selectedEvent]);
+    const home = toNumber(matchup.entry_1_points);
+    const away = toNumber(matchup.entry_2_points);
+    const share = homeShare(matchup);
+    const played = home > 0 || away > 0;
 
-  useEffect(() => {
-    if (!LEAGUE_ID) return;
+    const isMine =
+        !!myEntry &&
+        (String(matchup.entry_1_entry) === String(myEntry) ||
+            String(matchup.entry_2_entry) === String(myEntry));
 
-    const fetchStandings = async () => {
-      try {
-        const headers = {
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json'
-        };
-        const response = await fetch(`${API_URL}/league-standings/${LEAGUE_ID}/standings`, { headers });
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setStandings(data);
-      } catch (error) {
-        console.error('Error fetching standings:', error);
-        setError('Failed to fetch standings: ' + error.message);
-      }
-    };
+    const scoreTone = (mine, other) =>
+        !played || mine === other
+            ? 'text-muted-foreground'
+            : mine > other
+                ? 'text-foreground'
+                : 'text-muted-foreground';
 
-    fetchStandings();
-  }, [LEAGUE_ID]);
-
-  // Fetch league performance data
-  useEffect(() => {
-    const fetchLeaguePerformanceData = async () => {
-      if (!selectedEvent || !matchups.length || !standings.length) return;
-
-      try {
-        // Get league performance (top/bottom managers this week)
-        const matchScores = matchups.flatMap(match => [
-          {
-            entry: match.entry_1_entry,
-            display_name: match.entry_1_player_name,
-            points: match.entry_1_points
-          },
-          {
-            entry: match.entry_2_entry,
-            display_name: match.entry_2_player_name,
-            points: match.entry_2_points
-          }
-        ]);
-
-        const sortedByPoints = matchScores.sort((a, b) => b.points - a.points);
-        const topManagers = sortedByPoints.slice(0, 3);
-        const bottomManagers = sortedByPoints.slice(-3).reverse();
-
-        setLeaguePerformance({ topManagers, bottomManagers });
-
-        // Get league insights (top/bottom overall standings)
-        const sortedByTotal = [...standings].sort((a, b) => b.total - a.total);
-        const topFour = sortedByTotal.slice(0, 4).map(manager => ({
-          ...manager,
-          display_name: manager.player_name,
-          points: manager.total
-        }));
-        const bottomThree = sortedByTotal.slice(-3).map(manager => ({
-          ...manager,
-          display_name: manager.player_name,
-          points: manager.total
-        }));
-
-        setLeagueInsights({ topFour, bottomThree });
-      } catch (error) {
-        console.error('Error processing league performance data:', error);
-      }
-    };
-
-    fetchLeaguePerformanceData();
-  }, [selectedEvent, matchups, standings]);
-
-  const handleToggleExpand = (matchupId) => {
-    setExpandedMatchup(expandedMatchup === matchupId ? null : matchupId);
-  };
-
-  const handleEventChange = (event) => {
-    setSelectedEvent(event.target.value);
-  };
-
-  // Show empty state if no league ID is set
-  if (showInput || !LEAGUE_ID) {
     return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">H2H League Info</h1>
-            <p className="text-muted-foreground">
-              Enter your FPL H2H League ID to view matchups and league standings
-            </p>
-          </div>
+        <div className={`bg-panel ${isMine ? 'border-l-2 border-primary' : ''}`}>
+            <button
+                type="button"
+                aria-expanded={isExpanded}
+                onClick={onToggle}
+                className="w-full px-3 pb-3 pt-[11px] text-left transition-colors hover:bg-muted"
+            >
+                <div className="flex items-center gap-2.5">
+                    <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[11px] font-medium leading-none text-foreground">
+                            {matchup.entry_1_name}
+                        </span>
+                        <span className="mt-1.5 block truncate text-[7.5px] leading-none tracking-[0.1em] text-muted-foreground">
+                            {matchup.entry_1_player_name}
+                        </span>
+                    </span>
 
-          {/* League ID Input */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Users className="w-5 h-5" />
-                <span>Enter H2H League ID</span>
-              </CardTitle>
-              <CardDescription>
-                Find your League ID in the FPL website URL when viewing your H2H league
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleLeagueIdSubmit} className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={inputLeagueId}
-                  onChange={(e) => setInputLeagueId(e.target.value)}
-                  placeholder="e.g., 1164871"
-                  className="flex-1 min-w-0 px-4 py-3 min-h-[48px] text-base bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
-                />
-                <button
-                  type="submit"
-                  className="px-6 py-3 min-h-[48px] bg-primary hover:bg-primary-darker text-primary-foreground rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={!inputLeagueId.trim()}
-                >
-                  View League
-                </button>
-              </form>
-              <p className="text-sm text-muted-foreground mt-4 break-words">
-                Find your League ID in the URL: fantasy.premierleague.com/leagues/<strong>1164871</strong>/standings/h
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+                    <span className="flex shrink-0 items-baseline gap-1.5 text-[20px] font-bold leading-none tracking-[-0.04em]">
+                        <span className={scoreTone(home, away)}>{formatCount(home)}</span>
+                        <span className="text-[9px] font-normal text-muted-foreground">–</span>
+                        <span className={scoreTone(away, home)}>{formatCount(away)}</span>
+                    </span>
 
-  return (
-    <div className="bg-background min-h-screen p-2 md:p-4"> {/* Changed from bg-gray-100 */}
-      <div className="w-full mx-auto">
-        {/*
-          Mobile is a single column ordered by importance: matchups first, then
-          the standings block, then gameweek stats. From md up this becomes the
-          familiar 3 / 6 / 3 desktop layout via `order-*`.
-        */}
-        <div className="flex flex-col lg:grid lg:grid-cols-12 lg:items-start gap-4">
-          {/* League Table + standings context - left column on desktop, second on mobile */}
-          <div className="order-2 lg:order-1 lg:col-span-3 min-w-0 space-y-4">
-            <div className="bg-card text-card-foreground rounded-lg shadow-md p-4">
-              <Typography variant="h6" className="mb-2 font-semibold text-card-foreground text-sm">
-                League Table
-              </Typography>
-              <LeagueTable standings={standings} />
-            </div>
-
-            {/* League Performance */}
-            <div className="bg-card text-card-foreground rounded-lg shadow-md p-4">
-              <Typography variant="h6" className="mb-3 font-semibold text-card-foreground text-sm">
-                League Performance
-              </Typography>
-              <div className="space-y-4">
-                <ManagerRankList
-                  title="Top Managers This Week"
-                  managers={leaguePerformance.topManagers}
-                  valueKey="points"
-                  onManagerClick={handleManagerClick}
-                />
-                <ManagerRankList
-                  title="Bottom Managers This Week"
-                  managers={leaguePerformance.bottomManagers}
-                  valueKey="points"
-                  tone="negative"
-                  onManagerClick={handleManagerClick}
-                />
-              </div>
-            </div>
-
-            {/* League Insights */}
-            <div className="bg-card text-card-foreground rounded-lg shadow-md p-4">
-              <Typography variant="h6" className="mb-3 font-semibold text-card-foreground text-sm">
-                League Insights
-              </Typography>
-              <div className="space-y-4">
-                <ManagerRankList
-                  title="Top Four 🏆"
-                  managers={leagueInsights.topFour}
-                  valueKey="total"
-                  onManagerClick={handleManagerClick}
-                />
-                <ManagerRankList
-                  title="Bottom Three 💩"
-                  managers={leagueInsights.bottomThree}
-                  valueKey="total"
-                  tone="negative"
-                  onManagerClick={handleManagerClick}
-                />
-              </div>
-            </div>
-          </div>
-          {/* Weekly Matchups - the primary content, so it comes first on mobile */}
-          <div className="order-1 lg:order-2 lg:col-span-6 xl:col-span-7 min-w-0">
-            <div className="bg-card text-card-foreground rounded-lg shadow-md p-3 md:p-4">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-                <Typography variant="h6" className="text-card-foreground font-bold">
-                  Weekly Matchups
-                </Typography>
-                <Select
-                  value={selectedEvent || ''}
-                  onChange={handleEventChange}
-                  size="small"
-                  className="w-full sm:w-auto sm:min-w-[170px] bg-card text-sm"
-                  sx={{
-                    color: 'inherit',
-                    '& .MuiSelect-select': { minHeight: '44px', display: 'flex', alignItems: 'center', boxSizing: 'border-box' },
-                    '& .MuiSvgIcon-root': { color: 'inherit' },
-                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'hsl(var(--border))' },
-                  }}
-                >
-                  {events.map((event) => (
-                    <MenuItem key={event.id} value={event.id}>
-                      {event.name} {event.isCurrent ? '(Current)' : ''}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </div>
-              {loading ? (
-                <div className="flex justify-center items-center h-64">
-                  <CircularProgress />
+                    <span className="min-w-0 flex-1 text-right">
+                        <span className="block truncate text-[11px] font-medium leading-none text-foreground">
+                            {matchup.entry_2_name}
+                        </span>
+                        <span className="mt-1.5 block truncate text-[7.5px] leading-none tracking-[0.1em] text-muted-foreground">
+                            {matchup.entry_2_player_name}
+                        </span>
+                    </span>
                 </div>
-              ) : error ? (
-                <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded">
-                  {error}
-                </div>
-              ) : matchups.length === 0 ? (
-                <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded">
-                  No matchups found for this gameweek.
-                </div>
-              ) : (
-                <AnimatePresence>
-                  {matchups.map((matchup) => (
-                    <MatchupRow
-                      key={matchup.id}
-                      matchup={matchup}
-                      isExpanded={expandedMatchup === matchup.id}
-                      onToggle={() => handleToggleExpand(matchup.id)}
-                      eventId={selectedEvent}
-                      leagueId={LEAGUE_ID}
-                      onManagerClick={handleManagerClick}
+
+                {/* Always drawn, even at 0-0, so a row of unplayed fixtures still
+                    reads as a row of fixtures rather than collapsing. */}
+                <span className="mt-2.5 flex h-[3px] w-full overflow-hidden bg-border" aria-hidden="true">
+                    <span
+                        className={played ? 'bg-foreground' : 'bg-border'}
+                        style={{ width: `${share}%` }}
                     />
-                  ))}
-                </AnimatePresence>
-              )}
-            </div>
-          </div>
-          {/* Gameweek Stats - Right */}
-          <div className="order-3 lg:col-span-3 xl:col-span-2 min-w-0">
-            <GameweekStats eventId={selectedEvent} leagueId={LEAGUE_ID} />
-          </div>
+                    <span className={`flex-1 ${played ? 'bg-muted-foreground/40' : 'bg-border'}`} />
+                </span>
+            </button>
+
+            {isExpanded && (
+                <div className="border-t border-border px-3">
+                    {loading && (
+                        <div className="animate-pulse py-4">
+                            <div className="h-[86px] bg-muted" />
+                            <div className="mt-4 h-[200px] bg-muted" />
+                        </div>
+                    )}
+                    {error && (
+                        <div className="my-3 border-l-2 border-destructive bg-destructive/10 px-3 py-2.5">
+                            <p className="text-[9px] leading-[1.5] text-destructive">{error}</p>
+                        </div>
+                    )}
+                    {!loading && !error && detail && <MatchupLedger matchData={detail} />}
+                </div>
+            )}
         </div>
-      </div>
+    );
+};
+
+/** Prev / jump / next. Stepping is the common move; the dropdown is the escape. */
+const GameweekStepper = ({ events, selected, onSelect }) => {
+    const index = events.findIndex((e) => e.id === selected);
+    const prev = index > 0 ? events[index - 1] : null;
+    const next = index >= 0 && index < events.length - 1 ? events[index + 1] : null;
+
+    const arrow =
+        'flex h-[38px] w-[34px] items-center justify-center bg-panel text-[11px] text-foreground ' +
+        'transition-colors hover:bg-muted disabled:text-muted-foreground/40 disabled:hover:bg-panel';
+
+    return (
+        <div className="flex gap-px bg-border">
+            <button
+                type="button"
+                onClick={() => prev && onSelect(prev.id)}
+                disabled={!prev}
+                aria-label="Previous gameweek"
+                className={arrow}
+            >
+                ◀
+            </button>
+
+            <DropdownMenu className="flex">
+                <DropdownMenuTrigger
+                    aria-label="Choose gameweek"
+                    className="h-[38px] gap-1.5 bg-panel px-3 text-[9px] font-medium tracking-[0.16em] text-foreground transition-colors hover:bg-muted"
+                >
+                    GW {selected ?? '—'}
+                    <span aria-hidden="true" className="text-muted-foreground">▾</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="right" className="max-h-[280px] w-[132px] overflow-y-auto">
+                    {events.map((event) => (
+                        <DropdownMenuItem
+                            key={event.id}
+                            onClick={() => onSelect(event.id)}
+                            className={`min-h-[38px] px-3 text-[9px] tracking-[0.12em] ${
+                                event.id === selected ? 'text-foreground' : 'text-muted-foreground'
+                            }`}
+                        >
+                            GW {event.id}
+                            {event.isCurrent ? ' ·' : ''}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <button
+                type="button"
+                onClick={() => next && onSelect(next.id)}
+                disabled={!next}
+                aria-label="Next gameweek"
+                className={arrow}
+            >
+                ▶
+            </button>
+        </div>
+    );
+};
+
+/** One of the three league-wide numbers under the masthead. */
+const SummaryCell = ({ label, value, solid }) => (
+    <div className={`flex-1 px-2.5 py-[9px] ${solid ? 'bg-live text-background' : 'bg-panel'}`}>
+        <div className={`text-[7.5px] tracking-[0.16em] ${solid ? 'opacity-75' : 'text-muted-foreground'}`}>
+            {label}
+        </div>
+        <div
+            className={`mt-1.5 text-[22px] font-bold leading-[0.9] tracking-[-0.04em] ${
+                solid ? '' : value === null ? 'text-muted-foreground' : 'text-foreground'
+            }`}
+        >
+            {value === null ? '0' : formatCount(value)}
+        </div>
     </div>
-  );
+);
+
+const WeeklyMatchups = () => {
+    const navigate = useNavigate();
+    const { leagueId: urlLeagueId } = useParams();
+
+    const [savedLeagueId, setSavedLeagueId] = useLocalStorage('fpl_league_id', '');
+    // Read-only: whoever the reader last identified as themselves. Enough to
+    // lift their own fixture out of the pile without adding another control.
+    const [myEntry] = useLocalStorage('fpl_team_id', '');
+
+    const LEAGUE_ID = urlLeagueId || savedLeagueId || null;
+
+    const [showInput, setShowInput] = useState(!LEAGUE_ID);
+    const [inputLeagueId, setInputLeagueId] = useState('');
+
+    const [matchups, setMatchups] = useState([]);
+    const [standings, setStandings] = useState([]);
+    const [loading, setLoading] = useState(!!LEAGUE_ID);
+    const [error, setError] = useState(null);
+    const [expanded, setExpanded] = useState(null);
+    const [selectedEvent, setSelectedEvent] = useState(null);
+    const [events, setEvents] = useState([]);
+
+    useEffect(() => {
+        if (urlLeagueId && urlLeagueId !== savedLeagueId) {
+            setSavedLeagueId(urlLeagueId);
+            setShowInput(false);
+        }
+    }, [urlLeagueId, savedLeagueId, setSavedLeagueId]);
+
+    const handleManagerClick = (teamId) => {
+        navigate('/my-team', { state: { teamId: teamId.toString() } });
+    };
+
+    const handleLeagueIdSubmit = (e) => {
+        e.preventDefault();
+        if (!inputLeagueId.trim()) return;
+        setSavedLeagueId(inputLeagueId.trim());
+        setShowInput(false);
+        navigate(`/weekly-matchups/${inputLeagueId.trim()}`);
+    };
+
+    useEffect(() => {
+        if (!LEAGUE_ID) return;
+
+        const fetchEvents = async () => {
+            try {
+                const response = await fetch(`${API_URL}/bootstrap-static`, { headers: apiHeaders() });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                const list = data.events.map((event) => ({
+                    id: event.id,
+                    isCurrent: event.is_current,
+                    isNext: event.is_next,
+                }));
+                setEvents(list);
+                const current = list.find((e) => e.isCurrent) || list.find((e) => e.isNext);
+                if (current) setSelectedEvent(current.id);
+            } catch (err) {
+                console.error('Error fetching events:', err);
+                setError('Could not load gameweeks');
+            }
+        };
+
+        fetchEvents();
+    }, [LEAGUE_ID]);
+
+    useEffect(() => {
+        if (!selectedEvent || !LEAGUE_ID) return;
+
+        const fetchMatchups = async () => {
+            setLoading(true);
+            setError(null);
+            setExpanded(null);
+            try {
+                const response = await fetch(
+                    `${API_URL}/weekly-matchups/${LEAGUE_ID}?event=${selectedEvent}`,
+                    { headers: apiHeaders() },
+                );
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                setMatchups(data.results || (Array.isArray(data) ? data : []));
+            } catch (err) {
+                console.error('Error fetching matchups:', err);
+                setError('Could not load fixtures for this gameweek');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchMatchups();
+    }, [selectedEvent, LEAGUE_ID]);
+
+    useEffect(() => {
+        if (!LEAGUE_ID) return;
+
+        const fetchStandings = async () => {
+            try {
+                const response = await fetch(`${API_URL}/league-standings/${LEAGUE_ID}/standings`, {
+                    headers: apiHeaders(),
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                setStandings(await response.json());
+            } catch (err) {
+                console.error('Error fetching standings:', err);
+            }
+        };
+
+        fetchStandings();
+    }, [LEAGUE_ID]);
+
+    const summary = useMemo(() => summariseGameweek(matchups), [matchups]);
+    const isLive = !!events.find((e) => e.id === selectedEvent)?.isCurrent;
+
+    const { mine, others } = useMemo(() => {
+        if (!myEntry) return { mine: null, others: matchups };
+        const own = matchups.find(
+            (m) =>
+                String(m.entry_1_entry) === String(myEntry) ||
+                String(m.entry_2_entry) === String(myEntry),
+        );
+        return own
+            ? { mine: own, others: matchups.filter((m) => m.id !== own.id) }
+            : { mine: null, others: matchups };
+    }, [matchups, myEntry]);
+
+    if (showInput || !LEAGUE_ID) {
+        return (
+            <div className="mx-auto max-w-[1280px] font-mono">
+                <div className="px-4 pt-6 md:px-7">
+                    <span className="text-[9px] tracking-[0.16em] text-muted-foreground">H2H LEAGUE</span>
+                    <h1 className="mt-2.5 text-[25px] font-bold uppercase leading-[1.05] tracking-[-0.03em] text-foreground md:text-[46px] md:tracking-[-0.045em]">
+                        Find your league
+                    </h1>
+
+                    <form onSubmit={handleLeagueIdSubmit} className="mt-6 max-w-[420px]">
+                        <label
+                            htmlFor="league-id"
+                            className="mb-1.5 block text-[8.5px] font-medium uppercase tracking-[0.13em] text-muted-foreground"
+                        >
+                            H2H League ID
+                        </label>
+                        <div className="flex gap-px bg-border">
+                            <input
+                                id="league-id"
+                                type="text"
+                                inputMode="numeric"
+                                value={inputLeagueId}
+                                onChange={(e) => setInputLeagueId(e.target.value)}
+                                placeholder="1164871"
+                                className="min-h-[44px] min-w-0 flex-1 bg-panel px-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+                            />
+                            <button
+                                type="submit"
+                                disabled={!inputLeagueId.trim()}
+                                className="min-h-[44px] shrink-0 bg-primary px-4 text-[9.5px] font-medium tracking-[0.14em] text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                            >
+                                VIEW →
+                            </button>
+                        </div>
+                        <p className="mt-3 text-[9px] leading-[1.6] tracking-[0.06em] text-muted-foreground">
+                            It's the number in your league's FPL URL:
+                            fantasy.premierleague.com/leagues/<span className="text-foreground">1164871</span>/standings/h
+                        </p>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="mx-auto max-w-[1280px] font-mono">
+            {/* Masthead. Same shape as the player page hero: eyebrow, big title,
+                meta line, and the numbers that frame everything below. */}
+            <div className="px-4 pt-4 md:px-7">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                            <span className="bg-primary px-1.5 py-1 text-[9px] font-medium leading-none tracking-[0.16em] text-background">
+                                H2H
+                            </span>
+                            <span className="text-[9px] tracking-[0.16em] text-muted-foreground">
+                                LEAGUE {LEAGUE_ID}
+                                {isLive ? ' · LIVE' : ''}
+                            </span>
+                        </div>
+                        <h1 className="mt-2.5 text-[25px] font-bold uppercase leading-[1.05] tracking-[-0.03em] text-foreground md:text-[46px] md:tracking-[-0.045em]">
+                            Gameweek {selectedEvent ?? '—'}
+                        </h1>
+                        <div className="mt-2.5 flex flex-wrap gap-2.5 text-[10px] leading-none tracking-[0.06em]">
+                            <span className="text-foreground">{summary.fixtures} FIXTURES</span>
+                            <span className="text-muted-foreground">{standings.length || summary.teams} TEAMS</span>
+                        </div>
+                    </div>
+
+                    <div className="shrink-0 pt-0.5">
+                        <GameweekStepper
+                            events={events}
+                            selected={selectedEvent}
+                            onSelect={setSelectedEvent}
+                        />
+                    </div>
+                </div>
+
+                <div className="mt-4 flex gap-px bg-border">
+                    <SummaryCell label="HIGHEST" value={summary.highest} solid={toNumber(summary.highest) > 0} />
+                    <SummaryCell label="AVERAGE" value={summary.average} />
+                    <SummaryCell label="LOWEST" value={summary.lowest} />
+                </div>
+            </div>
+
+            <div className="px-4 md:px-7 lg:grid lg:grid-cols-[1fr_326px] lg:gap-7 lg:items-start">
+                <div className="min-w-0">
+                    {error ? (
+                        <>
+                            <SectionHeader label="Fixtures" />
+                            <div className="border-l-2 border-destructive bg-destructive/10 px-3 py-2.5">
+                                <p className="text-[9px] leading-[1.5] text-destructive">{error}</p>
+                            </div>
+                        </>
+                    ) : loading ? (
+                        <>
+                            <SectionHeader label="Fixtures" />
+                            <div className="flex animate-pulse flex-col gap-px bg-border">
+                                {[0, 1, 2, 3, 4].map((i) => (
+                                    <div key={i} className="h-[74px] bg-panel" />
+                                ))}
+                            </div>
+                        </>
+                    ) : matchups.length === 0 ? (
+                        <>
+                            <SectionHeader label="Fixtures" />
+                            <div className="bg-panel px-3 py-4 text-[8.5px] tracking-[0.12em] text-muted-foreground">
+                                NO FIXTURES FOR THIS GAMEWEEK
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            {/* The reader's own fixture is the reason they opened
+                                the page, so it gets its own heading rather than
+                                sitting anonymously among the other ten. */}
+                            {mine && (
+                                <>
+                                    <SectionHeader label="Your fixture" tone="live" />
+                                    <FixtureRow
+                                        matchup={mine}
+                                        isExpanded={expanded === mine.id}
+                                        onToggle={() => setExpanded(expanded === mine.id ? null : mine.id)}
+                                        eventId={selectedEvent}
+                                        leagueId={LEAGUE_ID}
+                                        myEntry={myEntry}
+                                    />
+                                </>
+                            )}
+
+                            <SectionHeader label={mine ? 'Other fixtures' : 'Fixtures'} />
+                            <div className="flex flex-col gap-px bg-border">
+                                {others.map((matchup) => (
+                                    <FixtureRow
+                                        key={matchup.id}
+                                        matchup={matchup}
+                                        isExpanded={expanded === matchup.id}
+                                        onToggle={() =>
+                                            setExpanded(expanded === matchup.id ? null : matchup.id)
+                                        }
+                                        eventId={selectedEvent}
+                                        leagueId={LEAGUE_ID}
+                                        myEntry={myEntry}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                <div className="min-w-0 pb-8 lg:border-l lg:border-border lg:pl-7">
+                    <SectionHeader label="Standings" />
+                    <LeagueTable
+                        standings={standings}
+                        myEntry={myEntry}
+                        onManagerClick={handleManagerClick}
+                    />
+                    <GameweekStats eventId={selectedEvent} leagueId={LEAGUE_ID} />
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default WeeklyMatchups;

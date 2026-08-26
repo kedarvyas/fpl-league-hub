@@ -89,21 +89,120 @@ Spacing: section rhythm `pt-[22px] pb-2.5`; page gutter `px-4` mobile, `md:px-7`
 
 ---
 
-## Next up: the header
+## The header — done
 
-The current `Header.js` is still the old design — white bar, 2xl bold sans logo, purple `Log In` pill, lucide icons in every nav item. It sits directly above a Scoreboard page and the seam is obvious.
+`Header.js`, `Layout.js`, `ThemeSwitcher.js`, `LoginModal.js` and the shared
+`ui/dropdown-menu` are on the system. How the open questions were answered:
 
-Things worth deciding rather than assuming:
+- **Nav left the wordmark's band.** The top band holds the wordmark and the
+  account controls; navigation is a strip below it. That strip is the same
+  object as the player page's tab bar — hairline rule, 9.5px tracked caps, a 2px
+  underline on the active item. The one difference is the underline colour:
+  `--primary` marks structure (where you are in the app), `--live` stays with
+  real returns. In Turf those are the same lime, which Turf already accepts.
+- **The lockup is type only**, split by weight rather than size: `FPL` at 700 in
+  `--foreground`, `LEAGUE HUB` at 400 in `--muted-foreground`, both 13px with
+  `.2em` tracking. Wide and quiet, so it names the app without competing with a
+  25px hero name directly below it.
+- **The header is `bg-panel` with a `border-b` hairline.** That is the value
+  separation from rule 3 applied to chrome — it reads as a distinct surface in
+  all six themes without a gradient, and it fixes the merge into the hero band.
+- **The gradient tokens are gone.** `--header-bg-from` / `--header-bg-to` and the
+  `.card-header-gradient` utility were deleted: the two colours were never
+  Tailwind colours, so `from-header-bg-from` in `Home.js` and `Dashboard.js` has
+  never rendered. Those dead class names are still in those two files and go when
+  they convert. `--header-text` / `--header-text-secondary` stay — the
+  `.card-header-text*` utilities do apply, and those two pages still use them.
+- **No icons.** Controls are wide-tracked words in a `gap-px` strip, the
+  hamburger is `MENU` / `CLOSE`, and the six theme icons became two-tone swatches
+  of each theme's own background and primary. Those swatch colours cannot come
+  from the active theme's tokens, so they live in `index.css` as
+  `.theme-swatch-*` — plain CSS, not `@layer`, because the class is looked up by
+  key and the content scan would drop layered rules it cannot see spelled out.
+- **Mobile menu behaviour is unchanged** — full-width panel, tap outside to
+  dismiss, 44px targets — restyled as a hairline-gapped stack whose labels sit on
+  the page gutter, in line with the wordmark.
 
-- **The nav has five items plus theme, info and auth.** That's a lot of chrome above a page whose whole point is density. Consider whether nav belongs in the same band as the wordmark at all.
-- **The logo lockup.** `FPL League Hub` at `text-xl sm:text-2xl` bold sans is the loudest non-data element on every screen. Scoreboard's hero name is 25px mono uppercase — the header currently competes with it.
-- **The header is `bg-background`**, so it merges with the hero band below it. There's a `--header-bg-from`/`--header-bg-to` gradient in the tokens that **never renders** because `Header` paints `bg-background` over it, and the two colours aren't defined as Tailwind colours. Either wire it up or delete the tokens.
-- **Icons.** Scoreboard uses almost none by design. The nav's `Home`/`User`/`ChartBar`/`Users` icons may be the wrong texture now.
-- **Mobile menu** is a full-width dropdown panel with tap-outside-to-dismiss; the hamburger and controls are already 44px. That behaviour is fine — it's the styling that needs to change.
+Three things changed underneath while doing it:
 
-Files: `components/Header.js`, `components/Layout.js`, `components/ThemeSwitcher.js` (dropdown styling), `components/LoginModal.js` (still light-mode-only colours).
+1. `Layout` no longer wraps the header in a purple gradient with `shadow-lg`, and
+   it no longer wraps Scoreboard routes in the legacy `max-w-7xl … sm:px-6
+   lg:px-8` container. That container was double-padding the player page, so its
+   content did not line up with the header. `SCOREBOARD_ROUTES` in `Layout.js`
+   lists the converted routes; add to it as pages convert, and delete the branch
+   and the container together when it covers everything.
+2. `ui/dropdown-menu` is radius 0, `--popover` with a hairline border, no shadow
+   or ring, anchored `top-full`, and now closes on outside click and Escape.
+   `Dashboard.js` uses it too and picks all of that up.
+3. `LoginModal`'s `dark:` variants never applied — Tailwind's `darkMode` here is
+   class-based and themes switch on `data-theme`, so the error and success blocks
+   and the Google button were light-only in all six themes. All on tokens now.
 
-After the header, the same treatment wants applying to: `Dashboard.js`, `WeeklyMatchups.js`, `LeagueTable.js`, `MyTeam.js`, `Home.js`, `PlayerStatisticsHub.js`, `PlayerComparison.js`.
+Still on sans: `font-mono` is applied per page root (`PlayerStats`) and per chrome
+surface (the header and the two modals) rather than at the app root, because the
+unconverted pages are designed in sans. Move it to `Layout`'s root div when the
+last page converts.
+
+---
+
+## The H2H league page — done
+
+`WeeklyMatchups.js`, `LeagueTable.js` and `GameweekStats.js` are on the system,
+plus a new `MatchupLedger.js` and `lib/h2h.js`. `FootballPitchMatchup.js`,
+`VerticalFootballPitchMatchup.js` and `PlayerCard.js` were deleted.
+
+The organising idea is that the page follows the order the questions actually
+get asked in — am I winning, why, and where does that leave me:
+
+- **The reader's own fixture is lifted out** under its own `YOUR FIXTURE`
+  heading, and their standings row is marked. Identity comes from the existing
+  `fpl_team_id` in localStorage, read-only.
+- **The expanded fixture is a differential ledger, not a pitch.** A H2H fixture
+  is decided by differentials: shared players cancel exactly. The two columns
+  are the starting elevens minus their intersection, and their subtotals
+  reconcile to the scoreline. Shared players collapse to a one-line summary,
+  because by definition they carry no information about the result.
+- **Per-side context is shown at last** — the points hit, the points left on the
+  bench, the chip played. All three come from the `entry_history` object that
+  every expand has always fetched and never rendered.
+- **The standings carry the W-D-L record**, points-for and rank movement. The
+  endpoint has always returned them; the old table showed rank, name and total.
+- **Gameweeks step** with prev/next, and the GW label is a dropdown for jumping.
+
+The three left-column cards (League Table / League Performance / League
+Insights) collapsed into one standings board. They were four superlative lists
+ranking the same 22 managers by one of two numbers.
+
+### What the pitch actually was
+
+Worth recording, because it looked like a styling problem and wasn't. Each
+`PlayerCard` was a fixed 80x112 that could not shrink, so a half-pitch needed
+≥320px and the pitch ≥640px inside a ~690px column; the pitch box was
+`padding-top: 56.25%`, so at that width it was ~388px tall while a five-man
+midfield column needed 560px. The matchup wrapper was `overflow-hidden`, so all
+of that was clipped rather than scrolled. Two further defects went with it:
+captain points were multiplied a second time on top of the multiplier the API
+already applies (4x on the pitch, correct in the mobile list), and club colours
+came from a hardcoded hex map that still had Luton, Sheffield United and Burnley
+and no Leeds, Sunderland or Ipswich.
+
+### MUI is gone
+
+`WeeklyMatchups.js` and `GameweekStats.js` were the last two importers of
+`@mui/material`. With them converted, `@mui/material`, `@mui/icons-material`,
+`react-table`, `framer-motion`, `@heroicons/react` and `@headlessui/react` have
+zero import sites left. The production bundle fell from 353.03 kB to 246.52 kB
+gzipped. The packages are still in `package.json` and can be uninstalled.
+
+---
+
+## Next up
+
+`Dashboard.js`, `MyTeam.js`, `Home.js`, `PlayerStatisticsHub.js`,
+`PlayerComparison.js`.
+
+`Home.js` and `Dashboard.js` still carry dead `from-header-bg-from` /
+`to-header-bg-to` class names whose tokens were deleted with the header work.
 
 ---
 
