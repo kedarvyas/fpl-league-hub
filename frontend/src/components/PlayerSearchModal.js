@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { API_URL } from '../config/supabase';
+import PlayerPhoto from './PlayerPhoto';
 
 
 
@@ -64,13 +65,12 @@ const PlayerSearchModal = ({ onSelect, onClose, excludePlayerId }) => {
               onClick={() => onSelect(player)}
               className="w-full p-4 text-left hover:bg-gray-50 flex items-center space-x-4 border-b border-gray-100"
             >
-              <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden">
-                <img
-                  src={`https://resources.premierleague.com/premierleague/photos/players/110x140/p${player.code}.png`}
-                  alt={player.web_name}
-                  className="w-full h-full object-cover object-top transform translate-y-1"
-                />
-              </div>
+              <PlayerPhoto
+                code={player.code}
+                name={player.web_name}
+                size="md"
+                className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 text-sm"
+              />
               <div>
                 <div className="font-medium">{player.web_name}</div>
                 <div className="text-sm text-gray-500">£{(player.now_cost / 10).toFixed(1)}m</div>

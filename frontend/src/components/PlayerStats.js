@@ -35,6 +35,8 @@ import {
     Legend
 } from 'recharts';
 import { API_URL } from '../config/supabase';
+import PlayerPhoto from './PlayerPhoto';
+import PlayerSeasonSummary from './PlayerSeasonSummary';
 
 
 
@@ -145,23 +147,12 @@ const PlayerHeader = ({ playerData, onCompareClick, getPositionName }) => (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 {/* Player Info Section */}
                 <div className="flex items-center space-x-4">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-full overflow-hidden flex-shrink-0">
-                        <img
-                            src={`https://resources.premierleague.com/premierleague/photos/players/110x140/p${playerData.code}.png`}
-                            alt={playerData.web_name}
-                            className="w-full h-full object-cover object-top transform translate-y-1"
-                            onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = "";
-                                e.target.parentNode.innerHTML = `
-                    <div class="w-full h-full flex items-center justify-center">
-                      <svg class="w-12 h-12 text-purple-600">
-                        <use href="#user-circle"></use>
-                      </svg>
-                    </div>`;
-                            }}
-                        />
-                    </div>
+                    <PlayerPhoto
+                        code={playerData.code}
+                        name={playerData.web_name}
+                        size="lg"
+                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden flex-shrink-0 text-lg"
+                    />
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold">{playerData.web_name}</h1>
                         <div className="flex items-center space-x-2 text-sm sm:text-base opacity-90">
@@ -577,6 +568,7 @@ const PlayerStats = () => {
                 {/* Content based on active tab */}
                 {activeTab === 'overview' && (
                     <div className="space-y-6">
+                        <PlayerSeasonSummary playerData={playerData} />
                         <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
                             <h2 className="text-lg sm:text-xl font-semibold mb-4">Key Statistics</h2>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-4">

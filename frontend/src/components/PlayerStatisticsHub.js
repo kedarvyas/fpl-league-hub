@@ -24,6 +24,7 @@ import {
   toNumber
 } from '../lib/playerStats';
 import { API_URL } from '../config/supabase';
+import PlayerPhoto from './PlayerPhoto';
 
 
 
@@ -126,17 +127,12 @@ const PlayerStatisticsHub = () => {
       className="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors relative"
     >
       <span className="text-lg font-bold text-gray-400 w-5 flex-shrink-0">{rank}</span>
-      <div className="w-10 h-10 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
-        <img
-          src={`https://resources.premierleague.com/premierleague/photos/players/110x140/p${player.code}.png`}
-          alt={player.web_name}
-          className="w-full h-full object-cover object-top transform translate-y-1"
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.style.display = 'none';
-          }}
-        />
-      </div>
+      <PlayerPhoto
+        code={player.code}
+        name={player.web_name}
+        size="md"
+        className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 text-sm"
+      />
       <div className="flex-1 min-w-0">
         <div className="font-medium truncate">{player.web_name}</div>
         <div className="text-sm text-gray-500 flex items-center space-x-1">

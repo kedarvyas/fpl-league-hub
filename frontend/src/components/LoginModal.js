@@ -3,7 +3,7 @@ import { X, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const LoginModal = ({ isOpen, onClose }) => {
-  const { signInWithGoogle, signInWithApple, signUpWithEmail, signInWithEmail } = useAuth();
+  const { signInWithGoogle, signUpWithEmail, signInWithEmail } = useAuth();
   const [activeTab, setActiveTab] = useState('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,14 +19,6 @@ const LoginModal = ({ isOpen, onClose }) => {
     if (error) {
       console.error('Error signing in with Google:', error.message);
       setError('Failed to sign in with Google. Please try again.');
-    }
-  };
-
-  const handleAppleSignIn = async () => {
-    const { error } = await signInWithApple();
-    if (error) {
-      console.error('Error signing in with Apple:', error.message);
-      setError('Failed to sign in with Apple. Please try again.');
     }
   };
 
@@ -183,18 +175,6 @@ const LoginModal = ({ isOpen, onClose }) => {
                 />
               </svg>
               <span className="text-gray-700 font-medium text-sm">Continue with Google</span>
-            </button>
-
-            {/* Apple Sign In */}
-            <button
-              onClick={handleAppleSignIn}
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2.5 px-3 py-2.5 bg-black rounded-lg hover:bg-gray-900 transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-              </svg>
-              <span className="text-white font-medium text-sm">Continue with Apple</span>
             </button>
           </div>
 

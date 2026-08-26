@@ -52,16 +52,6 @@ export const AuthProvider = ({ children }) => {
     return { data, error };
   };
 
-  const signInWithApple = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-      options: {
-        redirectTo: `${getRedirectUrl()}/`
-      }
-    });
-    return { data, error };
-  };
-
   const signUpWithEmail = async (email, password) => {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -102,7 +92,6 @@ export const AuthProvider = ({ children }) => {
     session,
     loading,
     signInWithGoogle,
-    signInWithApple,
     signUpWithEmail,
     signInWithEmail,
     signOut,

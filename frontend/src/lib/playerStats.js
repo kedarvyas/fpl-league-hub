@@ -308,66 +308,107 @@ export const getExpectedStats = (player) => ([
 /* Season stat lines, per position                                     */
 /* ------------------------------------------------------------------ */
 
-export const getSeasonStats = (player) => {
-    const elementType = player?.element_type ?? null;
+/**
+ * Season stats grouped the way a football stats site lays them out — real
+ * match output first, FPL scoring last — rather than one flat grid that mixes
+ * "goals" and "bonus points system" as if they were the same kind of fact.
+ *
+ * Every stat carries both a total and a per-90. The FPL API publishes a
+ * `*_per_90` for some fields; for the rest we derive it from minutes, which is
+ * why `perNinety` guards against a 0-minute divide.
+ *
+ * `neutral: true` marks stats where a higher number isn't better (goals
+ * conceded, cards) so the UI doesn't imply otherwise.
+ */
+export const getStatGroups = (player) => {
+    const type = player?.element_type ?? null;
     const minutes = toNumber(player?.minutes);
-    const starts = toNumber(player?.starts);
+    const isKeeper = type === 1;
+    const isDefender = type === 2;
+    const keepsCleanSheets = type === 1 || type === 2 || type === 3;
 
-    const rows = [
-        { key: 'starts', label: 'Starts', value: formatCount(starts), sub: `${formatCount(minutes)} mins played` },
-        { key: 'goals', label: 'Goals', value: formatCount(player?.goals_scored) },
-        { key: 'assists', label: 'Assists', value: formatCount(player?.assists) },
-        { key: 'bonus', label: 'Bonus', value: formatCount(player?.bonus) },
-        { key: 'bps', label: 'BPS', value: formatCount(player?.bps), sub: 'Bonus points system' }
+    // Recoveries only count toward defensive contribution for MID/FWD.
+    const countsRecoveries = type === 3 || type === 4;
+
+    const stat = (key, label, total, opts = {}) => ({
+        key,
+        label,
+        total,
+        per90: opts.per90 !== undefined ? toNumber(opts.per90) : perNinety(total, minutes),
+        per90able: opts.per90able !== false,
+        neutral: opts.neutral === true,
+        sub: opts.sub,
+    });
+
+    const groups = [];
+
+    const attacking = [
+        stat('goals_scored', 'Goals', toNumber(player?.goals_scored)),
+        stat('assists', 'Assists', toNumber(player?.assists)),
+        stat('goal_involvements', 'Goal involvements',
+             toNumber(player?.goals_scored) + toNumber(player?.assists)),
+        stat('expected_goals', 'Expected goals (xG)', toNumber(player?.expected_goals),
+             { per90: player?.expected_goals_per_90 }),
+        stat('expected_assists', 'Expected assists (xA)', toNumber(player?.expected_assists),
+             { per90: player?.expected_assists_per_90 }),
+        stat('expected_goal_involvements', 'Expected involvements (xGI)',
+             toNumber(player?.expected_goal_involvements),
+             { per90: player?.expected_goal_involvements_per_90 }),
     ];
+    if (!isKeeper) groups.push({ key: 'attacking', label: 'Attacking', stats: attacking });
 
-    if (elementType === 1 || elementType === 2 || elementType === 3) {
-        rows.push({
-            key: 'clean_sheets',
-            label: 'Clean sheets',
-            value: formatCount(player?.clean_sheets)
-        });
+    const defending = [];
+    if (keepsCleanSheets) {
+        defending.push(stat('clean_sheets', 'Clean sheets', toNumber(player?.clean_sheets),
+                            { per90: player?.clean_sheets_per_90 }));
     }
-
-    if (elementType === 1 || elementType === 2) {
-        rows.push({
-            key: 'goals_conceded',
-            label: 'Goals conceded',
-            value: formatCount(player?.goals_conceded),
-            sub: `${formatDecimal(player?.goals_conceded_per_90, 2, '0.00')} per 90`
-        });
+    if (isKeeper) {
+        defending.push(stat('saves', 'Saves', toNumber(player?.saves), { per90: player?.saves_per_90 }));
+        defending.push(stat('penalties_saved', 'Penalties saved', toNumber(player?.penalties_saved)));
+    } else {
+        defending.push(stat('defensive_contribution', 'Defensive contribution',
+                            toNumber(player?.defensive_contribution),
+                            { per90: player?.defensive_contribution_per_90,
+                              sub: `${DEFCON_THRESHOLDS[type] ?? '—'}+ in a match scores ${DEFCON_POINTS} pts` }));
+        defending.push(stat('tackles', 'Tackles', toNumber(player?.tackles)));
+        defending.push(stat('clearances_blocks_interceptions', 'Clearances, blocks, interceptions',
+                            toNumber(player?.clearances_blocks_interceptions)));
+        defending.push(stat('recoveries', 'Recoveries', toNumber(player?.recoveries),
+                            { sub: countsRecoveries ? undefined : 'Not counted for defenders' }));
     }
-
-    if (elementType === 1) {
-        rows.push({
-            key: 'saves',
-            label: 'Saves',
-            value: formatCount(player?.saves),
-            sub: `${formatDecimal(player?.saves_per_90, 2, '0.00')} per 90`
-        });
-        rows.push({ key: 'penalties_saved', label: 'Pens saved', value: formatCount(player?.penalties_saved) });
+    if (isKeeper || isDefender) {
+        defending.push(stat('goals_conceded', 'Goals conceded', toNumber(player?.goals_conceded),
+                            { per90: player?.goals_conceded_per_90, neutral: true }));
+        defending.push(stat('expected_goals_conceded', 'Expected goals conceded (xGC)',
+                            toNumber(player?.expected_goals_conceded),
+                            { per90: player?.expected_goals_conceded_per_90, neutral: true }));
     }
+    if (defending.length) groups.push({ key: 'defending', label: 'Defending', stats: defending });
 
-    if (elementType !== 1) {
-        rows.push({
-            key: 'defensive_contribution',
-            label: 'Def. contribution',
-            value: formatCount(player?.defensive_contribution),
-            sub: `${formatDecimal(player?.defensive_contribution_per_90, 1, '0.0')} per 90`
-        });
-    }
+    groups.push({
+        key: 'discipline',
+        label: 'Discipline',
+        stats: [
+            stat('yellow_cards', 'Yellow cards', toNumber(player?.yellow_cards), { neutral: true }),
+            stat('red_cards', 'Red cards', toNumber(player?.red_cards), { neutral: true }),
+            stat('own_goals', 'Own goals', toNumber(player?.own_goals), { neutral: true }),
+            stat('penalties_missed', 'Penalties missed', toNumber(player?.penalties_missed), { neutral: true }),
+        ],
+    });
 
-    rows.push({ key: 'yellow_cards', label: 'Yellow cards', value: formatCount(player?.yellow_cards) });
-    rows.push({ key: 'red_cards', label: 'Red cards', value: formatCount(player?.red_cards) });
+    groups.push({
+        key: 'fpl',
+        label: 'FPL scoring',
+        stats: [
+            stat('total_points', 'Total points', toNumber(player?.total_points)),
+            stat('bonus', 'Bonus points', toNumber(player?.bonus)),
+            stat('bps', 'Bonus points system', toNumber(player?.bps)),
+            stat('starts', 'Starts', toNumber(player?.starts), { per90able: false }),
+            stat('minutes', 'Minutes played', minutes, { per90able: false }),
+        ],
+    });
 
-    if (toNumber(player?.own_goals) > 0) {
-        rows.push({ key: 'own_goals', label: 'Own goals', value: formatCount(player?.own_goals) });
-    }
-    if (toNumber(player?.penalties_missed) > 0) {
-        rows.push({ key: 'penalties_missed', label: 'Pens missed', value: formatCount(player?.penalties_missed) });
-    }
-
-    return rows;
+    return groups;
 };
 
 /** Sortable numeric accessor for leaderboards. */

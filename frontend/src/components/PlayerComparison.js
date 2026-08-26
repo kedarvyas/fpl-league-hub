@@ -11,6 +11,7 @@ import {
     priceMoveWord,
     ordinal
 } from '../lib/playerStats';
+import PlayerPhoto from './PlayerPhoto';
 
 const ComparisonMetric = ({ label, value1, value2, higherIsBetter = true, neutral = false }) => {
     const getValue = (val) => parseFloat(val) || 0;
@@ -72,13 +73,12 @@ const PlayerComparison = ({ player1, player2, onClose }) => {
                     <div className="grid grid-cols-3 gap-4 text-white mt-3">
                         {/* Player sections */}
                         <div className="text-center">
-                            <div className="w-10 h-10 mx-auto bg-white rounded-full overflow-hidden flex items-center justify-center">
-                                <img
-                                    src={`https://resources.premierleague.com/premierleague/photos/players/110x140/p${player1?.code}.png`}
-                                    alt={player1?.web_name}
-                                    className="w-[150%] h-[150%] object-cover object-top transform -translate-y-[-14px]"
-                                />
-                            </div>
+                            <PlayerPhoto
+                                code={player1?.code}
+                                name={player1?.web_name}
+                                size="md"
+                                className="w-10 h-10 mx-auto rounded-full overflow-hidden text-sm"
+                            />
                             <div className="mt-1 font-medium text-sm truncate px-1">{player1?.web_name}</div>
                             <div className="text-xs opacity-80">{player1?.teamShortName}</div>
                         </div>
@@ -88,13 +88,12 @@ const PlayerComparison = ({ player1, player2, onClose }) => {
                         </div>
 
                         <div className="text-center">
-                            <div className="w-10 h-10 mx-auto bg-white rounded-full overflow-hidden flex items-center justify-center">
-                                <img
-                                    src={`https://resources.premierleague.com/premierleague/photos/players/110x140/p${player2?.code}.png`}
-                                    alt={player2?.web_name}
-                                    className="w-[150%] h-[150%] object-cover object-top transform -translate-y-[-14px]"
-                                />
-                            </div>
+                            <PlayerPhoto
+                                code={player2?.code}
+                                name={player2?.web_name}
+                                size="md"
+                                className="w-10 h-10 mx-auto rounded-full overflow-hidden text-sm"
+                            />
                             <div className="mt-1 font-medium text-sm truncate px-1">{player2?.web_name}</div>
                             <div className="text-xs opacity-80">{player2?.teamShortName}</div>
                         </div>
