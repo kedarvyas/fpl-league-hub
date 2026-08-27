@@ -341,7 +341,7 @@ const WeeklyMatchups = () => {
 
     if (showInput || !LEAGUE_ID) {
         return (
-            <div className="mx-auto max-w-[1280px] font-mono">
+            <div className="mx-auto max-w-[1280px]">
                 <div className="px-4 pt-6 md:px-7">
                     <span className="text-[9px] tracking-[0.16em] text-muted-foreground">H2H LEAGUE</span>
                     <h1 className="mt-2.5 text-[25px] font-bold uppercase leading-[1.05] tracking-[-0.03em] text-foreground md:text-[46px] md:tracking-[-0.045em]">
@@ -384,7 +384,7 @@ const WeeklyMatchups = () => {
     }
 
     return (
-        <div className="mx-auto max-w-[1280px] font-mono">
+        <div className="mx-auto max-w-[1280px]">
             {/* Masthead. Same shape as the player page hero: eyebrow, big title,
                 meta line, and the numbers that frame everything below. */}
             <div className="px-4 pt-4 md:px-7">

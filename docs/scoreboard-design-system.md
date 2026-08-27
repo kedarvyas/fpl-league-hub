@@ -1,6 +1,6 @@
 # Scoreboard — FPL League Hub design system
 
-The player page (`/player/:playerId`) is built on this and is the reference implementation. Most of the app is now on it — see **Rollout status** below for what is left.
+The player page (`/player/:playerId`) is built on this and is the reference implementation. The full app now uses the system — see **Rollout status** below.
 
 Live example: https://tacticosfplhub.netlify.app/player/165
 
@@ -66,7 +66,7 @@ Six: Light, Dark, Sage, Ocean, Midnight, **Turf** (new — grass and floodlight;
 
 7px is the floor, and only for uppercase micro-labels beside a large number — never for anything read as a sentence.
 
-Apply `font-mono` at the page root, not per component.
+`Layout` applies `font-mono` at the app root; do not repeat it per component.
 
 ---
 
@@ -109,12 +109,9 @@ Spacing: section rhythm `pt-[22px] pb-2.5`; page gutter `px-4` mobile, `md:px-7`
 - **The header is `bg-panel` with a `border-b` hairline.** That is the value
   separation from rule 3 applied to chrome — it reads as a distinct surface in
   all six themes without a gradient, and it fixes the merge into the hero band.
-- **The gradient tokens are gone.** `--header-bg-from` / `--header-bg-to` and the
-  `.card-header-gradient` utility were deleted: the two colours were never
-  Tailwind colours, so `from-header-bg-from` in `Home.js` and `Dashboard.js` has
-  never rendered. Those dead class names are still in those two files and go when
-  they convert. `--header-text` / `--header-text-secondary` stay — the
-  `.card-header-text*` utilities do apply, and those two pages still use them.
+- **The gradient tokens are gone.** `--header-bg-from` / `--header-bg-to`, the
+  `.card-header-gradient` utility, and the old header-text utilities were
+  deleted with the final Home conversion.
 - **No icons.** Controls are wide-tracked words in a `gap-px` strip, the
   hamburger is `MENU` / `CLOSE`, and the six theme icons became two-tone swatches
   of each theme's own background and primary. Those swatch colours cannot come
@@ -127,12 +124,10 @@ Spacing: section rhythm `pt-[22px] pb-2.5`; page gutter `px-4` mobile, `md:px-7`
 
 Three things changed underneath while doing it:
 
-1. `Layout` no longer wraps the header in a purple gradient with `shadow-lg`, and
-   it no longer wraps Scoreboard routes in the legacy `max-w-7xl … sm:px-6
-   lg:px-8` container. That container was double-padding the player page, so its
-   content did not line up with the header. `SCOREBOARD_ROUTES` in `Layout.js`
-   lists the converted routes; add to it as pages convert, and delete the branch
-   and the container together when it covers everything.
+1. `Layout` no longer wraps the header in a purple gradient with `shadow-lg`, or
+   page content in the legacy `max-w-7xl … sm:px-6 lg:px-8` container. With the
+   final Home conversion complete, the route branch was deleted and every page
+   now lines up with the header through its own Scoreboard gutters.
 2. `ui/dropdown-menu` is radius 0, `--popover` with a hairline border, no shadow
    or ring, anchored `top-full`, and now closes on outside click and Escape.
    `Dashboard.js` uses it too and picks all of that up.
@@ -140,10 +135,8 @@ Three things changed underneath while doing it:
    class-based and themes switch on `data-theme`, so the error and success blocks
    and the Google button were light-only in all six themes. All on tokens now.
 
-Still on sans: `font-mono` is applied per page root (`PlayerStats`) and per chrome
-surface (the header and the two modals) rather than at the app root, because the
-unconverted pages are designed in sans. Move it to `Layout`'s root div when the
-last page converts.
+`font-mono` now lives on the `Layout` root, so pages and chrome inherit the same
+typographic system.
 
 ---
 
@@ -281,11 +274,11 @@ team's masthead under an error.
 | `PlayerSearchModal`, `PlayerComparison` | Done |
 | `Dashboard` | Done |
 | `MyTeam` + `MyTeamSquad` / `MyTeamSeason` / `MyTeamLeagues` | Done |
-| `Home.js` | **Still the old design** |
+| `Home.js` | Done |
 
-`Home.js` still carries dead `from-header-bg-from` / `to-header-bg-to` class
-names whose tokens were deleted with the header work. They render nothing —
-and they are not the only ones. See **Dead class names** below.
+Home is a state-aware front door: fresh browsers get two compact setup actions,
+while saved manager and league IDs become resume actions with deliberate change
+controls. Dashboard and Player Hub remain available without setup.
 
 MUI is gone from `src/` entirely. The dependency is still in `package.json` and
 can be uninstalled along with `@mui/icons-material`, `@emotion/*`, `react-table`
@@ -301,10 +294,8 @@ and `@headlessui/react`, none of which are imported any more.
   API, whose WAF answers a burst of requests from one origin with a flat `403`.
   It is not a rate-limit status and it looks exactly like an app bug. Any page
   firing several calls on mount needs this.
-- **Page shell** — every converted page is `mx-auto max-w-[1280px] font-mono`,
-  with its route added to `SCOREBOARD_ROUTES` in `Layout.js` so the legacy
-  container stops double-padding it. `Home` is the last route not on the list;
-  when it converts, both the list and the legacy container go away.
+- **Page shell** — every page uses `mx-auto max-w-[1280px]`; `Layout.js` owns
+  `font-mono` and no longer has a route list or legacy container branch.
 - **Desktop steps.** List content needs a `md:` step up. The player hub shipped
   at one size for every width, so player names — the actual content — sat at
   10px on a 1280px desktop. The 7–10px range is for labels beside a large
@@ -347,13 +338,11 @@ What that leaves today:
 | Dead class | Sites | Effect |
 |---|---|---|
 | `bg-success` / `text-success` | `lib/fdr.js` | **Gone.** Every FDR 1–2 drew a bar with a height and no fill, a track with no fill, and a `text-background` numeral on a transparent square — white on white in the light themes. `--success` only ever duplicated `--live`; the bands are `--live` / `--warn` / `--destructive` now. |
-| `bg-primary-darker` | 3 — `Home.js` ×2, `ui/button` | **Gone.** The hover on the primary button never darkened. The variant carries its own colour now and the two `Home.js` overrides were removed. |
+| `bg-primary-darker` | Legacy Home and `ui/button` | **Gone.** The final Home conversion removed both call sites and the dead wrapper. |
 | `text-primary-lighter` | 10 — `Header`, `PlayerStats` ×2, `Dashboard`, `LeagueTable`, `PlayerStatisticsHub`, `MatchupLedger`, `GameweekStats`, `LoginModal`, `MyTeam` | **Still dead, deliberately.** Every action link — COMPARE →, FULL TABLE →, SHOW ALL 22 TEAMS, SHOW / HIDE — falls back to `--foreground`, so the app has no link affordance colour. This is *not* a contrast gap: `--foreground` passes everywhere, which is why the audit is clean. Reviving it is a design decision, and registering `--primary-lighter` as-is would be a regression — on `--panel` it is 2.41:1 in Ocean, 2.93:1 in Sage. It needs a `--primary-ink` at an `-ink` lightness first. |
-| `from-header-bg-from` / `to-header-bg-to` | `Home.js` ×2 | Known. The tokens were deleted with the header work, and go when `Home` converts. |
 
-`--success`, `--success-lighter` and `--destructive-lighter` are now unreferenced
-by any component and can come out of `index.css`, along with the
-`.text-success-color` utility.
+`--success`, `--success-lighter`, `--destructive-lighter` and the
+`.text-success-color` utility were removed after their final call sites went.
 
 ### The -ink family — closed
 

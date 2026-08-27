@@ -233,7 +233,7 @@ const MyTeam = () => {
     if (loading) return <MyTeamSkeleton />;
 
     return (
-        <div className="mx-auto max-w-[1280px] font-mono">
+        <div className="mx-auto max-w-[1280px]">
             <div className="px-4 pt-4 md:px-7">
                 {(showInput || !teamData) && (
                     <TeamIdForm
@@ -440,7 +440,7 @@ const TeamIdForm = ({ value, onChange, onSubmit, onCancel }) => (
 
 /** Skeletons mirror the geometry so nothing reflows when data lands. */
 const MyTeamSkeleton = () => (
-    <div className="mx-auto max-w-[1280px] animate-pulse font-mono">
+    <div className="mx-auto max-w-[1280px] animate-pulse">
         <div className="px-4 pt-4 md:px-7">
             <div className="h-[25px] w-2/3 bg-panel md:h-[46px]" />
             <div className="mt-3 h-[44px] w-[220px] bg-panel" />

@@ -5,12 +5,11 @@ import { toNumber } from './playerStats';
  * at a call site and the bands can move if FPL rescales them.
  *
  * `bg` was `bg-success` for the easy band, and **`success` is not a colour in
- * `tailwind.config.js`** — `--success` exists in `index.css` but was never
- * registered, so `bg-success` and `text-success` emitted no CSS at all. Every
+ * `tailwind.config.js`** — the old `--success` token was never registered, so
+ * `bg-success` and `text-success` emitted no CSS at all. Every
  * FDR 1 and 2 therefore drew a bar with a height and no fill (invisible), a
  * track with no fill, and a badge whose `text-background` numeral sat on a
- * transparent square — white on white in the light themes. The same class of
- * dead class name is why `from-header-bg-from` renders nothing in `Home.js`.
+ * transparent square — white on white in the light themes.
  *
  * The fix is the system's own tokens rather than reviving `--success`, which
  * only ever duplicated `--live`. The doc already assigns `--warn` to FDR 3.

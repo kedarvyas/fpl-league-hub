@@ -120,7 +120,7 @@ const PlayerComparison = ({ player1, player2, onClose }) => {
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 font-mono backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
             onClick={onClose}
         >
             <div

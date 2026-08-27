@@ -72,7 +72,7 @@ const Header = ({ currentTheme, setTheme, setShowInfo }) => {
   };
 
   return (
-    <header className="relative z-50 border-b border-border bg-panel font-mono">
+    <header className="relative z-50 border-b border-border bg-panel">
       {/* Tap outside to dismiss the mobile menu. Rendered before the nav so the
           header controls and the menu panel both stay clickable above it. */}
       {isMenuOpen && (

@@ -283,7 +283,7 @@ const PlayerStatisticsHub = () => {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-[1280px] animate-pulse font-mono">
+      <div className="mx-auto max-w-[1280px] animate-pulse">
         <div className="px-4 pt-4 md:px-7">
           <div className="h-[25px] w-1/2 bg-panel md:h-[46px]" />
           <div className="mt-4 h-[40px] w-full bg-panel" />
@@ -299,7 +299,7 @@ const PlayerStatisticsHub = () => {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-[1280px] font-mono">
+      <div className="mx-auto max-w-[1280px]">
         <div className="px-4 pt-6 md:px-7">
           <SectionHeader label="Players" />
           <div className="border-l-2 border-destructive bg-destructive/10 px-3 py-2.5">
@@ -314,7 +314,7 @@ const PlayerStatisticsHub = () => {
   const activeSort = SORTS.find((s) => s.id === sortId) || SORTS[0];
 
   return (
-    <div className="mx-auto max-w-[1280px] font-mono">
+    <div className="mx-auto max-w-[1280px]">
       {/* Masthead, same shape as the player and H2H pages. */}
       <div className="px-4 pt-4 md:px-7">
         <div className="flex items-center gap-2">

@@ -104,7 +104,7 @@ const LoginModal = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 font-mono backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
       <div className="relative max-h-[95vh] w-full max-w-sm overflow-y-auto border border-border bg-panel">
         <div className="flex items-start justify-between border-b border-border px-4 py-3">
           <div>

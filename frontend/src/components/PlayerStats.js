@@ -131,7 +131,7 @@ const PlayerStats = () => {
     }
 
     return (
-        <div className="mx-auto max-w-[1280px] font-mono">
+        <div className="mx-auto max-w-[1280px]">
             <PlayerHero
                 playerData={playerData}
                 positionCount={posCount}
@@ -226,7 +226,7 @@ const PlayerStats = () => {
  * does not reflow when data lands.
  */
 const PlayerStatsSkeleton = () => (
-    <div className="mx-auto max-w-[1280px] animate-pulse font-mono">
+    <div className="mx-auto max-w-[1280px] animate-pulse">
         <div className="px-4 pt-4 md:px-7">
             <div className="h-[78px] w-[62px] bg-panel" />
             <div className="mt-4 h-[25px] w-2/3 bg-panel" />

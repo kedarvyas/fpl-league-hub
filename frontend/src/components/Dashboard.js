@@ -323,7 +323,7 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-[1280px] animate-pulse font-mono">
+      <div className="mx-auto max-w-[1280px] animate-pulse">
         <div className="px-4 pt-4 md:px-7">
           <div className="h-[25px] w-1/2 bg-panel md:h-[46px]" />
           <div className="mt-4 flex gap-px bg-border">
@@ -339,7 +339,7 @@ const Dashboard = () => {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-[1280px] font-mono">
+      <div className="mx-auto max-w-[1280px]">
         <div className="px-4 pt-6 md:px-7">
           <SectionHeader label="Gameweek" />
           <div className="border-l-2 border-destructive bg-destructive/10 px-3 py-2.5">
@@ -356,7 +356,7 @@ const Dashboard = () => {
     'transition-colors hover:bg-muted disabled:text-muted-foreground/40 disabled:hover:bg-panel';
 
   return (
-    <div className="mx-auto max-w-[1280px] font-mono">
+    <div className="mx-auto max-w-[1280px]">
       <div className="px-4 pt-4 md:px-7">
         <div className="flex items-center gap-2">
           <span className="bg-primary-chip px-1.5 py-1 text-[9px] font-medium leading-none tracking-[0.16em] text-background">

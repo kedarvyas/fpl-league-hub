@@ -1,29 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 import Header from './Header';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-
-/**
- * Routes already rebuilt on the Scoreboard system carry their own gutters and
- * vertical rhythm (max-w-[1280px], px-4 / md:px-7) — wrapping them in the
- * legacy container double-padded them, so their content no longer lined up with
- * the header's wordmark. The legacy container stays for everything else; when
- * this list covers every route, both it and this branch go away.
- */
-const SCOREBOARD_ROUTES = [
-  '/player/',
-  '/weekly-matchups',
-  '/player-statistics',
-  '/dashboard',
-  '/my-team',
-];
 
 const Layout = ({ children }) => {
   const [showInfo, setShowInfo] = useState(false);
   const [currentTheme, setTheme] = useLocalStorage('theme', 'light');
-  const { pathname } = useLocation();
-
-  const onScoreboard = SCOREBOARD_ROUTES.some((route) => pathname.startsWith(route));
 
   useEffect(() => {
     // Update the data-theme attribute
@@ -32,7 +13,7 @@ const Layout = ({ children }) => {
 
   const AboutModal = () => (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 font-mono backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
       onClick={() => setShowInfo(false)}
     >
       <div
@@ -91,16 +72,10 @@ const Layout = ({ children }) => {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background font-mono text-foreground">
       <Header currentTheme={currentTheme} setTheme={setTheme} setShowInfo={setShowInfo} />
 
-      <main className="transition-colors duration-300">
-        {onScoreboard ? (
-          children
-        ) : (
-          <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">{children}</div>
-        )}
-      </main>
+      <main className="transition-colors duration-300">{children}</main>
 
       {showInfo && <AboutModal />}
     </div>
