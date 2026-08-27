@@ -7,8 +7,15 @@ const Layout = ({ children }) => {
   const [currentTheme, setTheme] = useLocalStorage('theme', 'turf');
 
   useEffect(() => {
-    // Update the data-theme attribute
+    // Keep both the document and Safari's browser chrome in the active theme.
+    // Without a themed document background, the area behind the mobile bottom
+    // bar falls back to white once the React content ends.
     document.documentElement.setAttribute('data-theme', currentTheme);
+    const themeColor = getComputedStyle(document.documentElement)
+      .getPropertyValue('--background')
+      .trim();
+    document.querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', `hsl(${themeColor})`);
   }, [currentTheme]);
 
   const AboutModal = () => (
@@ -72,7 +79,7 @@ const Layout = ({ children }) => {
   );
 
   return (
-    <div className="min-h-screen bg-background font-mono text-foreground">
+    <div className="min-h-screen min-h-[100dvh] bg-background font-mono text-foreground">
       <Header currentTheme={currentTheme} setTheme={setTheme} setShowInfo={setShowInfo} />
 
       <main className="transition-colors duration-300">{children}</main>

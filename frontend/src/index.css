@@ -208,6 +208,19 @@
     --destructive-ink: 8 80% 62%;   /* 4.72:1 as text */
   }
 
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    background-color: hsl(var(--background));
+  }
+
+  body,
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
 }
 
 @layer utilities {
