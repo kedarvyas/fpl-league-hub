@@ -28,8 +28,24 @@ const CHIP_NAMES = {
 
 export const chipName = (chip) => (chip ? CHIP_NAMES[chip] || chip.toUpperCase() : null);
 
-/** Picks arrive already multiplied by captaincy, and benched picks are 0. */
-const startersOf = (team) => (team?.picks || []).filter((p) => p.isStarting);
+/**
+ * The starting eleven is the first eleven squad slots — never `multiplier > 0`.
+ *
+ * Under Bench Boost the bench genuinely scores, so the API returns all fifteen
+ * picks with a multiplier of at least 1 (verified: entry 3023953, GW1,
+ * `active_chip: "bboost"`). Filtering on the multiplier builds a fifteen-man
+ * XI for that side, and the differential columns stop reconciling to the
+ * scoreline. The squad slot is the one rule that holds for every chip.
+ *
+ * The slot is `squadPosition`: the matchup function overwrites `position` with
+ * the player's GKP/DEF/MID/FWD label, which is what the rows render. Payloads
+ * cached before that field existed fall back to the pick's index, since the
+ * API returns picks in slot order.
+ */
+const STARTING_XI = 11;
+
+const startersOf = (team) =>
+    (team?.picks || []).filter((p, i) => toNumber(p?.squadPosition, i + 1) <= STARTING_XI);
 
 const byPointsDesc = (a, b) => toNumber(b.points) - toNumber(a.points);
 

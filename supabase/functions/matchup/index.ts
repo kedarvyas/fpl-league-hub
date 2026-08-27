@@ -79,7 +79,11 @@ Deno.serve(async (req) => {
           })
         })
 
-        // Enrich picks with player information and calculate actual points
+        // Enrich picks with player information and calculate actual points.
+        //
+        // Note `position` below is deliberately the player's GKP/DEF/MID/FWD
+        // label, not the pick's slot — the slot is preserved as
+        // `squadPosition` because it is the only reliable starter test.
         const enrichPicks = (picks: any[]) => picks.map((pick: any) => {
           const playerInfo = playerMap.get(pick.element)
 
@@ -95,7 +99,12 @@ Deno.serve(async (req) => {
             points: actualPoints,
             isCaptain: pick.is_captain,
             isViceCaptain: pick.is_vice_captain,
-            isStarting: pick.multiplier > 0,
+            // Slots 1-11 are the XI, 12-15 the bench. NOT `multiplier > 0`:
+            // under Bench Boost the bench genuinely scores, so all fifteen
+            // picks come back with a multiplier of 1 and every bench player
+            // would be counted as a starter.
+            squadPosition: pick.position,
+            isStarting: pick.position <= 11,
             multiplier: pick.multiplier
           }
         })
