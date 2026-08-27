@@ -147,7 +147,7 @@ const PlayerStats = () => {
                             value={t.id}
                             className={`flex-1 py-[11px] text-center text-[9.5px] font-medium leading-none tracking-[0.14em] transition-colors ${
                                 activeTab === t.id
-                                    ? 'border-b-2 border-live text-live'
+                                    ? 'border-b-2 border-live text-live-ink'
                                     : 'border-b-2 border-transparent text-muted-foreground'
                             }`}
                         >

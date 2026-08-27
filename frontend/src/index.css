@@ -9,7 +9,7 @@
     --background: 0 0% 100%;
     --foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted-foreground: 215.4 16.3% 45%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 47.4% 11.2%;
     --border: 214.3 31.8% 91.4%;
@@ -29,7 +29,9 @@
     /* Scoreboard tokens. --panel is required because Dark and Midnight set
        --card equal to --background, leaving a tile grid with no fill to sit on.
        --live is only ever a fill behind --background-coloured text, never text
-       on a background — that is what keeps it legible in Sage and Ocean. */
+       on a background. Even as a fill it measures 3.2-3.8:1 in Light, Ocean and
+       Sage, which carries a large bold value but not a 7px label — see the
+       token gaps in docs/scoreboard-design-system.md. */
     --panel: 210 40% 96%;
     --live: 84 62% 38%;
     --warn: 38 92% 42%;
@@ -40,6 +42,23 @@
     --accent: var(--primary);
     --accent-foreground: var(--background);
     --accent-chip: 265 85% 53%;   /* 4.69:1 on accent/15 */
+    /* --primary is not guaranteed to contrast with --background, so the chip
+       fill gets its own per-theme lightness. Light already clears it. */
+    --primary-chip: var(--primary);
+    /* The -ink family. Every saturated semantic colour here is tuned to be a
+       FILL, and a fill's lightness is the wrong lightness for text: at 7-9px
+       on --panel, --live measured 2.94:1, --warn 2.74:1 and --destructive
+       3.32:1 in this theme. Each -ink is the same hue and saturation at the
+       lightness that clears 4.5:1, and equals its base token in the themes
+       where the base already passes. Use the base for fills, -ink for text.
+
+       --live carrying text, in either direction: as a text colour on --panel
+       or --background, and as a fill under --background-coloured text. Both
+       want the same darker green, so one token serves both. --live itself
+       stays bright for fills that carry no text (chart bars, tracks, pips). */
+    --live-ink: 84 62% 29%;       /* 4.71:1 as text, 5.17:1 as a fill */
+    --warn-ink: 38 92% 31%;       /* 4.71:1 as text */
+    --destructive-ink: 0 84% 45%; /* 4.83:1 as text, incl. on destructive/10 */
   }
 
   [data-theme="dark"] {
@@ -70,13 +89,17 @@
     --accent: var(--primary);
     --accent-foreground: var(--background);
     --accent-chip: 265 85% 73%;   /* 4.69:1 on accent/15 */
+    --primary-chip: 265 85% 67%;  /* 4.74:1 under --background text */
+    --live-ink: var(--live);      /* 9.09:1 as text, 10.35:1 as a fill */
+    --warn-ink: var(--warn);      /* 7.91:1 as text */
+    --destructive-ink: 0 84% 65%; /* 4.75:1 as text */
   }
 
   [data-theme="sage"] {
     --background: 150 20% 96%;
     --foreground: 150 40% 20%;
     --muted: 150 15% 90%;
-    --muted-foreground: 150 40% 40%;
+    --muted-foreground: 150 40% 32%;
     --popover: 150 20% 96%;
     --popover-foreground: 150 40% 20%;
     --border: 150 15% 90%;
@@ -97,7 +120,11 @@
        would otherwise be indistinguishable. */
     --accent: var(--primary);
     --accent-foreground: var(--background);
-    --accent-chip: 150 40% 32%;   /* 4.81:1 on accent/15 */
+    --accent-chip: 150 40% 31%;   /* 4.72:1 on accent/15, over panel or background */
+    --primary-chip: 150 40% 34%;  /* 4.72:1 under --background text */
+    --live-ink: 150 45% 34%;      /* 4.59:1 as text and as a fill */
+    --warn-ink: 38 80% 32%;       /* 4.70:1 as text */
+    --destructive-ink: 0 84% 43%; /* 4.79:1 as text */
   }
 
   [data-theme="ocean"] {
@@ -125,7 +152,11 @@
        would otherwise be indistinguishable. */
     --accent: var(--primary);
     --accent-foreground: var(--background);
-    --accent-chip: 200 80% 35%;   /* 4.62:1 on accent/15 */
+    --accent-chip: 200 80% 34%;   /* 4.70:1 on accent/15, over panel or background */
+    --primary-chip: 200 80% 37%;  /* 4.71:1 under --background text */
+    --live-ink: 160 60% 31%;      /* 4.75:1 as text and as a fill */
+    --warn-ink: 38 88% 32%;       /* 4.74:1 as text */
+    --destructive-ink: 0 84% 44%; /* 4.76:1 as text */
   }
 
   [data-theme="midnight"] {
@@ -155,6 +186,10 @@
     --accent: var(--primary);
     --accent-foreground: var(--background);
     --accent-chip: 230 60% 67%;   /* 4.70:1 on accent/15 */
+    --primary-chip: 230 60% 62%;  /* 4.76:1 under --background text */
+    --live-ink: var(--live);      /* 9.85:1 as text, 11.18:1 as a fill */
+    --warn-ink: var(--warn);      /* 8.94:1 as text */
+    --destructive-ink: 0 84% 62%; /* 4.78:1 as text */
   }
 
   [data-theme="turf"] {
@@ -184,6 +219,10 @@
     --header-text: 90 12% 94%;
     --header-text-secondary: 84 66% 62%;
     --accent-chip: 40 90% 58%;   /* 6.04:1 on accent/15 */
+    --primary-chip: var(--primary); /* 10.02:1 — Turf's lime already clears it */
+    --live-ink: var(--live);        /* 8.58:1 as text, 10.02:1 as a fill */
+    --warn-ink: var(--warn);        /* 8.26:1 as text */
+    --destructive-ink: 8 80% 62%;   /* 4.72:1 as text */
   }
 
 }

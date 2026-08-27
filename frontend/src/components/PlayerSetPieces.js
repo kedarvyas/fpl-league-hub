@@ -32,7 +32,7 @@ const PlayerSetPieces = ({ playerData }) => {
                             </div>
                         )}
                     </div>
-                    <span className="shrink-0 bg-primary/15 px-1.5 py-1 text-[11px] font-bold text-primary">
+                    <span className="shrink-0 bg-accent/15 px-1.5 py-1 text-[11px] font-bold text-accent-chip">
                         #{d.value}
                     </span>
                 </div>

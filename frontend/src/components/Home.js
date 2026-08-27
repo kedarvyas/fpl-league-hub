@@ -4,9 +4,12 @@ import { Search, Users, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useMyEntry } from '../hooks/useMyEntry';
 
 const Home = () => {
-  const [savedTeamId] = useLocalStorage('fpl_team_id', '');
+  // Typing your own id here is a deliberate act, so it sets identity — unlike
+  // clicking a manager's name elsewhere, which only navigates.
+  const [savedTeamId, setSavedTeamId] = useMyEntry();
   const [savedLeagueId] = useLocalStorage('fpl_league_id', '');
   const [teamId, setTeamId] = useState('');
   const [leagueId, setLeagueId] = useState('');
@@ -25,6 +28,7 @@ const Home = () => {
   const handleTeamSubmit = (e) => {
     e.preventDefault();
     if (teamId.trim()) {
+      setSavedTeamId(teamId.trim());
       // Navigate to My Team page with team ID as state
       navigate('/my-team', { state: { teamId: teamId.trim() } });
     }
@@ -85,7 +89,7 @@ const Home = () => {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full min-h-[48px] bg-primary hover:bg-primary-darker text-primary-foreground flex items-center justify-center"
+                  className="w-full min-h-[48px] flex items-center justify-center"
                   disabled={!teamId.trim()}
                 >
                   View My Team
@@ -126,7 +130,7 @@ const Home = () => {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full min-h-[48px] bg-primary hover:bg-primary-darker text-primary-foreground flex items-center justify-center"
+                  className="w-full min-h-[48px] flex items-center justify-center"
                   disabled={!leagueId.trim()}
                 >
                   View League Dashboard

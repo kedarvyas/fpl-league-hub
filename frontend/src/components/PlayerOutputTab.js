@@ -93,7 +93,7 @@ const PlayerOutputTab = ({ playerData, elements, history, teams }) => {
 
             <SectionHeader label="Defensive contribution">
                 {!isKeeper && (
-                    <span className="bg-primary/15 px-1 py-[3px] text-[8px] tracking-[0.1em] text-primary">
+                    <span className="bg-accent/15 px-1 py-[3px] text-[8px] tracking-[0.1em] text-accent-chip">
                         +2 PTS AT {DEFCON_THRESHOLDS[playerData.element_type]}
                     </span>
                 )}

@@ -42,7 +42,7 @@ const PlayerMatchLog = ({ history, teams }) => {
                         <div key={g.round} className="flex items-center gap-2 bg-panel px-2 py-2.5 text-[11px] font-medium">
                             <span className="flex-[2.4] whitespace-nowrap text-foreground">
                                 {opponentName(g.opponent_team)} {home ? '(H)' : '(A)'}{' '}
-                                <span className={result === 'W' ? 'text-live' : 'text-muted-foreground'}>
+                                <span className={result === 'W' ? 'text-live-ink' : 'text-muted-foreground'}>
                                     {mine}–{theirs} {result}
                                 </span>
                             </span>
@@ -52,7 +52,7 @@ const PlayerMatchLog = ({ history, teams }) => {
                             <span className="hidden flex-1 text-right text-muted-foreground min-[360px]:block">
                                 {formatCount(g.bps)}
                             </span>
-                            <span className="flex-1 text-right font-bold text-live">{formatCount(g.total_points)}</span>
+                            <span className="flex-1 text-right font-bold text-live-ink">{formatCount(g.total_points)}</span>
                         </div>
                     );
                 })}

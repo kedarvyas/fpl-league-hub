@@ -2,7 +2,11 @@ import * as React from "react"
 import { cn } from "../../../lib/utils";
 
 const buttonVariants = {
-  default: "bg-primary text-primary-foreground hover:bg-primary-darker",
+  // --primary-chip, not --primary: white on --primary is 2.86:1 in Ocean and
+  // 3.95:1 in Sage. --primary-chip is the same hue at the lightness that
+  // carries --background text at 4.5:1 in every theme. `bg-primary-darker`
+  // was never a registered Tailwind colour, so the hover did nothing.
+  default: "bg-primary-chip text-background hover:opacity-90",
   secondary: "bg-muted text-muted-foreground hover:bg-muted/80",
   outline: "border border-border bg-transparent hover:bg-muted text-foreground",
   ghost: "hover:bg-muted text-foreground",

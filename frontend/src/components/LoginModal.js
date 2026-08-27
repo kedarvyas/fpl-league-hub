@@ -147,7 +147,7 @@ const LoginModal = ({ isOpen, onClose }) => {
         <div className="px-4 pb-5 pt-4">
           {error && (
             <div className="mb-3 border-l-2 border-destructive bg-destructive/10 px-3 py-2.5">
-              <p className="text-[10px] leading-[1.5] text-destructive">{error}</p>
+              <p className="text-[10px] leading-[1.5] text-destructive-ink">{error}</p>
             </div>
           )}
           {message && (

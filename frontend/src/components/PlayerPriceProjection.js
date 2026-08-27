@@ -25,7 +25,7 @@ const PlayerPriceProjection = ({ playerData }) => {
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <span className={`text-[26px] font-bold leading-none tracking-[-0.04em] ${
-                        rising ? 'text-live' : 'text-destructive'
+                        rising ? 'text-live-ink' : 'text-destructive-ink'
                     }`}>
                         {formatDecimal(Math.abs(percent), 1, '0.0')}%
                     </span>
@@ -34,9 +34,9 @@ const PlayerPriceProjection = ({ playerData }) => {
                     </div>
                 </div>
                 <div className="text-right text-[8.5px] leading-[1.6] tracking-[0.06em]">
-                    <span className="text-live">+{formatCount(playerData.transfers_in_event)}</span>
+                    <span className="text-live-ink">+{formatCount(playerData.transfers_in_event)}</span>
                     <br />
-                    <span className="text-destructive">−{formatCount(playerData.transfers_out_event)}</span>
+                    <span className="text-destructive-ink">−{formatCount(playerData.transfers_out_event)}</span>
                 </div>
             </div>
 

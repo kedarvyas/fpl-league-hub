@@ -41,7 +41,7 @@ const PlayerScoringTab = ({ playerData, elements, history, live, currentEvent })
                             {formatCount(ledger.total)}
                         </span>
                         {!ledger.reconciled && (
-                            <span className="text-[7.5px] leading-[1.4] tracking-[0.08em] text-warn">
+                            <span className="text-[7.5px] leading-[1.4] tracking-[0.08em] text-warn-ink">
                                 PARTIALLY ITEMISED
                             </span>
                         )}
@@ -82,7 +82,7 @@ const PlayerScoringTab = ({ playerData, elements, history, live, currentEvent })
                         ))}
                         <div className="flex items-center justify-between py-2.5">
                             <span className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Total</span>
-                            <span className="text-[17px] font-bold text-live">{formatCount(ledger.total)}</span>
+                            <span className="text-[17px] font-bold text-live-ink">{formatCount(ledger.total)}</span>
                         </div>
                     </dl>
                 </div>

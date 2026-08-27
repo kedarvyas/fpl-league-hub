@@ -65,7 +65,7 @@ const PlayerExpectedStats = ({ playerData }) => {
                                 </div>
                             </div>
                             <div className="text-right">
-                                <div className={`text-[13px] font-bold ${over ? 'text-live' : 'text-destructive'}`}>
+                                <div className={`text-[13px] font-bold ${over ? 'text-live-ink' : 'text-destructive-ink'}`}>
                                     {over ? '+' : '−'}{formatDecimal(Math.abs(delta), 2, '0.00')}
                                 </div>
                                 <div className="text-[7.5px] tracking-[0.12em] text-muted-foreground">

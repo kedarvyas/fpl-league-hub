@@ -108,7 +108,7 @@ const PlayerSearchModal = ({ onSelect, onClose, excludePlayerId }) => {
                 <div className="min-h-0 flex-1 overflow-y-auto">
                     {error ? (
                         <div className="border-l-2 border-destructive bg-destructive/10 px-4 py-3">
-                            <p className="text-[9px] leading-[1.5] text-destructive">{error}</p>
+                            <p className="text-[9px] leading-[1.5] text-destructive-ink">{error}</p>
                         </div>
                     ) : results.length > 0 ? (
                         <div className="flex flex-col gap-px bg-border">

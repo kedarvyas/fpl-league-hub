@@ -11,6 +11,7 @@ import {
     DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useMyEntry } from '../hooks/useMyEntry';
 import { API_URL, apiHeaders } from '../config/supabase';
 import { formatCount, toNumber } from '../lib/playerStats';
 import { homeShare, summariseGameweek } from '../lib/h2h';
@@ -128,7 +129,7 @@ const FixtureRow = ({ matchup, isExpanded, onToggle, eventId, leagueId, myEntry 
                     )}
                     {error && (
                         <div className="my-3 border-l-2 border-destructive bg-destructive/10 px-3 py-2.5">
-                            <p className="text-[9px] leading-[1.5] text-destructive">{error}</p>
+                            <p className="text-[9px] leading-[1.5] text-destructive-ink">{error}</p>
                         </div>
                     )}
                     {!loading && !error && detail && <MatchupLedger matchData={detail} />}
@@ -199,8 +200,8 @@ const GameweekStepper = ({ events, selected, onSelect }) => {
 
 /** One of the three league-wide numbers under the masthead. */
 const SummaryCell = ({ label, value, solid }) => (
-    <div className={`flex-1 px-2.5 py-[9px] ${solid ? 'bg-live text-background' : 'bg-panel'}`}>
-        <div className={`text-[7.5px] tracking-[0.16em] ${solid ? 'opacity-75' : 'text-muted-foreground'}`}>
+    <div className={`flex-1 px-2.5 py-[9px] ${solid ? 'bg-live-ink text-background' : 'bg-panel'}`}>
+        <div className={`text-[7.5px] tracking-[0.16em] ${solid ? '' : 'text-muted-foreground'}`}>
             {label}
         </div>
         <div
@@ -220,7 +221,7 @@ const WeeklyMatchups = () => {
     const [savedLeagueId, setSavedLeagueId] = useLocalStorage('fpl_league_id', '');
     // Read-only: whoever the reader last identified as themselves. Enough to
     // lift their own fixture out of the pile without adding another control.
-    const [myEntry] = useLocalStorage('fpl_team_id', '');
+    const [myEntry] = useMyEntry();
 
     const LEAGUE_ID = urlLeagueId || savedLeagueId || null;
 
@@ -390,7 +391,7 @@ const WeeklyMatchups = () => {
                 <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                            <span className="bg-primary px-1.5 py-1 text-[9px] font-medium leading-none tracking-[0.16em] text-background">
+                            <span className="bg-primary-chip px-1.5 py-1 text-[9px] font-medium leading-none tracking-[0.16em] text-background">
                                 H2H
                             </span>
                             <span className="text-[9px] tracking-[0.16em] text-muted-foreground">
@@ -429,7 +430,7 @@ const WeeklyMatchups = () => {
                         <>
                             <SectionHeader label="Fixtures" />
                             <div className="border-l-2 border-destructive bg-destructive/10 px-3 py-2.5">
-                                <p className="text-[9px] leading-[1.5] text-destructive">{error}</p>
+                                <p className="text-[9px] leading-[1.5] text-destructive-ink">{error}</p>
                             </div>
                         </>
                     ) : loading ? (

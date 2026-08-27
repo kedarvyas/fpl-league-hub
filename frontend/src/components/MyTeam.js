@@ -1,589 +1,468 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { User, TrendingUp, TrendingDown, Target } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge";
-import { useLocalStorage } from '../hooks/useLocalStorage';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
-} from 'recharts';
-import { API_URL, SUPABASE_ANON_KEY, SUPABASE_URL } from '../config/supabase';
+import MyTeamSquad from './MyTeamSquad';
+import MyTeamSeason from './MyTeamSeason';
+import MyTeamLeagues from './MyTeamLeagues';
+import { useMyEntry } from '../hooks/useMyEntry';
+import { API_URL, fetchWithRetry } from '../config/supabase';
+import { buildSquad, groupLeagues } from '../lib/myTeam';
+import { formatCount, toNumber } from '../lib/playerStats';
 
+/**
+ * The manager page, on the Scoreboard system.
+ *
+ * The old page was half a season-stats dashboard and half an empty tab reading
+ * "coming soon". Given a job — *this manager's season* — it falls into three
+ * questions, which are the three tabs: what did I pick, how has the season
+ * gone, and where does that leave me. SQUAD leads, because a page called My
+ * Team should open on the team.
+ *
+ * Three things changed underneath the restyle:
+ *
+ * 1. **The squad exists.** See MyTeamSquad — the `entry-picks` function has
+ *    always been there.
+ * 2. **Identity is its own key.** This page used to write `fpl_team_id` from
+ *    `location.state.teamId`, and every manager name on the H2H and Dashboard
+ *    pages navigates here with exactly that. See hooks/useMyEntry.
+ * 3. **The team can be changed.** `setShowInput(false)` ran on a successful
+ *    load and nothing set it back except the error path, so switching teams
+ *    meant failing a request first.
+ *
+ * `wildcards_played` also went. The page rendered a "Wildcard chip in play"
+ * badge gated on it and the `team-data` function has never set the field, so
+ * the badge could not appear. The chip actually played comes from the picks
+ * and is shown on the squad.
+ */
 
-const CustomTooltip = ({ active, payload, label }) => {
-  if (!active || !payload || !payload.length) return null;
+const TABS = [
+    { id: 'squad', label: 'SQUAD' },
+    { id: 'season', label: 'SEASON' },
+    { id: 'leagues', label: 'LEAGUES' },
+];
 
-  return (
-    <div className="bg-card p-4 rounded-lg shadow-lg border border-border">
-      <p className="font-semibold text-foreground mb-2">GW{label}</p>
-      <div className="flex items-center space-x-2">
-        <div className="w-3 h-3 rounded-full bg-primary" />
-        <span className="text-muted-foreground">Rank:</span>
-        <span className="font-medium text-foreground">
-          #{payload[0]?.value?.toLocaleString()}
-        </span>
-      </div>
+/**
+ * One of the three headline numbers under the masthead. Same object as the
+ * Dashboard and H2H summary strips, on `--live-ink` — the lightness of `--live`
+ * that carries `--background` text at 4.5:1 in every theme. Plain `--live` is
+ * 3.23:1 in Light, which is fine for the 22px value and not for the labels.
+ */
+const SummaryCell = ({ label, value, note, solid }) => (
+    <div className={`min-w-0 flex-1 px-2.5 py-[9px] ${solid ? 'bg-live-ink text-background' : 'bg-panel'}`}>
+        <div
+            className={`truncate text-[7.5px] tracking-[0.16em] ${
+                solid ? '' : 'text-muted-foreground'
+            }`}
+        >
+            {label}
+        </div>
+        <div
+            className={`mt-1.5 text-[22px] font-bold leading-[0.9] tracking-[-0.04em] md:text-[26px] ${
+                solid ? '' : value === null ? 'text-muted-foreground' : 'text-foreground'
+            }`}
+        >
+            {value === null ? '—' : formatCount(value)}
+        </div>
+        {/* Always rendered. The rank cell had no badge at all in GW1, because
+            `rank_change` is only computed once a previous gameweek exists — so
+            the cell was a correct value above an empty space. */}
+        <div
+            className={`mt-1.5 truncate text-[7px] leading-none tracking-[0.1em] ${
+                solid ? '' : 'text-muted-foreground'
+            }`}
+        >
+            {note || ' '}
+        </div>
     </div>
-  );
-};
+);
+
+const controlClass =
+    'flex min-h-[44px] items-center bg-panel px-3 text-[8.5px] font-medium tracking-[0.14em] transition-colors';
 
 const MyTeam = () => {
-  const location = useLocation();
+    const location = useLocation();
+    const [myEntry, setMyEntry] = useMyEntry();
 
-  // Use localStorage to persist team ID
-  const [savedTeamId, setSavedTeamId] = useLocalStorage('fpl_team_id', '');
+    // The team being *viewed*. Browsing never writes this to storage.
+    const [teamId, setTeamId] = useState(() => {
+        const incoming = location.state?.teamId;
+        return incoming ? String(incoming) : String(myEntry || '');
+    });
+    const [draftId, setDraftId] = useState('');
+    const [showInput, setShowInput] = useState(() => !(location.state?.teamId || myEntry));
+    const [tab, setTab] = useState('squad');
 
-  const [teamData, setTeamData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [teamId, setTeamId] = useState('');
-  const [activeTab, setActiveTab] = useState('Live');
-  const [showInput, setShowInput] = useState(!savedTeamId);
-  const [seasonHistory, setSeasonHistory] = useState(null);
-  const [previousSeasons, setPreviousSeasons] = useState(null);
+    const [teamData, setTeamData] = useState(null);
+    const [bootstrap, setBootstrap] = useState(null);
+    const [picks, setPicks] = useState(null);
+    const [history, setHistory] = useState(null);
+    const [previousSeasons, setPreviousSeasons] = useState(null);
 
-  // Load saved team ID on mount
-  useEffect(() => {
-    if (savedTeamId && !location.state?.teamId) {
-      setTeamId(savedTeamId);
-      setShowInput(false);
-      fetchTeamData(savedTeamId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const [loading, setLoading] = useState(!!teamId);
+    const [detailLoading, setDetailLoading] = useState(!!teamId);
+    const [error, setError] = useState(null);
 
-  // Check if team ID was passed from Home page or another component
-  useEffect(() => {
-    if (location.state?.teamId) {
-      const newTeamId = location.state.teamId;
-      setTeamId(newTeamId);
-      setSavedTeamId(newTeamId); // Save to localStorage
-      setShowInput(false);
-      fetchTeamData(newTeamId);
-      // Clear the location state to prevent re-triggering
-      window.history.replaceState({}, document.title);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.state?.teamId]);
+    // Set by the form, consumed by the loader once the id proves real.
+    const claimOnLoad = useRef(false);
 
-  const fetchTeamData = async (id) => {
-    try {
-      setLoading(true);
-      setError(null);
+    // Arriving from a manager name on the H2H or Dashboard pages.
+    const incomingId = location.state?.teamId;
+    useEffect(() => {
+        if (!incomingId) return;
+        setTeamId((current) => (String(incomingId) === current ? current : String(incomingId)));
+        setShowInput(false);
+    }, [incomingId]);
 
-      const headers = {
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json'
-      };
+    useEffect(() => {
+        if (!teamId) return undefined;
+        let cancelled = false;
 
-      // Fetch team data from Supabase Edge Function
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/team-data?teamId=${id}`, { headers });
-      if (!response.ok) {
-        throw new Error('Failed to fetch team data');
-      }
-      const data = await response.json();
-      setTeamData(data);
+        const load = async () => {
+            setLoading(true);
+            setDetailLoading(true);
+            setError(null);
+            setPicks(null);
+            setHistory(null);
+            setPreviousSeasons(null);
 
-      // Fetch season history data from Supabase Edge Function
-      const historyResponse = await fetch(`${SUPABASE_URL}/functions/v1/team-history?teamId=${id}`, { headers });
-      if (historyResponse.ok) {
-        const historyData = await historyResponse.json();
-        setSeasonHistory(historyData);
-      }
+            try {
+                // Two waves rather than five parallel calls: the Edge Functions
+                // proxy the FPL API, whose WAF answers a burst from one origin
+                // with a flat 403 that looks exactly like an app bug.
+                const [entryRes, bootstrapRes] = await Promise.all([
+                    fetchWithRetry(`${API_URL}/team-data?teamId=${teamId}`),
+                    fetchWithRetry(`${API_URL}/bootstrap-static`),
+                ]);
+                if (!entryRes.ok) throw new Error(`HTTP ${entryRes.status}`);
 
-      // Fetch previous seasons data from Supabase Edge Function
-      const previousSeasonsResponse = await fetch(`${SUPABASE_URL}/functions/v1/team-previous-seasons?teamId=${id}`, { headers });
-      if (previousSeasonsResponse.ok) {
-        const previousSeasonsData = await previousSeasonsResponse.json();
-        setPreviousSeasons(previousSeasonsData);
-      }
+                const entry = await entryRes.json();
+                const bootstrapData = bootstrapRes.ok ? await bootstrapRes.json() : null;
+                if (cancelled) return;
 
-      setShowInput(false); // Hide input after successful load
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+                setTeamData(entry);
+                setBootstrap(bootstrapData);
+                setShowInput(false);
+                setLoading(false);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (teamId.trim()) {
-      setSavedTeamId(teamId.trim()); // Save to localStorage
-      fetchTeamData(teamId.trim());
-    }
-  };
+                // Identity is claimed only once the id turns out to be real,
+                // so a typo does not become "my team".
+                if (claimOnLoad.current) {
+                    claimOnLoad.current = false;
+                    setMyEntry(String(teamId));
+                }
 
-  const formatRankChange = (change) => {
-    if (change === undefined || change === null) return null;
-    const isPositive = change > 0; // Positive means rank improved (rank number decreased)
-    return (
-      <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded text-white font-medium ${
-        isPositive ? 'bg-green-600' : 'bg-red-600'
-      }`}>
-        {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-        <span>
-          {isPositive ? '+' : ''}{change.toLocaleString()}
-        </span>
-      </div>
+                const event =
+                    toNumber(entry.current_event, null) ??
+                    bootstrapData?.events?.find((e) => e.is_current)?.id ??
+                    null;
+
+                const [picksRes, historyRes, seasonsRes] = await Promise.all([
+                    event
+                        ? fetchWithRetry(`${API_URL}/entry-picks/entry/${teamId}/event/${event}/picks`)
+                        : Promise.resolve(null),
+                    fetchWithRetry(`${API_URL}/team-history?teamId=${teamId}`),
+                    fetchWithRetry(`${API_URL}/team-previous-seasons?teamId=${teamId}`),
+                ]);
+                if (cancelled) return;
+
+                // Each of these degrades to an empty state on its own tab
+                // rather than failing the page.
+                if (picksRes?.ok) setPicks(await picksRes.json());
+                if (historyRes.ok) setHistory(await historyRes.json());
+                if (seasonsRes.ok) setPreviousSeasons(await seasonsRes.json());
+            } catch (err) {
+                if (cancelled) return;
+                console.error('Error loading manager entry:', err);
+                // A wrong id and a refused request are indistinguishable here:
+                // the `team-data` function turns an upstream 404 into a 500.
+                // Either way the answer is the same, so the message says what
+                // the reader can do rather than quoting a status code.
+                setError(`Could not load team ${teamId}`);
+                claimOnLoad.current = false;
+                // Clear rather than strand the reader on the previous team's
+                // masthead with an error floating above it.
+                setTeamData(null);
+                setBootstrap(null);
+                setLoading(false);
+                setShowInput(true);
+            } finally {
+                if (!cancelled) setDetailLoading(false);
+            }
+        };
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+        // setMyEntry is a fresh closure each render and would restart the load.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [teamId]);
+
+    const squad = useMemo(() => buildSquad(picks, bootstrap), [picks, bootstrap]);
+    const leagues = useMemo(() => groupLeagues(teamData?.leagues), [teamData]);
+
+    const submit = useCallback(
+        (e) => {
+            e.preventDefault();
+            const next = draftId.trim();
+            if (!next) return;
+            // Typing an id is a deliberate act, so it claims identity — but
+            // only if it loads. See the effect.
+            claimOnLoad.current = true;
+            setTeamId(next);
+            setDraftId('');
+        },
+        [draftId],
     );
-  };
 
-  const renderPreviousSeasons = () => {
-    if (!previousSeasons || !previousSeasons.seasons || previousSeasons.seasons.length === 0) {
-      return (
-        <div className="text-center text-muted-foreground py-8">
-          No previous season data available
-        </div>
-      );
-    }
+    // FPL's own Overall league is the denominator it ranks against, and it is
+    // a little smaller than bootstrap's registered-player count. Using
+    // bootstrap here made the SEASON tab quote a different percentage from the
+    // Overall row on the LEAGUES tab, for the same rank.
+    const rankedPlayers =
+        toNumber(
+            (teamData?.leagues?.classic || []).find((l) => l?.short_name === 'overall')?.rank_count,
+            null,
+        ) ?? toNumber(bootstrap?.total_players, null);
 
-    return (
-      <div className="space-y-4">
-        <h4 className="text-xl font-semibold text-foreground">Previous Season History</h4>
+    const isMine = !!myEntry && String(myEntry) === String(teamId);
+    const currentEvent = toNumber(teamData?.current_event, null);
+    const eventFinished = bootstrap?.events?.find((e) => e.id === currentEvent)?.finished;
+    const gwPoints = toNumber(teamData?.summary_event_points, null);
+    const rankChange = toNumber(teamData?.rank_change, null);
 
-        <div className="bg-muted/20 rounded-lg overflow-hidden">
-          {/* Desktop Table Header */}
-          <div className="hidden md:grid grid-cols-4 gap-4 p-4 bg-muted/40 border-b border-border">
-            <div className="text-sm font-semibold text-foreground flex items-center space-x-2">
-              <span>Season</span>
-            </div>
-            <div className="text-sm font-semibold text-foreground text-center">Total Points</div>
-            <div className="text-sm font-semibold text-foreground text-center">Rank</div>
-            <div className="text-sm font-semibold text-foreground text-center flex items-center justify-center space-x-2">
-              <span>Percentage</span>
-              <div className="w-4 h-4 rounded-full bg-muted-foreground/20 flex items-center justify-center text-xs text-muted-foreground">
-                i
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile Header */}
-          <div className="md:hidden p-4 bg-muted/40 border-b border-border">
-            <div className="text-sm font-semibold text-foreground">Season Performance</div>
-          </div>
-
-          {/* Table Rows */}
-          <div className="divide-y divide-border">
-            {previousSeasons.seasons.map((season, index) => (
-              <div key={season.season} className="p-4 hover:bg-muted/30 transition-colors">
-                {/* Desktop Layout */}
-                <div className="hidden md:grid grid-cols-4 gap-4">
-                  {/* Season */}
-                  <div className="text-foreground font-medium">
-                    {season.season}
-                  </div>
-
-                  {/* Total Points */}
-                  <div className="text-center text-foreground font-medium">
-                    {season.total_points?.toLocaleString() || 'N/A'}
-                  </div>
-
-                  {/* Rank */}
-                  <div className="text-center text-foreground font-medium">
-                    {season.rank?.toLocaleString() || 'N/A'}
-                  </div>
-
-                  {/* Percentage with tier styling */}
-                  <div className="text-center">
-                    <div className="flex items-center justify-center space-x-2">
-                      <span
-                        className="text-sm font-bold px-2 py-1 rounded-full"
-                        style={{
-                          backgroundColor: `${season.tier_color}20`,
-                          color: season.tier_color,
-                          border: `1px solid ${season.tier_color}40`
-                        }}
-                      >
-                        {season.tier_icon} {season.percentage}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mobile Layout */}
-                <div className="md:hidden space-y-3">
-                  {/* Season and Percentage Badge */}
-                  <div className="flex items-center justify-between">
-                    <div className="text-lg font-semibold text-foreground">
-                      {season.season}
-                    </div>
-                    <span
-                      className="text-sm font-bold px-3 py-1 rounded-full"
-                      style={{
-                        backgroundColor: `${season.tier_color}20`,
-                        color: season.tier_color,
-                        border: `1px solid ${season.tier_color}40`
-                      }}
-                    >
-                      {season.tier_icon} {season.percentage}%
-                    </span>
-                  </div>
-
-                  {/* Points and Rank */}
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Points: </span>
-                      <span className="font-medium text-foreground">
-                        {season.total_points?.toLocaleString() || 'N/A'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Rank: </span>
-                      <span className="font-medium text-foreground">
-                        {season.rank?.toLocaleString() || 'N/A'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderRankGraph = () => {
-    if (!seasonHistory || !seasonHistory.ranks || seasonHistory.ranks.length === 0) {
-      return (
-        <div className="text-center text-muted-foreground py-8">
-          No season history available
-        </div>
-      );
-    }
-
-    const ranks = seasonHistory.ranks;
-    const maxRank = Math.max(...ranks.map(r => r.rank));
-    const minRank = Math.min(...ranks.map(r => r.rank));
-    const rankRange = maxRank - minRank || 1;
+    if (loading) return <MyTeamSkeleton />;
 
     return (
-      <div className="space-y-6">
-        {/* Rank Statistics */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          <div className="bg-muted/30 rounded-lg p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-foreground">Highest Rank</span>
-            </div>
-            <div className="text-xl sm:text-2xl font-bold text-foreground">
-              {seasonHistory.highest_rank?.toLocaleString() || 'N/A'}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Gameweek {seasonHistory.highest_rank_gw}
-            </div>
-          </div>
-          <div className="bg-muted/30 rounded-lg p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <TrendingDown className="w-4 h-4 text-red-600" />
-              <span className="text-sm font-medium text-foreground">Lowest Rank</span>
-            </div>
-            <div className="text-xl sm:text-2xl font-bold text-foreground">
-              {seasonHistory.lowest_rank?.toLocaleString() || 'N/A'}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Gameweek {seasonHistory.lowest_rank_gw}
-            </div>
-          </div>
-        </div>
+        <div className="mx-auto max-w-[1280px] font-mono">
+            <div className="px-4 pt-4 md:px-7">
+                {(showInput || !teamData) && (
+                    <TeamIdForm
+                        value={draftId}
+                        onChange={setDraftId}
+                        onSubmit={submit}
+                        onCancel={teamData ? () => setShowInput(false) : null}
+                    />
+                )}
 
-        {/* Recharts Line Chart */}
-        <div className="bg-background border border-border rounded-lg p-3 sm:p-6">
-          <div className="mb-4">
-            <h4 className="text-lg font-semibold text-foreground mb-1">📈 Your rank across the season</h4>
-            <p className="text-sm text-muted-foreground">
-              Your highest overall rank so far this season was{' '}
-              <span className="font-medium text-foreground">
-                {seasonHistory.highest_rank?.toLocaleString() || 'N/A'}
-              </span>
-              {' '}in GW{seasonHistory.highest_rank_gw}, and your worst was{' '}
-              <span className="font-medium text-foreground">
-                {seasonHistory.lowest_rank?.toLocaleString() || 'N/A'}
-              </span>
-              {' '}in GW{seasonHistory.lowest_rank_gw}.
-            </p>
-          </div>
-
-          <div className="h-64 sm:h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={ranks.map(r => ({ gameweek: r.gameweek, rank: r.rank }))}
-                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient id="rankGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis
-                  dataKey="gameweek"
-                  tickFormatter={(gw) => `GW${gw}`}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                  stroke="hsl(var(--border))"
-                />
-                <YAxis
-                  reversed
-                  tickFormatter={(value) => value >= 1000000 ? `${(value / 1000000).toFixed(1)}m` : value.toLocaleString()}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                  stroke="hsl(var(--border))"
-                  width={60}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="rank"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={3}
-                  fill="url(#rankGradient)"
-                  dot={{ r: 4, fill: 'hsl(var(--primary))', strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 6 }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="min-h-screen bg-background px-4 py-4 sm:px-0">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">My Team</h1>
-          <p className="text-muted-foreground">
-            Enter your FPL Team ID to view your team statistics and performance
-          </p>
-        </div>
-
-        {/* Team ID Input */}
-        {showInput && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <User className="w-5 h-5" />
-                <span>Enter Team ID</span>
-              </CardTitle>
-              <CardDescription>
-                Find your Team ID in the FPL website URL when viewing your team
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={teamId}
-                  onChange={(e) => setTeamId(e.target.value)}
-                  placeholder="e.g., 4656161"
-                  className="flex-1 min-w-0 px-4 py-2 min-h-[48px] text-base border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                <button
-                  type="submit"
-                  disabled={loading || !teamId.trim()}
-                  className="px-6 py-2 min-h-[48px] whitespace-nowrap bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Loading...' : 'Load Team'}
-                </button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Loading Display */}
-        {loading && !teamData && (
-          <Card className="mb-8">
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                <p className="text-muted-foreground">Loading team data...</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Error Display */}
-        {error && (
-          <Card className="mb-8 border-destructive">
-            <CardContent className="pt-6">
-              <p className="text-destructive">Error: {error}</p>
-              <button
-                onClick={() => setShowInput(true)}
-                className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
-              >
-                Try Again
-              </button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Team Data Display */}
-        {teamData && (
-          <div className="space-y-6">
-            {/* Tab Navigation */}
-            <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
-              {['Live', 'Pick'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-5 min-h-[44px] min-w-[72px] rounded-md text-sm font-medium transition-colors ${
-                    activeTab === tab
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            {/* Live Tab Content */}
-            {activeTab === 'Live' && (
-              <div className="space-y-8">
-                {/* Team Info Section */}
-                <Card className="bg-gradient-to-r from-muted/20 to-muted/10 border-l-4 border-l-primary">
-                  <CardContent className="p-4 sm:p-6">
-                    {/* Label/value rows on a phone, three columns from sm up */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 divide-y divide-border sm:divide-y-0">
-                      <div className="flex items-baseline justify-between gap-3 pt-2 first:pt-0 sm:block sm:pt-0">
-                        <p className="text-sm text-muted-foreground font-medium">Team ID</p>
-                        <p className="text-base sm:text-lg font-bold text-foreground">{teamData.id}</p>
-                      </div>
-                      <div className="flex items-baseline justify-between gap-3 pt-2 sm:block sm:pt-0">
-                        <p className="text-sm text-muted-foreground font-medium">Team Name</p>
-                        <p className="text-base sm:text-lg font-bold text-foreground truncate">{teamData.name || 'N/A'}</p>
-                      </div>
-                      <div className="flex items-baseline justify-between gap-3 pt-2 sm:block sm:pt-0">
-                        <p className="text-sm text-muted-foreground font-medium">Manager</p>
-                        <p className="text-base sm:text-lg font-bold text-foreground truncate">
-                          {teamData.player_first_name && teamData.player_last_name
-                            ? `${teamData.player_first_name} ${teamData.player_last_name}`
-                            : 'N/A'
-                          }
+                {error && (
+                    <div className="mb-4 border-l-2 border-destructive bg-destructive/10 px-3 py-2.5">
+                        <p className="text-[9px] leading-[1.5] text-destructive-ink">
+                            {error}. Check the ID and try again in a moment.
                         </p>
-                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+                )}
 
-                {/* Live Rank Section */}
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">Live Rank</h3>
-                  {/* 2-up on a phone so all four stats are visible at once */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-                    {/* Gameweek */}
-                    <Card>
-                      <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
-                        <CardTitle className="text-base sm:text-lg flex items-center space-x-2">
-                          <Target className="w-5 h-5" />
-                          <span>Gameweek</span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                        <div className="text-2xl sm:text-3xl font-bold text-foreground">
-                          {teamData.current_event || 'N/A'}
+                {teamData && (
+                    <>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="bg-inverted px-1.5 py-1 text-[9px] font-medium leading-none tracking-[0.16em] text-background">
+                                TEAM {teamData.id}
+                            </span>
+                            <span className="text-[9px] tracking-[0.16em] text-muted-foreground">
+                                GW{currentEvent ?? '—'}
+                                {eventFinished === false ? ' · LIVE' : ''}
+                            </span>
                         </div>
-                        {teamData.wildcards_played && teamData.wildcards_played.length > 0 && (
-                          <Badge variant="secondary" className="mt-2">
-                            Wildcard chip in play
-                          </Badge>
-                        )}
-                      </CardContent>
-                    </Card>
 
-                    {/* GW Points */}
-                    <Card>
-                      <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
-                        <CardTitle className="text-base sm:text-lg">GW Points</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                        <div className="text-2xl sm:text-3xl font-bold text-foreground">
-                          {teamData.summary_event_points || 0}
+                        <h1 className="mt-2.5 text-[25px] font-bold uppercase leading-[1.05] tracking-[-0.03em] text-foreground md:text-[46px] md:tracking-[-0.045em]">
+                            {teamData.name || `Team ${teamData.id}`}
+                        </h1>
+
+                        <div className="mt-2.5 flex flex-wrap gap-2.5 text-[10px] leading-none tracking-[0.06em]">
+                            <span className="text-foreground">
+                                {[teamData.player_first_name, teamData.player_last_name]
+                                    .filter(Boolean)
+                                    .join(' ')
+                                    .toUpperCase() || 'UNKNOWN MANAGER'}
+                            </span>
+                            {toNumber(teamData.years_active) > 0 && (
+                                <span className="text-muted-foreground">
+                                    {formatCount(teamData.years_active)} SEASON
+                                    {toNumber(teamData.years_active) === 1 ? '' : 'S'}
+                                </span>
+                            )}
+                            {teamData.player_region_name && (
+                                <span className="text-muted-foreground">
+                                    {String(teamData.player_region_name).toUpperCase()}
+                                </span>
+                            )}
                         </div>
-                      </CardContent>
-                    </Card>
 
-                    {/* Total Points */}
-                    <Card>
-                      <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
-                        <CardTitle className="text-base sm:text-lg">Total Points</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                        <div className="text-2xl sm:text-3xl font-bold text-foreground">
-                          {teamData.summary_overall_points || 0}
+                        {/* Switching teams used to require failing a request
+                            first — nothing reopened the input on success. */}
+                        <div className="mt-3 inline-flex gap-px bg-border">
+                            {isMine ? (
+                                <span className={`${controlClass} text-muted-foreground`}>
+                                    YOUR TEAM
+                                </span>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setMyEntry(String(teamId))}
+                                    className={`${controlClass} text-primary-lighter hover:bg-muted`}
+                                >
+                                    THIS IS ME
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowInput((v) => !v)}
+                                className={`${controlClass} text-muted-foreground hover:bg-muted hover:text-foreground`}
+                            >
+                                {showInput ? 'CLOSE' : 'CHANGE TEAM'}
+                            </button>
                         </div>
-                      </CardContent>
-                    </Card>
 
-                    {/* Rank Change */}
-                    <Card>
-                      <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
-                        <CardTitle className="text-base sm:text-lg">Rank Change</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                        <div className="flex flex-col items-start space-y-2">
-                          {formatRankChange(teamData.rank_change)}
-                          <div className="text-sm text-muted-foreground">
-                            Current: {teamData.summary_overall_rank?.toLocaleString() || 'N/A'}
-                          </div>
+                        <div className="mt-4 flex gap-px bg-border">
+                            <SummaryCell
+                                label={`GW${currentEvent ?? ''} POINTS`.trim()}
+                                value={gwPoints}
+                                solid={gwPoints !== null && gwPoints > 0}
+                                note={
+                                    !squad
+                                        ? ''
+                                        : squad.hit > 0
+                                            ? `AFTER A −${formatCount(squad.hit)} HIT`
+                                            : 'NO HIT TAKEN'
+                                }
+                            />
+                            <SummaryCell
+                                label="TOTAL POINTS"
+                                value={toNumber(teamData.summary_overall_points, null)}
+                                note={`${formatCount(
+                                    (teamData.entered_events || []).length,
+                                )} GAMEWEEK${
+                                    (teamData.entered_events || []).length === 1 ? '' : 'S'
+                                } PLAYED`}
+                            />
+                            <SummaryCell
+                                label="OVERALL RANK"
+                                value={toNumber(teamData.summary_overall_rank, null)}
+                                note={
+                                    rankChange === null
+                                        ? 'FIRST GAMEWEEK'
+                                        : rankChange === 0
+                                            ? 'NO CHANGE'
+                                            : `${rankChange > 0 ? '▲' : '▼'} ${formatCount(
+                                                  Math.abs(rankChange),
+                                              )} THIS WEEK`
+                                }
+                            />
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
+                    </>
+                )}
+            </div>
 
-                {/* Season History Section */}
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-2">Season History</h3>
-                  <p className="text-sm text-muted-foreground mb-6">Your rank throughout the season</p>
+            {teamData && (
+                <>
+                    <div className="mt-4 flex border-t border-border px-4 md:px-7">
+                        {TABS.map((t) => (
+                            <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setTab(t.id)}
+                                aria-pressed={tab === t.id}
+                                className={`min-h-[44px] flex-1 border-b-2 py-[14px] text-center text-[9.5px] font-medium leading-none tracking-[0.14em] transition-colors md:text-[11.5px] ${
+                                    tab === t.id
+                                        ? 'border-live text-live-ink'
+                                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
 
-                  <Card>
-                    <CardContent className="pt-6">
-                      {renderRankGraph()}
-                    </CardContent>
-                  </Card>
-
-                  {/* Previous Seasons Table */}
-                  <Card className="mt-6">
-                    <CardContent className="pt-6">
-                      {renderPreviousSeasons()}
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
+                    {detailLoading ? (
+                        <TabSkeleton />
+                    ) : tab === 'squad' ? (
+                        <MyTeamSquad squad={squad} bootstrap={bootstrap} gameweek={currentEvent} />
+                    ) : tab === 'season' ? (
+                        <MyTeamSeason
+                            history={history}
+                            previousSeasons={previousSeasons}
+                            totalPlayers={rankedPlayers}
+                            overallRank={toNumber(teamData.summary_overall_rank, null)}
+                        />
+                    ) : (
+                        <MyTeamLeagues leagues={leagues} />
+                    )}
+                </>
             )}
-
-            {/* Pick Tab Content - Placeholder for now */}
-            {activeTab === 'Pick' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Team Lineup</CardTitle>
-                  <CardDescription>
-                    Team lineup and picks will be displayed here (coming soon)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    This section will show your team's lineup for the current gameweek.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+        </div>
+    );
 };
+
+/** The only place a team id is entered. Always reachable from the masthead. */
+const TeamIdForm = ({ value, onChange, onSubmit, onCancel }) => (
+    <div className="mb-6">
+        <div className="flex items-center gap-2 pb-2.5">
+            <span className="text-[9px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                Team ID
+            </span>
+            <span className="h-px flex-1 bg-border" />
+            {onCancel && (
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    className="min-h-[24px] px-1 text-[8px] font-medium tracking-[0.12em] text-muted-foreground hover:text-foreground"
+                >
+                    CANCEL
+                </button>
+            )}
+        </div>
+
+        <form onSubmit={onSubmit} className="flex gap-px bg-border md:max-w-[440px]">
+            <input
+                type="text"
+                inputMode="numeric"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder="e.g. 4656161"
+                aria-label="FPL team ID"
+                className="min-w-0 flex-1 bg-panel px-3 py-[14px] text-[13px] leading-none text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-inset focus:ring-primary"
+            />
+            <button
+                type="submit"
+                disabled={!value.trim()}
+                className="min-h-[44px] shrink-0 bg-inverted px-4 text-[9px] font-medium tracking-[0.14em] text-background transition-opacity disabled:opacity-40"
+            >
+                LOAD
+            </button>
+        </form>
+
+        <p className="pt-2 text-[8px] leading-[1.6] tracking-[0.06em] text-muted-foreground">
+            YOUR ID IS IN THE FPL URL WHEN YOU VIEW YOUR OWN POINTS —
+            FANTASY.PREMIERLEAGUE.COM/ENTRY/<span className="text-foreground">4656161</span>/EVENT/1
+        </p>
+    </div>
+);
+
+/** Skeletons mirror the geometry so nothing reflows when data lands. */
+const MyTeamSkeleton = () => (
+    <div className="mx-auto max-w-[1280px] animate-pulse font-mono">
+        <div className="px-4 pt-4 md:px-7">
+            <div className="h-[25px] w-2/3 bg-panel md:h-[46px]" />
+            <div className="mt-3 h-[44px] w-[220px] bg-panel" />
+            <div className="mt-4 flex gap-px bg-border">
+                {[0, 1, 2].map((i) => (
+                    <div key={i} className="h-[72px] flex-1 bg-panel" />
+                ))}
+            </div>
+        </div>
+        <div className="mt-4 h-[44px] border-y border-border" />
+        <TabSkeleton />
+    </div>
+);
+
+const TabSkeleton = () => (
+    <div className="animate-pulse px-4 pt-6 md:px-7">
+        <div className="flex flex-col gap-px bg-border">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-[44px] bg-panel" />
+            ))}
+        </div>
+    </div>
+);
 
 export default MyTeam;

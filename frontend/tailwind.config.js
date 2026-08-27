@@ -55,7 +55,16 @@ module.exports = {
         // dark themes lighten, light themes darken.
         "accent-chip": "hsl(var(--accent-chip))",
         live: "hsl(var(--live))",
+        // --live at a per-theme lightness that carries text in either
+        // direction: as a text colour, and as a fill under --background text.
+        // Both roles want the same darker green, so one token covers them.
+        "live-ink": "hsl(var(--live-ink))",
+        // --primary is structure and is not guaranteed to contrast with
+        // --background; this is the lightness that does.
+        "primary-chip": "hsl(var(--primary-chip))",
         warn: "hsl(var(--warn))",
+        "warn-ink": "hsl(var(--warn-ink))",
+        "destructive-ink": "hsl(var(--destructive-ink))",
         inverted: "hsl(var(--inverted))",
       },
       fontFamily: {

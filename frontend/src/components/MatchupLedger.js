@@ -136,7 +136,7 @@ const SideContext = ({ side, align = 'left' }) => {
                     {formatCount(side.transfers)} TR
                 </span>
                 {side.hit > 0 && (
-                    <span className="text-[7.5px] leading-none tracking-[0.1em] text-destructive">
+                    <span className="text-[7.5px] leading-none tracking-[0.1em] text-destructive-ink">
                         −{formatCount(side.hit)} HIT
                     </span>
                 )}

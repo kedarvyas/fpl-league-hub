@@ -42,7 +42,7 @@ const PlayerFixturesTab = ({ fixtures = [], teams }) => {
                         </div>
                     </div>
                     <div className="text-right text-[8.5px] leading-[1.4] tracking-[0.08em] text-muted-foreground">
-                        <span className="text-live">{summary.good}</span> OF {summary.total}
+                        <span className="text-foreground">{summary.good}</span> OF {summary.total}
                         <br />AT FDR 3 OR BETTER
                     </div>
                 </div>
@@ -87,8 +87,16 @@ const PlayerFixturesTab = ({ fixtures = [], teams }) => {
                                     </div>
                                 </div>
                                 <div className="flex shrink-0 items-center gap-2">
-                                    <span className={`text-[7.5px] tracking-[0.12em] ${band.text}`}>{band.word}</span>
-                                    <span className={`flex h-6 w-6 items-center justify-center text-[13px] font-bold text-background ${band.bg}`}>
+                                    <span className="text-[7.5px] tracking-[0.12em] text-muted-foreground">
+                                        {band.word}
+                                    </span>
+                                    {/* The numeral is the value inversion, not
+                                        the band colour: --background text on a
+                                        saturated fill is 2.7–3.8:1 in the three
+                                        light themes for every band, and it was
+                                        invisible outright on the easy band. The
+                                        band is on the track below it. */}
+                                    <span className="flex h-6 w-6 items-center justify-center bg-inverted text-[13px] font-bold text-background">
                                         {toNumber(f.difficulty)}
                                     </span>
                                 </div>
@@ -105,7 +113,6 @@ const PlayerFixturesTab = ({ fixtures = [], teams }) => {
             <div className="flex flex-col gap-px bg-border">
                 {summary.window && (
                     <ReadingRow
-                        tone={fdrBand(3).text}
                         label={
                             summary.window.length > 1
                                 ? `GW${summary.window.from.event}–${summary.window.to.event}`
@@ -115,7 +122,6 @@ const PlayerFixturesTab = ({ fixtures = [], teams }) => {
                     />
                 )}
                 <ReadingRow
-                    tone={fdrBand(summary.hardest.difficulty).text}
                     label={`GW${summary.hardest.event}`}
                     text={`${opponent(summary.hardest)} ${summary.hardest.is_home ? 'at home' : 'away'} is the hardest of the five at FDR ${toNumber(summary.hardest.difficulty)}.`}
                 />
@@ -129,9 +135,11 @@ const PlayerFixturesTab = ({ fixtures = [], teams }) => {
     );
 };
 
-const ReadingRow = ({ tone, label, text }) => (
+const ReadingRow = ({ label, text }) => (
     <div className="flex gap-3 bg-panel px-[14px] py-3">
-        <span className={`w-[52px] shrink-0 text-[9px] font-medium tracking-[0.08em] ${tone}`}>{label}</span>
+        <span className="w-[52px] shrink-0 text-[9px] font-medium tracking-[0.08em] text-foreground">
+            {label}
+        </span>
         <span className="text-[9.5px] leading-[1.6] text-muted-foreground">{text}</span>
     </div>
 );
