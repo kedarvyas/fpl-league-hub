@@ -263,6 +263,134 @@ team's masthead under an error.
 
 ---
 
+## The transfer planner — done
+
+`/my-team/plan`, with `PlanPitch`, `PlanPlayerPanel`, `PlanLedger` and
+`TransferPlanFixtures` over a new `lib/transferPlan.js`. Two Edge Functions
+went with it: `fixtures-future` (new) and an additive extension to
+`team-history`.
+
+**This is the first page in the app that is not a readout.** The other five
+answer a question about something that already happened; this one carries
+state the reader creates, about a gameweek that has not. That difference is
+what drove every decision below.
+
+- **It is not a fourth tab on MyTeam.** MyTeam is a viewer for *any* manager —
+  every manager name on the H2H and Dashboard pages navigates there with
+  someone else's entry, which is why `fpl_my_entry` exists at all. Planning
+  transfers for a team you do not own is meaningless, so this page keys to
+  `fpl_my_entry`, has no team switcher, and is reached from a control on
+  MyTeam's SQUAD tab that only appears when `isMine`.
+- **The pitch came back, and that is not a reversal of the H2H decision.**
+  That pitch was a readout of a finished gameweek, and it spent its whole width
+  on eleven pieces of decoration with nowhere left for the numbers. Here the
+  thing being edited *is* a formation — who starts, who is on the bench and in
+  what order, who wears the armband — and a list cannot show that. The field is
+  `--muted` with `--border` hairline markings, so it is a *diagram* of a pitch
+  rather than a picture of one; a fixed green cannot survive six themes, which
+  is the same trap `tier_color` fell into. No shirt graphics: fifteen image
+  loads on a surface that re-renders on every edit, to say what the club
+  abbreviation already says.
+- **A display toggle is what makes 375px work.** Next GW / Next 3 GWs / Price
+  changes changes what every card's bottom line carries. A five-man defence has
+  about 66px per card — room for one fixture in comfort or three compressed,
+  and not for both plus a price projection. Density became a choice rather than
+  a compromise.
+- **One selection drives everything.** Tapping a player selects them, and that
+  single piece of state answers three questions: tapping a second player swaps
+  the two, the action strip offers the armbands and the transfer, and the
+  player list locks to that slot's position and prices itself against that
+  slot's budget. Substitution, positional shuffle and bench reordering are one
+  operation seen from different places — see `swapSheet`.
+- **The player list replaced the modal picker.** A modal is right when you need
+  one answer and then to get out of the way; planning transfers is comparison
+  work, and a list you must reopen per candidate cannot be compared against the
+  squad you are looking at. One component at both widths: a column beside the
+  pitch from `lg` up, the same thing stacked underneath on a phone.
+- **The team sheet is keyed by baseline slot, never by player id.** A slot's
+  position cannot change, because the list is filtered to it; a player id stops
+  existing the moment they are transferred out. It also gives the expected
+  behaviour for free — transfer out your captain and their replacement inherits
+  the armband, because the armband was on the shirt.
+
+### Four numbers that are wrong without ever throwing
+
+This is the whole difficulty of the feature, and why `lib/transferPlan.js` is
+pure and unit-tested (83 tests across the suite). Each of these produces a
+plausible figure that is quietly incorrect.
+
+1. **Selling price is not the current price.** `transfers_sell_on_fee` is 0.5
+   and `element_sell_at_purchase_price` is false: you keep the purchase price
+   plus half of any profit, **rounded down to 0.1**. A single 0.1 rise is
+   therefore worth nothing on the way out, which is exactly what a plausible
+   `(now + purchase) / 2` gets wrong. This is why money is integer tenths
+   everywhere and `formatMoney` is display-only.
+2. **Purchase price has two sources and a Free Hit poisons one.** Never
+   transferred in: `now_cost - cost_change_start`. Otherwise `element_in_cost`
+   from `entry/{id}/transfers/` — minus every transfer made on a Free Hit,
+   because that squad is discarded and the player was never really bought.
+3. **Free transfers are published nowhere.** The authenticated `my-team/{id}/`
+   has the figure; we have no auth against FPL. They are accumulated from
+   `entry/{id}/history/`, deriving how many were *free* from what they *cost*
+   rather than from how many were made — `event_transfers_cost` is FPL's own
+   statement of how many were paid for, which makes the accumulation
+   self-correcting. **Because nothing can check it, the cell says it is derived
+   and the reader can overrule it.** A number the app asserts and gets wrong is
+   worse than a number it offers.
+4. **Next gameweek's picks are a 404** until its deadline passes, so the
+   baseline is the last gameweek that *started*. That is the correct baseline
+   anyway, but the masthead has to say so or the page looks stale to anyone who
+   has already moved on fpl.com.
+
+### Show, never block
+
+Rule 4 by analogy. Every illegal state is reachable and named rather than
+prevented: over budget, four from one club, wrong squad shape, an illegal
+formation, a benched captain, a player who has left the league, a duplicate.
+Only three filters are hard, and each is structural rather than a judgement —
+the list is locked to the slot's position, a player who has left the league
+cannot be bought at all, and you cannot own the same player twice. Budget and
+the club limit are annotated instead: "£0.4M more than you have" is
+information, and a row you cannot click is not.
+
+The squad rules and the formation rules are separate checks, because a squad of
+2/5/5/3 always contains *some* legal eleven — the eleven only goes wrong once
+someone moves it.
+
+### Two failures worth recording
+
+- **A missing Edge Function took down the whole page.** `fixtures-future` was
+  not deployed, and Supabase's gateway 404 omits `content-type` from
+  `access-control-allow-headers`. `apiHeaders` sends that header, so every call
+  is preflighted; the preflight failed, the browser rejected with a `TypeError`
+  rather than returning a 404, and `fetchWithRetry` retried three times and
+  threw. Because the fixtures call sat inside the page-critical `try`, a
+  missing *fixture list* produced "Could not load team {id}". Fixtures are now
+  their own wave and their own failure — the workspace's entire job is
+  answerable without them. **Any non-essential call on any page wants the same
+  treatment.**
+- **A state setter inside another setter's updater silently does nothing.**
+  React treats updaters as pure and double-invokes them under `StrictMode`, so
+  a `swapSheet` called from inside `setSelected` ran twice and undid itself.
+  The decision belongs outside the updater; side effects — including the
+  `localStorage` write in `useTransferPlan` — belong in an effect.
+
+### Not built, deliberately
+
+Expected points is absent from the fixture grid. `ep_next` is the only forward
+number FPL publishes and the name is literal — it covers the next gameweek and
+nothing beyond, so two of the three columns have nothing honest to carry. It is
+also flat this early: the highest `ep_next` in the entire game on 2026-08-27
+was 4.0. The grid stops at difficulty, the same refusal the player page's
+fixtures tab makes when it stops at five.
+
+Chained multi-gameweek planning is out of scope — a different squad and budget
+per gameweek is a different data model, not a bigger version of this one. The
+stored plan is shaped `{ entry, targetEvent, moves, sheet, chip, freeOverride }`
+so that a chain stays possible later as a *list* of these.
+
+---
+
 ## Rollout status
 
 | Surface | State |
@@ -275,6 +403,7 @@ team's masthead under an error.
 | `Dashboard` | Done |
 | `MyTeam` + `MyTeamSquad` / `MyTeamSeason` / `MyTeamLeagues` | Done |
 | `Home.js` | Done |
+| `TransferPlanner` + `PlanPitch` / `PlanPlayerPanel` / `PlanLedger` / `TransferPlanFixtures` | Done |
 
 Home is a state-aware front door: fresh browsers get two compact setup actions,
 while saved manager and league IDs become resume actions with deliberate change

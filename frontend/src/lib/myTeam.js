@@ -133,8 +133,18 @@ export const formatTopPercent = (percent) => {
 export const rankFill = (percent) =>
     percent === null || percent === undefined ? 0 : Math.max(0, Math.min(100, 100 - percent));
 
-/** Tenths of a million, as FPL stores squad value and the bank. */
-export const formatMoney = (tenths) => `£${(toNumber(tenths) / 10).toFixed(1)}M`;
+/**
+ * Tenths of a million, as FPL stores squad value and the bank.
+ *
+ * The sign goes outside the currency symbol. Squad value and the bank are
+ * never negative, but the transfer planner's "left after the plan" is exactly
+ * the number that goes below zero, and `£-0.5M` reads as a typo where
+ * `−£0.5M` reads as an overspend.
+ */
+export const formatMoney = (tenths) => {
+    const value = toNumber(tenths) / 10;
+    return `${value < 0 ? '−' : ''}£${Math.abs(value).toFixed(1)}M`;
+};
 
 /* ------------------------------------------------------------------ */
 /* Mini-leagues                                                        */

@@ -376,7 +376,12 @@ const MyTeam = () => {
                     {detailLoading ? (
                         <TabSkeleton />
                     ) : tab === 'squad' ? (
-                        <MyTeamSquad squad={squad} bootstrap={bootstrap} gameweek={currentEvent} />
+                        <MyTeamSquad
+                            squad={squad}
+                            bootstrap={bootstrap}
+                            gameweek={currentEvent}
+                            isMine={isMine}
+                        />
                     ) : tab === 'season' ? (
                         <MyTeamSeason
                             history={history}

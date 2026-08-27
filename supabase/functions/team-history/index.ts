@@ -7,6 +7,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+/**
+ * `entry/{id}/history/`, mapped for the SEASON tab and passed through for the
+ * transfer planner.
+ *
+ * The mapped `ranks` array is what MyTeamSeason has always read and is
+ * unchanged. What is added is `current` and `chips` verbatim, because the
+ * fields this function used to throw away are the only public source for two
+ * numbers the planner cannot otherwise get:
+ *
+ * - **Free transfers.** There is no public endpoint for them — the
+ *   authenticated `my-team/{id}/` has the figure and we have no auth against
+ *   FPL. They have to be accumulated from `event_transfers` and
+ *   `event_transfers_cost` across every played gameweek, with the weeks a
+ *   Wildcard or Free Hit covered skipped, which needs `chips` too.
+ * - **Purchase prices.** A Free Hit squad is discarded at the end of its
+ *   gameweek, so transfers made on one must not count as purchases. `chips`
+ *   is what identifies those gameweeks.
+ *
+ * Both are additive: nothing that was in the response has moved or changed
+ * shape.
+ */
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -44,7 +65,9 @@ Deno.serve(async (req) => {
           highest_rank: null,
           lowest_rank: null,
           highest_rank_gw: null,
-          lowest_rank_gw: null
+          lowest_rank_gw: null,
+          current: [],
+          chips: historyData.chips ?? []
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -61,12 +84,20 @@ Deno.serve(async (req) => {
     }))
 
     // Find highest and lowest ranks
+    // `current` and `chips` go through untouched — the planner needs the
+    // per-gameweek transfer counts and costs this function used to drop.
+    const passthrough = {
+      current: currentSeason,
+      chips: historyData.chips ?? []
+    }
+
     let result = {
       ranks,
       highest_rank: null,
       lowest_rank: null,
       highest_rank_gw: null,
-      lowest_rank_gw: null
+      lowest_rank_gw: null,
+      ...passthrough
     }
 
     if (ranks.length > 0) {
@@ -82,7 +113,8 @@ Deno.serve(async (req) => {
         highest_rank: highestRankData.rank,
         lowest_rank: lowestRankData.rank,
         highest_rank_gw: highestRankData.gameweek,
-        lowest_rank_gw: lowestRankData.gameweek
+        lowest_rank_gw: lowestRankData.gameweek,
+        ...passthrough
       }
     }
 

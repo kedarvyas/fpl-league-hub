@@ -368,6 +368,11 @@ entrypoint = "./functions/team-history/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/team-previous-seasons/*.html" ]
 
+[functions.fixtures-future]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/fixtures-future/index.ts"
+
 [functions.team-previous-seasons]
 enabled = true
 verify_jwt = false
