@@ -1,6 +1,6 @@
 # Scoreboard — FPL League Hub design system
 
-The player page (`/player/:playerId`) is built on this and is the reference implementation. **Everything else in the app still looks like the old design.** Roll this out next, starting with the header.
+The player page (`/player/:playerId`) is built on this and is the reference implementation. Most of the app is now on it — see **Rollout status** below for what is left.
 
 Live example: https://tacticosfplhub.netlify.app/player/165
 
@@ -196,19 +196,70 @@ gzipped. The packages are still in `package.json` and can be uninstalled.
 
 ---
 
-## Next up
+## Rollout status
 
-`Dashboard.js`, `MyTeam.js`, `Home.js`, `PlayerStatisticsHub.js`,
-`PlayerComparison.js`.
+| Surface | State |
+|---|---|
+| `PlayerStats` + player tabs | Reference implementation |
+| `Header`, `Layout`, `ThemeSwitcher`, `LoginModal`, `ui/dropdown-menu` | Done |
+| `WeeklyMatchups`, `LeagueTable`, `GameweekStats`, `MatchupLedger` | Done |
+| `PlayerStatisticsHub` | Done |
+| `PlayerSearchModal`, `PlayerComparison` | Done |
+| `Dashboard` | Done |
+| `Home.js`, `MyTeam.js` | **Still the old design** |
 
-`Home.js` and `Dashboard.js` still carry dead `from-header-bg-from` /
-`to-header-bg-to` class names whose tokens were deleted with the header work.
+`Home.js` still carries dead `from-header-bg-from` / `to-header-bg-to` class
+names whose tokens were deleted with the header work. They render nothing.
+
+MUI is gone from `src/` entirely. The dependency is still in `package.json` and
+can be uninstalled along with `@mui/icons-material`, `@emotion/*`, `react-table`
+and `@headlessui/react`, none of which are imported any more.
+
+### What the rollout added
+
+- **`lib/h2h.js`** — the differential ledger. A H2H fixture is decided by the
+  players only one manager owns; shared players cancel out exactly. Splitting
+  the two starting elevens into home-only / away-only / shared makes the two
+  differential columns *be* the scoreline.
+- **`config/supabase.js` → `fetchWithRetry`** — the Edge Functions proxy the FPL
+  API, whose WAF answers a burst of requests from one origin with a flat `403`.
+  It is not a rate-limit status and it looks exactly like an app bug. Any page
+  firing several calls on mount needs this.
+- **Page shell** — every converted page is `mx-auto max-w-[1280px] font-mono`,
+  with its route added to `SCOREBOARD_ROUTES` in `Layout.js` so the legacy
+  container stops double-padding it. When `Home` and `MyTeam` are converted,
+  that list covers every route and both it and the legacy container go away.
+- **Desktop steps.** List content needs a `md:` step up. The player hub shipped
+  at one size for every width, so player names — the actual content — sat at
+  10px on a 1280px desktop. The 7–10px range is for labels beside a large
+  number, not for content.
+- **Page identity.** Dashboard and H2H overlapped until each was given a job:
+  H2H is "my league this week", Dashboard is "the gameweek at large". Every
+  FPL-wide figure on the dashboard is labelled `ACROSS FPL`, because the chip
+  counts and most-captained are global numbers in the millions and used to sit
+  under a heading carrying your league id.
+
+### Two known token gaps
+
+Both affect surfaces that are already shipped, and both are one added token
+each, following the `--accent-chip` pattern:
+
+- **`bg-primary` with `text-background`** (the hero position chip) measures
+  **2.75:1 in Ocean**, 2.81:1 in Midnight, 3.66:1 in Sage. `--primary` is not
+  guaranteed to contrast with `--background`. Where this mattered most — the
+  player hub's position filter — it was replaced with the value inversion, which
+  is `--foreground` on `--background` by construction and clears 9.6:1 in all
+  six themes. A `--primary-chip` token would fix the rest.
+- **`text-live` as a label** (the active tab) measures **3.2–3.8:1** in Light,
+  Sage and Ocean — below AA for 9.5px text. `--live` as a *fill* behind
+  `--background` text is always fine; as text it is not. A `--live-text` token
+  would fix it.
 
 ---
 
 ## Constraints
 
-- React 18, Tailwind, shadcn/Radix. **MUI is being removed** — don't add to it. Remaining users: `GameweekStats.js`, `LeagueTable.js`, `PlayerComparison.js`.
+- React 18, Tailwind, shadcn/Radix. **MUI is gone from `src/`** — don't reintroduce it.
 - Recharts for charts.
 - Everything must work in all six themes and at 375px with no horizontal scroll.
 - Player photos are ~90% available and fall back to tinted initials — any photo-led layout needs that fallback to look deliberate. Use the existing `PlayerPhoto` component.
