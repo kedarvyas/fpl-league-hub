@@ -10,7 +10,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
  * the header's wordmark. The legacy container stays for everything else; when
  * this list covers every route, both it and this branch go away.
  */
-const SCOREBOARD_ROUTES = ['/player/', '/weekly-matchups'];
+const SCOREBOARD_ROUTES = ['/player/', '/weekly-matchups', '/player-statistics'];
 
 const Layout = ({ children }) => {
   const [showInfo, setShowInfo] = useState(false);
