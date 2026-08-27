@@ -46,7 +46,7 @@ const ThemeSwitcher = ({ currentTheme, setTheme, variant = 'bar' }) => {
                 aria-label="Change theme"
                 className={
                     row
-                        ? 'flex min-h-[48px] w-full items-center justify-between border-l-2 border-transparent bg-panel pr-4 text-[10px] font-medium tracking-[0.16em] text-muted-foreground'
+                        ? 'flex min-h-[48px] w-full items-center justify-between border-l-2 border-transparent bg-panel pl-3 pr-4 text-[10px] font-medium tracking-[0.16em] text-muted-foreground'
                         : 'flex items-center gap-2 bg-panel px-3.5 text-[9px] font-medium tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground'
                 }
             >

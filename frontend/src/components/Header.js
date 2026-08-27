@@ -48,11 +48,10 @@ const controlCell =
   'flex items-center bg-panel px-3.5 text-[9px] font-medium tracking-[0.18em] ' +
   'text-muted-foreground transition-colors hover:text-foreground';
 
-/** A row in the mobile menu stack. No left padding: the label sits on the page
-    gutter, in line with the wordmark above it, and the hairlines between rows
-    run from the same edge. */
+/** A row in the mobile menu stack. The inset keeps the active route bar from
+    colliding visually with the first letter of its label. */
 const menuRow =
-  'flex min-h-[48px] items-center bg-panel pr-4 text-[10px] font-medium tracking-[0.16em] ' +
+  'flex min-h-[48px] items-center bg-panel pl-3 pr-4 text-[10px] font-medium tracking-[0.16em] ' +
   'transition-colors';
 
 const Header = ({ currentTheme, setTheme, setShowInfo }) => {

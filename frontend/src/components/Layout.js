@@ -4,7 +4,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 
 const Layout = ({ children }) => {
   const [showInfo, setShowInfo] = useState(false);
-  const [currentTheme, setTheme] = useLocalStorage('theme', 'light');
+  const [currentTheme, setTheme] = useLocalStorage('theme', 'turf');
 
   useEffect(() => {
     // Update the data-theme attribute

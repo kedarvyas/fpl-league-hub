@@ -74,10 +74,9 @@ const PlayerPhoto = ({ code, name, size = 'md', className = '' }) => {
     const source = code ? sources[attempt] : undefined;
     const tint = TINTS[Math.abs(Number(code) || 0) % TINTS.length];
 
-    // The initials sit underneath rather than replacing the image on error.
-    // Roughly 40% of players have no photo and each miss costs a sequential
-    // 403, so swapping only after the chain is exhausted leaves a visibly empty
-    // circle for a beat; underneath, the photo simply paints over them.
+    // Show initials only after the source chain is exhausted. PL headshots are
+    // transparent cutouts, so rendering the fallback underneath a successful
+    // photo lets faint letters show through shirts and empty space.
     return (
         <div
             // The tint belongs to the initials only. PL headshots are cutouts
@@ -87,7 +86,7 @@ const PlayerPhoto = ({ code, name, size = 'md', className = '' }) => {
             role="img"
             aria-label={name || 'Player'}
         >
-            <span className="text-[0.9em] leading-none">{getInitials(name)}</span>
+            {!source && <span className="text-[0.9em] leading-none">{getInitials(name)}</span>}
             {source && (
                 <img
                     src={`${source.url}/${source.prefix}${code}.png`}
