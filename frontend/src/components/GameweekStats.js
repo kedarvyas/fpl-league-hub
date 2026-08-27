@@ -6,7 +6,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { DEFAULT_LEAGUE_ID } from '../config/league';
 import { API_URL, apiHeaders } from '../config/supabase';
 import { formatCount, toNumber } from '../lib/playerStats';
 
@@ -63,7 +62,6 @@ const TransferRow = ({ transfer }) => {
 };
 
 const GameweekStats = ({ eventId, leagueId }) => {
-    const LEAGUE_ID = leagueId || DEFAULT_LEAGUE_ID;
     const [transfers, setTransfers] = useState([]);
     const [managerOfWeek, setManagerOfWeek] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -73,7 +71,7 @@ const GameweekStats = ({ eventId, leagueId }) => {
 
     useEffect(() => {
         const fetchGameweekStats = async () => {
-            if (!eventId) return;
+            if (!eventId || !leagueId) return;
 
             setLoading(true);
             setError(null);
@@ -82,7 +80,7 @@ const GameweekStats = ({ eventId, leagueId }) => {
                 // standings, then a transfers and a picks request per manager,
                 // which is 45 round trips for a 22-team league.
                 const response = await fetch(
-                    `${API_URL}/league-gameweek-stats?leagueId=${LEAGUE_ID}&event=${eventId}`,
+                    `${API_URL}/league-gameweek-stats?leagueId=${leagueId}&event=${eventId}`,
                     { headers: apiHeaders() },
                 );
                 if (!response.ok) throw new Error(`Failed to fetch gameweek stats: ${response.status}`);
@@ -112,12 +110,17 @@ const GameweekStats = ({ eventId, leagueId }) => {
         };
 
         fetchGameweekStats();
-    }, [eventId, LEAGUE_ID]);
+    }, [eventId, leagueId]);
 
     const filteredTransfers = selectedTeam
         ? transfers.filter((t) => t.manager_name === selectedTeam)
         : [];
     const current = teamOptions.find((t) => t.value === selectedTeam);
+
+    // League-specific data must never fall back to the app owner's league.
+    // WeeklyMatchups does not render this component without a saved/URL id,
+    // but the guard keeps the component safe if it is reused elsewhere.
+    if (!leagueId) return null;
 
     if (loading) {
         return (

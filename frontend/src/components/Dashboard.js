@@ -3,8 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import PlayerPhoto from './PlayerPhoto';
 import LeagueTable from './LeagueTable';
 import { SectionHeader } from './PlayerStatCell';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useMyEntry } from '../hooks/useMyEntry';
-import { DEFAULT_LEAGUE_ID } from '../config/league';
 import { API_URL, fetchWithRetry } from '../config/supabase';
 import { formatCount, getPositionShort, toNumber } from '../lib/playerStats';
 
@@ -128,10 +128,14 @@ const FixtureRow = ({ fixture }) => (
   </div>
 );
 
-const Dashboard = ({ leagueId: propLeagueId }) => {
+const Dashboard = () => {
   const navigate = useNavigate();
   const { leagueId: urlLeagueId } = useParams();
-  const leagueId = urlLeagueId || propLeagueId || DEFAULT_LEAGUE_ID;
+  const [savedLeagueId] = useLocalStorage('fpl_league_id', '');
+  // A league is personal context, not demo content. A fresh browser has no
+  // league until the reader explicitly enters one on Home/H2H or opens a
+  // league-specific dashboard URL.
+  const leagueId = urlLeagueId || savedLeagueId || null;
   const [myEntry] = useMyEntry();
 
   const [bootstrap, setBootstrap] = useState(null);
@@ -152,7 +156,9 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
       try {
         const [bootstrapRes, standingsRes] = await Promise.all([
           fetchWithRetry(`${API_URL}/bootstrap-static`),
-          fetchWithRetry(`${API_URL}/league-standings/${leagueId}/standings`),
+          leagueId
+            ? fetchWithRetry(`${API_URL}/league-standings/${leagueId}/standings`)
+            : Promise.resolve(null),
         ]);
         if (!bootstrapRes.ok) throw new Error(`HTTP ${bootstrapRes.status}`);
 
@@ -160,7 +166,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
         if (cancelled) return;
         setBootstrap(bootstrapData);
 
-        const standingsData = standingsRes.ok ? await standingsRes.json() : [];
+        const standingsData = standingsRes?.ok ? await standingsRes.json() : [];
         if (cancelled) return;
         setStandings(Array.isArray(standingsData) ? standingsData : []);
 
@@ -178,7 +184,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
       }
     };
 
-    if (leagueId) load();
+    load();
     return () => {
       cancelled = true;
     };
@@ -346,7 +352,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
 
   const isLive = !!currentEvent?.is_current && !currentEvent?.finished;
   const arrow =
-    'flex h-[30px] w-[28px] items-center justify-center bg-panel text-[10px] text-foreground ' +
+    'flex h-[44px] w-[44px] items-center justify-center bg-panel text-[10px] text-foreground ' +
     'transition-colors hover:bg-muted disabled:text-muted-foreground/40 disabled:hover:bg-panel';
 
   return (
@@ -357,7 +363,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
             FPL
           </span>
           <span className="text-[9px] tracking-[0.16em] text-muted-foreground">
-            LEAGUE {leagueId}
+            {leagueId ? `LEAGUE ${leagueId}` : 'ACROSS FPL'}
             {isLive ? ' · LIVE' : ''}
           </span>
         </div>
@@ -366,7 +372,9 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
         </h1>
         <div className="mt-2.5 flex flex-wrap gap-2.5 text-[10px] leading-none tracking-[0.06em]">
           <span className="text-foreground">{isLive ? 'IN PROGRESS' : 'FINISHED'}</span>
-          <span className="text-muted-foreground">{standings.length} TEAMS IN LEAGUE</span>
+          {leagueId && (
+            <span className="text-muted-foreground">{standings.length} TEAMS IN LEAGUE</span>
+          )}
         </div>
 
         {/* The one place league and global numbers meet, so the comparison is
@@ -378,7 +386,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
             value={toNumber(currentEvent?.highest_score, null)}
             solid={toNumber(currentEvent?.highest_score, null) !== null}
           />
-          <SummaryCell label="YOUR LEAGUE AVG" value={leagueAverage} />
+          {leagueId && <SummaryCell label="YOUR LEAGUE AVG" value={leagueAverage} />}
         </div>
       </div>
 
@@ -410,7 +418,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
               >
                 ◀
               </button>
-              <span className="bg-panel px-2 text-[8px] leading-[30px] tracking-[0.12em] text-foreground">
+              <span className="bg-panel px-3 text-[8px] leading-[44px] tracking-[0.12em] text-foreground">
                 GW {fixtureEvent ?? '—'}
               </span>
               <button
@@ -447,7 +455,7 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
                   type="button"
                   onClick={() => setTransferView(v.id)}
                   aria-pressed={transferView === v.id}
-                  className={`min-h-[24px] px-2.5 text-[8px] font-medium tracking-[0.12em] transition-colors ${
+                  className={`min-h-[44px] px-3 text-[8px] font-medium tracking-[0.12em] transition-colors ${
                     transferView === v.id
                       ? 'bg-inverted text-background'
                       : 'bg-panel text-muted-foreground hover:text-foreground'
@@ -518,19 +526,23 @@ const Dashboard = ({ leagueId: propLeagueId }) => {
             ))}
           </div>
 
-          <SectionHeader label="Your league">
-            <Link
-              to={`/weekly-matchups/${leagueId}`}
-              className="text-[8px] font-medium tracking-[0.12em] text-primary-lighter"
-            >
-              FULL TABLE →
-            </Link>
-          </SectionHeader>
-          <LeagueTable
-            standings={standings.slice(0, 5)}
-            myEntry={myEntry}
-            onManagerClick={(teamId) => navigate('/my-team', { state: { teamId: String(teamId) } })}
-          />
+          {leagueId && (
+            <>
+              <SectionHeader label="Your league">
+                <Link
+                  to={`/weekly-matchups/${leagueId}`}
+                  className="text-[8px] font-medium tracking-[0.12em] text-primary-lighter"
+                >
+                  FULL TABLE →
+                </Link>
+              </SectionHeader>
+              <LeagueTable
+                standings={standings.slice(0, 5)}
+                myEntry={myEntry}
+                onManagerClick={(teamId) => navigate('/my-team', { state: { teamId: String(teamId) } })}
+              />
+            </>
+          )}
         </div>
       </div>
     </div>

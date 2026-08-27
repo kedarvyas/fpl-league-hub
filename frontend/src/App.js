@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { DEFAULT_LEAGUE_ID } from './config/league';
 import Layout from './components/Layout';
 import Home from './components/Home';
 import Dashboard from './components/Dashboard';
@@ -10,16 +9,13 @@ import PlayerStatisticsHub from './components/PlayerStatisticsHub';
 import PlayerStats from './components/PlayerStats';
 import MyTeam from './components/MyTeam';
 
-const App = () => {
-  const leagueId = DEFAULT_LEAGUE_ID;
-
-  return (
+const App = () => (
     <AuthProvider>
       <Router>
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/dashboard" element={<Dashboard leagueId={leagueId} />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/:leagueId" element={<Dashboard />} />
             <Route path="/weekly-matchups" element={<WeeklyMatchups />} />
             <Route path="/weekly-matchups/:leagueId" element={<WeeklyMatchups />} />
@@ -30,7 +26,6 @@ const App = () => {
         </Layout>
       </Router>
     </AuthProvider>
-  );
-};
+);
 
 export default App;
