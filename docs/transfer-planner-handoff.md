@@ -38,18 +38,48 @@ The job: *decide what to do before the deadline.* Concretely — show me my
 fifteen, let me take players out and put players in, and never let me get the
 money, the transfer count or the squad rules wrong.
 
-### It should be its own route, not a fifth MyTeam tab
+### Two views, under My Team, but not a tab
 
-Tempting, since MyTeam already renders the squad. Don't, for one specific
-reason: **MyTeam is a viewer for any manager.** Clicking a name on the H2H page
-or the Dashboard navigates there with someone else's entry, which is exactly why
-`fpl_my_entry` was split out from `fpl_team_id`. Planning transfers for a team
-you don't own is meaningless, and a tab would inherit that context.
+The job splits in two, and they are different kinds of object:
 
-So: `/plan`, keyed to `fpl_my_entry` from `hooks/useMyEntry.js`, with no team
-switcher. If no identity is set, the page's empty state is "set your team" and
-links to `/my-team`. Add it to `navigation` in `Header.js` (the array at the
-top) and cross-link from the MyTeam squad tab.
+- **NEXT GW** — the workspace. Your fifteen, take players out, put players in,
+  with the budget, free transfers and hit cost worked out live.
+- **NEXT 3** — a readout. Your fifteen as rows, the next three gameweeks as
+  columns, each cell an opponent with home/away and fixture difficulty. Expected
+  points goes under each cell later (with a limit — see §5).
+
+**The two views must share one squad.** NEXT 3 shows the squad *as planned*, not
+as it stands, so bringing someone in on the first view immediately changes their
+row on the second. Otherwise the second view is just a fixture list you could
+already get from the players page, and the two halves of the feature don't talk
+to each other.
+
+### Where it lives
+
+It belongs under My Team conceptually, and the URL should say so:
+**`/my-team/plan`**, reached from a control on MyTeam's SQUAD tab.
+
+Not a literal fourth tab on `MyTeam`, for two reasons:
+
+1. **MyTeam is a viewer for any manager.** Clicking a name on the H2H page or
+   the Dashboard navigates there with someone else's entry — that is exactly
+   why `fpl_my_entry` was split out from `fpl_team_id` in the first place.
+   Planning transfers for a team you don't own is meaningless, so the entry
+   point should only appear when the team being viewed *is* yours (`isMine` in
+   `MyTeam.js` already computes this).
+2. **The plan has its own two views**, so a tab would nest a tab bar inside a
+   tab bar.
+
+So: `/my-team/plan` keyed to `fpl_my_entry` from `hooks/useMyEntry.js`, with its
+own `NEXT GW` / `NEXT 3` tab bar and no team switcher. If no identity is set,
+the empty state is "set your team" linking to `/my-team`. Add the route in
+`App.js`; whether it also earns a slot in `Header.js`'s `navigation` array is a
+judgement call once it exists.
+
+The cost of a separate page is re-fetching `bootstrap-static` and the baseline
+picks that MyTeam already had in memory. That is two requests, both of which
+this page needs anyway, and it buys a workspace whose state does not die when
+someone taps SEASON. Worth it.
 
 ---
 
@@ -212,14 +242,14 @@ Chips are two per half-season: wildcard and free hit are `chip_type: 'transfer'`
 ## 4. Proposed shape
 
 On the system, so: radius 0, hairline gaps, `bg-panel` tiles, `-ink` tokens for
-anything that is text. No photos — you said so, and it saves fifteen image
-loads on a page that will re-render constantly.
+anything that is text. No photos — you said so, and it saves fifteen image loads
+on a page that re-renders on every edit.
 
-**Masthead.** `PLANNING` chip, `GW N`, and the deadline as a countdown —
-`events[].deadline_time`, verified present. Team name as the h1.
+**Masthead**, shared by both views. `PLANNING` chip, `GW N`, and the deadline as
+a countdown (`events[].deadline_time`, verified present).
 
-**Summary strip**, the three numbers that constrain every decision, updating
-live as the plan changes:
+**Summary strip**, also shared, and the reason the page is trustworthy — the
+three numbers that constrain every decision, updating live as the plan changes:
 
 ```
 FREE TRANSFERS        IN THE BANK        POINTS HIT
@@ -227,41 +257,63 @@ FREE TRANSFERS        IN THE BANK        POINTS HIT
 derived · tap to fix  after 2 in         1 transfer over
 ```
 
-Reserve a fourth cell for the team rating; leave it out of v1.
+Reserve a fourth cell for a squad rating; leave it out of v1.
 
-**The squad**, position-grouped, one row per player. A row carries: position,
-name, club, price, the next three fixtures as small FDR chips (`lib/fdr.js` has
-the banding — use `bg` for fills only), an availability flag when `status !== 'a'`,
-and an OUT control. A row marked OUT inverts and opens an IN slot beneath it;
-the slot opens the picker, filtered to that position, to what the budget affords,
-and to what the club limit allows.
+**Tab bar** below it: `NEXT GW` / `NEXT 3`. Same object as every other tab bar
+in the app — `border-live` underline, `text-live-ink` label.
 
-**The ledger**, at the bottom, the same object as `MatchupLedger`: an OUT column
-and an IN column whose money and count reconcile to the summary strip. This is
-the bit that makes the page trustworthy — the reader can see the arithmetic.
+### View 1 — NEXT GW, the workspace
 
-**A sticky footer on mobile** carrying the same three numbers, because the
-squad list is longer than a phone screen and the constraint has to stay visible.
+Position-grouped rows, one per player: position rail, name, club, price, the
+next fixture, an availability flag when `status !== 'a'`, and an OUT control.
+
+A row marked OUT inverts and opens an IN slot beneath it. The slot opens the
+picker (`PlayerSearchModal` already takes `onSelect` and `excludePlayerId`),
+filtered to that position, to what the budget affords, and to what the club
+limit allows.
+
+Below the squad, **the ledger** — the same object as `MatchupLedger`: an OUT
+column and an IN column whose money and count reconcile to the summary strip.
+This is what lets the reader check the arithmetic instead of trusting it.
+
+### View 2 — NEXT 3, the readout
+
+Fifteen rows, three columns. Each cell is one gameweek: opponent short name,
+`H` or `A`, and the fixture-difficulty band as the fill. `lib/fdr.js` has the
+banding — use `band.bg` for fills only, never behind text.
+
+Three things this view has to get right:
+
+- **It renders the planned squad, not the current one.** A player brought in on
+  view 1 appears here immediately, and the player they replaced does not. That
+  shared state is the point of the feature.
+- **Blank and double gameweeks.** A cell can hold **zero** fixtures or **two**.
+  A blank should read as a blank — an empty cell on the same geometry, per rule
+  4 — and a double should show both. A `.find()` on the fixture list is the bug
+  waiting to happen here.
+- **Expected points is one column, not three.** See §5.
+
+A per-row summary (how many of the three are at FDR 3 or better) and a
+per-column summary (how much of your squad has a good fixture that week) are
+both cheap and are the reason to look at a grid rather than a list.
 
 ### Validation: show, never block
 
 Every illegal state should be reachable and named, not prevented. Over budget,
 four from one club, wrong position counts, a player who is `can_select: false`,
-a duplicate. The design system's rule 4 applies by analogy — don't hide the
-problem, draw it.
+a duplicate. Rule 4 applies by analogy — don't hide the problem, draw it.
 
 ---
 
-## 5. Questions worth deciding rather than assuming
+## 5. Decisions, and the two still open
 
-- **One gameweek or a chain?** You said "upcoming game weeks", and the honest
-  answer is that these are very different features. Planning GW+1 is bounded.
-  Planning GW+1..+5 means each gameweek's squad depends on the previous
-  gameweek's plan, prices drift, and free transfers accumulate along the chain —
-  it is a different data model, not a bigger version of the same one. **My
-  recommendation: build GW+1 properly, and shape the stored plan so a chain is
-  additive** (see below). Fixture strips for the next five gameweeks give most
-  of the forward view without the combinatorics.
+- **Settled: one set of transfers, three gameweeks of fixtures.** Not a chain.
+  Chained planning — a different squad and a different budget in each of GW+1,
+  +2 and +3 — is a different data model, not a bigger version of this one, and
+  it is explicitly out of scope. NEXT 3 shows what the *one* planned squad faces
+  over three weeks. Keep the stored plan shaped as
+  `{entry, targetEvent, moves: [{out, in}]}` so that a chain stays possible
+  later as a list of these, but do not build toward it now.
 - **Where does a plan live?** `localStorage` keyed by entry and target gameweek
   is enough for v1 and matches how the app already stores identity. Supabase
   auth exists (`contexts/AuthContext.js`, Google and email) but is barely used —
@@ -275,15 +327,26 @@ problem, draw it.
 - **Does the plan set the XI too?** Choosing who starts, and the captain, is
   adjacent but separate. It doubles the surface. I would leave it out and let
   the page be about the fifteen.
-- **The team rating.** `ep_next` is the only forward number FPL publishes, so a
-  rating is the sum of `ep_next` across the XI with the captain doubled — no
-  invented model. Two caveats. It is flat early in the season: the highest
-  `ep_next` in the whole game today is **4.0**, so in August the rating will
-  rank nobody usefully and will look broken. And **beyond the next gameweek
-  there is no `ep` at all**, so a multi-gameweek rating means building a
-  projection, which is a separate project. The app already has a precedent for
-  refusing to pad: the fixtures tab says it stops at five because that is what
-  the API publishes.
+- **Expected points under the NEXT 3 grid — read this before promising it.**
+  `ep_next` is the only forward number FPL publishes, and the name is literal:
+  **it covers the next gameweek and nothing beyond it.** There is no `ep` for
+  GW+2 or GW+3. So the grid can carry expected points in its *first* column
+  honestly, and the other two would need a projection we build ourselves —
+  minutes model, fixture adjustment, form decay. That is a separate project with
+  its own accuracy problem, not a later increment of this one.
+
+  Three ways out, in ascending order of work: leave EP off the grid entirely and
+  let fixture difficulty carry the forward view; show EP on column one only and
+  leave the other two visibly blank (rule 4 — an absent number is drawn, not
+  hidden); or build the projection as its own piece of work. **My
+  recommendation is the second** — it is honest, it costs nothing, and the empty
+  cells are an accurate statement about what is knowable.
+
+  A second caveat on EP generally: it is flat early in the season. The highest
+  `ep_next` in the entire game on 2026-08-27 was **4.0**, so in August a rating
+  built on it separates nobody and will look broken. It becomes useful once
+  there is form to work from. The app has a precedent for refusing to pad — the
+  fixtures tab says it stops at five because five is what the API publishes.
 
 ---
 
@@ -317,18 +380,27 @@ problem, draw it.
 
 **v1 — the thing itself**
 
-1. `entry-history` and `fixtures-future` Edge Functions.
+1. `entry-history` and `fixtures-future` Edge Functions (§3).
 2. `lib/transferPlan.js`: selling price, free-transfer derivation, budget maths,
-   squad legality. Pure functions, unit-tested, no React.
-3. `/plan` route on the Scoreboard system: squad list, OUT/IN, picker, ledger,
-   live summary strip, validation states.
-4. `localStorage` persistence keyed by entry and target gameweek.
-5. Wildcard / Free Hit toggle.
+   squad legality. Pure functions, unit-tested, no React. These are the two
+   places where a wrong answer is invisible.
+3. `/my-team/plan`, keyed to `fpl_my_entry`, with the shared masthead and
+   summary strip and a `NEXT GW` / `NEXT 3` tab bar.
+4. **NEXT GW** — squad rows, OUT/IN, picker, ledger, live summary strip,
+   validation states.
+5. **NEXT 3** — the fixture grid over the *planned* squad, handling blanks and
+   doubles.
+6. `localStorage` persistence keyed by entry and target gameweek.
+7. Wildcard / Free Hit toggle — it makes transfers unlimited and free, which is
+   the state people most want to plan in, and the chip data is already there.
+8. Entry point on MyTeam's SQUAD tab, shown only when `isMine`.
 
 **Later, in rough order of value**
 
-- Team rating on `ep_next`, with the early-season caveat handled honestly.
-- Multi-gameweek chaining.
-- Price-change warnings on the players in your plan — the data and the component
-  both already exist.
-- Plans in Supabase behind the existing auth, so they sync and can be shared.
+- Expected points in the grid's first column, blank in the other two (§5).
+- Price-change warnings on the players in your plan — `getPriceOutlook` in
+  `lib/playerStats.js` and `components/PlayerPriceProjection.js` both exist.
+- A squad rating in the fourth summary cell, once EP is worth showing.
+- Setting the XI and the captain, if the fifteen turns out not to be enough.
+- Plans in Supabase behind the existing auth, so they sync across devices.
+- Chained multi-gameweek planning, if it is still wanted after using this.
