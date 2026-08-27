@@ -67,7 +67,7 @@ const SORTS = [
   },
   {
     id: 'selected',
-    label: 'SEL%',
+    label: 'OWNED',
     value: (p) => toNumber(p.selected_by_percent),
     display: (p) => formatDecimal(p.selected_by_percent, 1, '0.0'),
   },
@@ -99,28 +99,28 @@ const price = (nowCost) => `£${(toNumber(nowCost) / 10).toFixed(1)}M`;
 const LeaderRow = ({ player, rank, value, label }) => (
   <Link
     to={`/player/${player.id}`}
-    className="flex items-center gap-2.5 bg-panel px-3 py-2.5 transition-colors hover:bg-muted"
+    className="flex items-center gap-2.5 bg-panel px-3 py-2.5 transition-colors hover:bg-muted md:gap-3 md:px-4 md:py-3"
   >
-    <span className="w-[12px] shrink-0 text-[9px] leading-none text-muted-foreground">{rank}</span>
+    <span className="w-[12px] shrink-0 text-[9px] leading-none text-muted-foreground md:w-[16px] md:text-[11px]">{rank}</span>
     <PlayerPhoto
       code={player.code}
       name={player.web_name}
       size="sm"
-      className="h-[30px] w-[24px] shrink-0 border border-border bg-background text-[10px]"
+      className="h-[30px] w-[24px] shrink-0 border border-border bg-background text-[10px] md:h-[40px] md:w-[31px] md:text-[13px]"
     />
     <span className="min-w-0 flex-1">
-      <span className="block truncate text-[10px] font-medium leading-none text-foreground">
+      <span className="block truncate text-[10px] font-medium leading-none text-foreground md:text-[13px]">
         {player.web_name}
       </span>
-      <span className="mt-1 block truncate text-[7.5px] leading-none tracking-[0.1em] text-muted-foreground">
+      <span className="mt-1 block truncate text-[7.5px] leading-none tracking-[0.1em] text-muted-foreground md:mt-1.5 md:text-[9px]">
         {player.teamShortName} · {price(player.now_cost)}
       </span>
     </span>
     <span className="shrink-0 text-right">
-      <span className="block text-[14px] font-bold leading-none tracking-[-0.03em] text-foreground">
+      <span className="block text-[14px] font-bold leading-none tracking-[-0.03em] text-foreground md:text-[20px]">
         {value}
       </span>
-      <span className="mt-1 block text-[7px] leading-none tracking-[0.1em] text-muted-foreground">
+      <span className="mt-1 block text-[7px] leading-none tracking-[0.1em] text-muted-foreground md:text-[8px]">
         {label}
       </span>
     </span>
@@ -131,7 +131,7 @@ const Leaderboard = ({ label, note, players, render, empty }) => (
   <section className="min-w-0">
     <SectionHeader label={label}>
       {note && (
-        <span className="text-[7px] tracking-[0.1em] text-muted-foreground">{note}</span>
+        <span className="text-[7px] tracking-[0.1em] text-muted-foreground md:text-[8px]">{note}</span>
       )}
     </SectionHeader>
     {players.length === 0 ? (
@@ -150,41 +150,41 @@ const Leaderboard = ({ label, note, players, render, empty }) => (
 const ListRow = ({ player, rank, sort }) => (
   <Link
     to={`/player/${player.id}`}
-    className="flex items-center gap-2.5 bg-panel px-3 py-2.5 transition-colors hover:bg-muted"
+    className="flex items-center gap-2.5 bg-panel px-3 py-2.5 transition-colors hover:bg-muted md:gap-3 md:px-4 md:py-3"
   >
-    <span className="w-[22px] shrink-0 text-right text-[9px] leading-none text-muted-foreground">
+    <span className="w-[22px] shrink-0 text-right text-[9px] leading-none text-muted-foreground md:w-[28px] md:text-[11px]">
       {rank}
     </span>
     <PlayerPhoto
       code={player.code}
       name={player.web_name}
       size="sm"
-      className="h-[30px] w-[24px] shrink-0 border border-border bg-background text-[10px]"
+      className="h-[30px] w-[24px] shrink-0 border border-border bg-background text-[10px] md:h-[40px] md:w-[31px] md:text-[13px]"
     />
     <span className="min-w-0 flex-1">
-      <span className="block truncate text-[10px] font-medium leading-none text-foreground">
+      <span className="block truncate text-[10px] font-medium leading-none text-foreground md:text-[13px]">
         {player.web_name}
       </span>
-      <span className="mt-1 block truncate text-[7.5px] leading-none tracking-[0.1em] text-muted-foreground">
+      <span className="mt-1 block truncate text-[7.5px] leading-none tracking-[0.1em] text-muted-foreground md:mt-1.5 md:text-[9px]">
         {player.teamShortName} · {price(player.now_cost)}
       </span>
     </span>
 
-    <span className="hidden w-[30px] shrink-0 text-center text-[8px] leading-none tracking-[0.1em] text-muted-foreground sm:block">
+    <span className="hidden w-[30px] shrink-0 text-center text-[8px] leading-none tracking-[0.1em] text-muted-foreground sm:block md:w-[36px] md:text-[9.5px]">
       {getPositionShort(player.element_type)}
     </span>
-    <span className="hidden w-[34px] shrink-0 text-right text-[11px] font-medium leading-none text-muted-foreground sm:block">
+    <span className="hidden w-[34px] shrink-0 text-right text-[11px] font-medium leading-none text-muted-foreground sm:block md:w-[44px] md:text-[14px]">
       {formatDecimal(player.form, 1, '0.0')}
     </span>
-    <span className="hidden w-[40px] shrink-0 text-right text-[11px] font-medium leading-none text-muted-foreground md:block">
+    <span className="hidden w-[40px] shrink-0 text-right text-[11px] font-medium leading-none text-muted-foreground md:block md:w-[50px] md:text-[14px]">
       {formatDecimal(player.selected_by_percent, 1, '0.0')}
     </span>
 
-    <span className="w-[46px] shrink-0 text-right">
-      <span className="block text-[14px] font-bold leading-none tracking-[-0.03em] text-foreground">
+    <span className="w-[46px] shrink-0 text-right md:w-[58px]">
+      <span className="block text-[14px] font-bold leading-none tracking-[-0.03em] text-foreground md:text-[20px]">
         {sort.display(player)}
       </span>
-      <span className="mt-1 block text-[7px] leading-none tracking-[0.1em] text-muted-foreground">
+      <span className="mt-1 block text-[7px] leading-none tracking-[0.1em] text-muted-foreground md:text-[8px]">
         {sort.label}
       </span>
     </span>
@@ -338,14 +338,14 @@ const PlayerStatisticsHub = () => {
             onChange={(e) => onSearch(e.target.value)}
             placeholder="SEARCH PLAYER OR CLUB"
             aria-label="Search players or clubs"
-            className="min-h-[40px] min-w-0 flex-1 bg-panel px-3 text-[11px] tracking-[0.06em] text-foreground placeholder:text-muted-foreground placeholder:tracking-[0.12em] focus:outline-none"
+            className="min-h-[40px] min-w-0 flex-1 bg-panel px-3 text-[11px] tracking-[0.06em] text-foreground placeholder:text-muted-foreground placeholder:tracking-[0.12em] focus:outline-none md:min-h-[48px] md:px-4 md:text-[13px]"
           />
           {searchTerm && (
             <button
               type="button"
               onClick={() => setSearchTerm('')}
               aria-label="Clear search"
-              className="min-h-[40px] shrink-0 bg-panel px-3 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+              className="min-h-[40px] shrink-0 bg-panel px-3 text-[10px] text-muted-foreground transition-colors hover:text-foreground md:min-h-[48px] md:px-4 md:text-[12px]"
             >
               ✕
             </button>
@@ -364,7 +364,7 @@ const PlayerStatisticsHub = () => {
               type="button"
               onClick={() => setActivePosition(position.id)}
               aria-pressed={activePosition === position.id}
-              className={`min-h-[34px] flex-1 text-[8.5px] font-medium tracking-[0.14em] transition-colors ${
+              className={`min-h-[34px] flex-1 text-[8.5px] font-medium tracking-[0.14em] transition-colors md:min-h-[42px] md:text-[10.5px] ${
                 activePosition === position.id
                   ? 'bg-inverted text-background'
                   : 'bg-panel text-muted-foreground hover:text-foreground'
@@ -386,7 +386,7 @@ const PlayerStatisticsHub = () => {
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            className={`flex-1 border-b-2 py-[11px] text-center text-[9.5px] font-medium leading-none tracking-[0.14em] transition-colors ${
+            className={`flex-1 border-b-2 py-[11px] text-center text-[9.5px] font-medium leading-none tracking-[0.14em] transition-colors md:py-[14px] md:text-[11.5px] ${
               tab === t.id
                 ? 'border-live text-live'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -507,13 +507,13 @@ const PlayerStatisticsHub = () => {
         ) : (
           <>
             {/* Sort header. Doubles as the column key for the row below it. */}
-            <div className="flex items-center gap-2.5 pt-[22px]">
-              <span className="w-[22px] shrink-0" />
-              <span className="w-[24px] shrink-0" />
-              <span className="min-w-0 flex-1 text-[7px] tracking-[0.12em] text-muted-foreground">
+            <div className="flex items-center gap-2.5 px-3 pt-[22px] md:gap-3 md:px-4">
+              <span className="w-[22px] shrink-0 md:w-[28px]" />
+              <span className="w-[24px] shrink-0 md:w-[31px]" />
+              <span className="min-w-0 flex-1 text-[7px] tracking-[0.12em] text-muted-foreground md:text-[8px]">
                 PLAYER
               </span>
-              <span className="hidden w-[30px] shrink-0 text-center text-[7px] tracking-[0.12em] text-muted-foreground sm:block">
+              <span className="hidden w-[30px] shrink-0 text-center text-[7px] tracking-[0.12em] text-muted-foreground sm:block md:w-[36px] md:text-[8px]">
                 POS
               </span>
               {/* Labels, not controls. Sorting lives in the one chip row
@@ -521,14 +521,14 @@ const PlayerStatisticsHub = () => {
                   page two buttons with the same name for the same action, and
                   the columns that carry them are hidden on a phone anyway. */}
               {[
-                { id: 'form', width: 'w-[34px]', show: 'hidden sm:block' },
-                { id: 'selected', width: 'w-[40px]', show: 'hidden md:block' },
+                { id: 'form', width: 'w-[34px] md:w-[44px]', show: 'hidden sm:block' },
+                { id: 'selected', width: 'w-[40px] md:w-[50px]', show: 'hidden md:block' },
               ].map((col) => {
                 const sort = SORTS.find((s) => s.id === col.id);
                 return (
                   <span
                     key={col.id}
-                    className={`${col.width} ${col.show} shrink-0 text-right text-[7px] tracking-[0.12em] ${
+                    className={`${col.width} ${col.show} shrink-0 text-right text-[7px] tracking-[0.12em] md:text-[8px] ${
                       sortId === col.id ? 'text-foreground' : 'text-muted-foreground'
                     }`}
                   >
@@ -536,7 +536,7 @@ const PlayerStatisticsHub = () => {
                   </span>
                 );
               })}
-              <span className="w-[46px] shrink-0 text-right text-[7px] tracking-[0.12em] text-foreground">
+              <span className="w-[46px] shrink-0 text-right text-[7px] tracking-[0.12em] text-foreground md:w-[58px] md:text-[8px]">
                 {activeSort.label} {ascending ? '▲' : '▼'}
               </span>
             </div>
@@ -544,7 +544,7 @@ const PlayerStatisticsHub = () => {
             {/* Price and value have no column of their own, so they sort from
                 here rather than being unreachable. */}
             <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 pb-2.5">
-              <span className="text-[7px] tracking-[0.12em] text-muted-foreground">SORT</span>
+              <span className="text-[7px] tracking-[0.12em] text-muted-foreground md:text-[8px]">SORT</span>
               {SORTS.map((sort) => (
                 <button
                   key={sort.id}
@@ -554,7 +554,7 @@ const PlayerStatisticsHub = () => {
                   aria-label={`Sort by ${sort.label}${
                     sortId === sort.id ? (ascending ? ', ascending' : ', descending') : ''
                   }`}
-                  className={`min-h-[24px] px-1.5 py-[3px] text-[7.5px] font-medium tracking-[0.1em] transition-colors ${
+                  className={`min-h-[24px] px-1.5 py-[3px] text-[7.5px] font-medium tracking-[0.1em] transition-colors md:min-h-[28px] md:px-2 md:text-[9px] ${
                     sortId === sort.id
                       ? 'bg-accent/15 text-accent-chip'
                       : 'text-muted-foreground hover:text-foreground'
@@ -582,7 +582,7 @@ const PlayerStatisticsHub = () => {
                   <button
                     type="button"
                     onClick={() => setVisible((v) => v + PAGE_SIZE)}
-                    className="mt-px min-h-[40px] w-full bg-panel text-[8.5px] font-medium tracking-[0.14em] text-primary-lighter transition-colors hover:bg-muted"
+                    className="mt-px min-h-[40px] w-full bg-panel text-[8.5px] font-medium tracking-[0.14em] text-primary-lighter transition-colors hover:bg-muted md:min-h-[48px] md:text-[10px]"
                   >
                     SHOW {Math.min(PAGE_SIZE, sorted.length - visible)} MORE ·{' '}
                     {sorted.length - visible} LEFT
@@ -591,13 +591,13 @@ const PlayerStatisticsHub = () => {
               </>
             )}
 
-            <p className="mt-3 text-[7px] leading-[1.6] tracking-[0.1em] text-muted-foreground">
+            <p className="mt-3 text-[7px] leading-[1.6] tracking-[0.1em] text-muted-foreground md:text-[8px]">
               SORTED BY {activeSort.label} {ascending ? 'ASCENDING' : 'DESCENDING'}
             </p>
           </>
         )}
 
-        <p className="mt-6 text-[7.5px] leading-[1.7] tracking-[0.08em] text-muted-foreground">
+        <p className="mt-6 text-[7.5px] leading-[1.7] tracking-[0.08em] text-muted-foreground md:text-[9px]">
           Defensive contribution counts tackles, clearances, blocks and interceptions, plus
           recoveries for midfielders and forwards. Price percentages show how far a player has moved
           toward a change under FPL's dynamic pricing, with FPL's own likelihood rating out of five.

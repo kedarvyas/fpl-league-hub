@@ -62,7 +62,7 @@ const PlayerHero = ({ playerData, positionCount, currentEvent, isLive }) => {
                             £{(toNumber(playerData.now_cost) / 10).toFixed(1)}M
                         </span>
                         <span className="text-muted-foreground">
-                            {formatDecimal(playerData.selected_by_percent, 1, '0.0')}% OWN
+                            {formatDecimal(playerData.selected_by_percent, 1, '0.0')}% OWNED
                         </span>
                         <span className="text-muted-foreground">{playerData.teamName}</span>
                     </div>

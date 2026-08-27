@@ -245,7 +245,7 @@ const PlayerComparison = ({ player1, player2, onClose }) => {
                         {/* Ownership & Transfers */}
                         <div className="text-xs font-semibold text-gray-700 pt-2">Ownership & Transfers</div>
                         <ComparisonMetric
-                            label="Selected By"
+                            label="Owned By"
                             value1={`${formatDecimal(player1?.selected_by_percent, 1, '0.0')}%`}
                             value2={`${formatDecimal(player2?.selected_by_percent, 1, '0.0')}%`}
                         />
