@@ -106,7 +106,7 @@ export const SectionHeader = ({ label, tone = 'muted', children }) => (
     <div className="flex items-center gap-2 pt-[22px] pb-2.5">
         <span
             className={`text-[9px] font-medium uppercase tracking-[0.18em] ${
-                tone === 'live' ? 'text-live' : 'text-muted-foreground'
+                tone === 'live' ? 'text-live-ink' : 'text-muted-foreground'
             }`}
         >
             {label}

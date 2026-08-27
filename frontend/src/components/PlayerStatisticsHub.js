@@ -303,7 +303,7 @@ const PlayerStatisticsHub = () => {
         <div className="px-4 pt-6 md:px-7">
           <SectionHeader label="Players" />
           <div className="border-l-2 border-destructive bg-destructive/10 px-3 py-2.5">
-            <p className="text-[9px] leading-[1.5] text-destructive">{error}. Try again shortly.</p>
+            <p className="text-[9px] leading-[1.5] text-destructive-ink">{error}. Try again shortly.</p>
           </div>
         </div>
       </div>
@@ -318,7 +318,7 @@ const PlayerStatisticsHub = () => {
       {/* Masthead, same shape as the player and H2H pages. */}
       <div className="px-4 pt-4 md:px-7">
         <div className="flex items-center gap-2">
-          <span className="bg-primary px-1.5 py-1 text-[9px] font-medium leading-none tracking-[0.16em] text-background">
+          <span className="bg-primary-chip px-1.5 py-1 text-[9px] font-medium leading-none tracking-[0.16em] text-background">
             FPL
           </span>
           <span className="text-[9px] tracking-[0.16em] text-muted-foreground">
@@ -388,7 +388,7 @@ const PlayerStatisticsHub = () => {
             onClick={() => setTab(t.id)}
             className={`flex-1 border-b-2 py-[11px] text-center text-[9.5px] font-medium leading-none tracking-[0.14em] transition-colors md:py-[14px] md:text-[11.5px] ${
               tab === t.id
-                ? 'border-live text-live'
+                ? 'border-live text-live-ink'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >

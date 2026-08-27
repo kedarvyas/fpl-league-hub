@@ -20,11 +20,15 @@ const MOBILE_PREVIEW_ROWS = 8;
 /** Rank movement since last gameweek. Muted by default — colour is earned. */
 const Move = ({ move }) => {
     if (move === 0) {
-        return <span className="text-[7px] leading-none text-muted-foreground/50">·</span>;
+        return (
+            <span aria-hidden="true" className="text-[7px] leading-none text-muted-foreground/50">
+                ·
+            </span>
+        );
     }
     return (
         <span
-            className={`text-[7px] leading-none ${move > 0 ? 'text-live' : 'text-muted-foreground'}`}
+            className={`text-[7px] leading-none ${move > 0 ? 'text-live-ink' : 'text-muted-foreground'}`}
             title={`${move > 0 ? 'Up' : 'Down'} ${Math.abs(move)}`}
         >
             {move > 0 ? '▲' : '▼'}

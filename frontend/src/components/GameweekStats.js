@@ -36,7 +36,7 @@ const TransferRow = ({ transfer }) => {
                     </span>
                 </span>
                 {hit > 0 && (
-                    <span className="shrink-0 text-[7.5px] leading-none tracking-[0.1em] text-destructive">
+                    <span className="shrink-0 text-[7.5px] leading-none tracking-[0.1em] text-destructive-ink">
                         −{hit}
                     </span>
                 )}
@@ -139,7 +139,7 @@ const GameweekStats = ({ eventId, leagueId }) => {
             <>
                 <SectionHeader label="Gameweek" />
                 <div className="border-l-2 border-destructive bg-destructive/10 px-3 py-2.5">
-                    <p className="text-[9px] leading-[1.5] text-destructive">{error}</p>
+                    <p className="text-[9px] leading-[1.5] text-destructive-ink">{error}</p>
                 </div>
             </>
         );
@@ -158,7 +158,7 @@ const GameweekStats = ({ eventId, leagueId }) => {
                             {managerOfWeek.team_name}
                         </p>
                         <div className="mt-3 flex items-end justify-between gap-2">
-                            <span className="text-[34px] font-bold leading-[0.85] tracking-[-0.05em] text-live">
+                            <span className="text-[34px] font-bold leading-[0.85] tracking-[-0.05em] text-live-ink">
                                 {formatCount(managerOfWeek.points)}
                             </span>
                             <span className="pb-1 text-[7.5px] tracking-[0.14em] text-muted-foreground">

@@ -6,7 +6,7 @@ Live example: https://tacticosfplhub.netlify.app/player/165
 
 ---
 
-## The five rules
+## The six rules
 
 Everything below follows from these. If a decision isn't covered, work it out from these rather than inventing a new pattern.
 
@@ -15,6 +15,7 @@ Everything below follows from these. If a decision isn't covered, work it out fr
 3. **Real output and FPL scoring are separated by a value inversion, not a hue.** Real sits on `bg-panel` with `text-foreground`; FPL inverts to `bg-inverted` with `text-background`. Because it's a lightness flip, it survives all six themes and colour-blind reading, and it replaces every colour-coded legend in the app.
 4. **Never hide a zero.** Tracks are drawn unfilled, values drop to `text-muted-foreground` at the same size. A fringe player and a starter have identical geometry — you compare them by how much ink is in the bars.
 5. **Colour is earned.** `--live` is for real returns only. A player with nothing on the board gets muted, not a bright zero.
+6. **Fill colours are not text colours.** Every saturated token here is tuned as a fill. Text — and any fill with text on it — takes the `-ink` variant. Getting this wrong is invisible on a screenshot and shows up immediately in `scripts/contrast-audit.js`.
 
 ---
 
@@ -27,8 +28,9 @@ All colours are HSL triples in `frontend/src/index.css`, consumed through Tailwi
 | Token | Purpose |
 |---|---|
 | `--panel` | Tile and panel fill. Required because Dark and Midnight set `--card` equal to `--background`, leaving a tile grid with nothing to sit on. |
-| `--live` | Positive / returns / live. **Only ever a fill behind `--background`-coloured text**, never text on a background — that is what keeps it legible in Sage and Ocean. |
-| `--warn` | `COOLING` verdict, FDR 3. |
+| `--live` | Positive / returns / live. **A fill only.** Anything that is text, or a fill with text on it, takes `--live-ink`. |
+| `--warn` | `COOLING` verdict, FDR 3. The fixture bands are `--live` / `--warn` / `--destructive` — fills only. |
+| `--live-ink`, `--warn-ink`, `--destructive-ink`, `--primary-chip` | The same colours at a lightness that carries text. See **The -ink family** below — this is the single distinction most likely to be got wrong. |
 | `--inverted` | The FPL-cell surface. `var(--foreground)` everywhere except Turf, which needs a warm off-white or the two greens fight. |
 | `--accent` | Secondary accent. Tracks `--primary` except in Turf, where `--primary` and `--live` are the same lime and the expected/actual bars would be indistinguishable. |
 | `--accent-chip` | `--accent` at a per-theme lightness that clears 4.5:1 on an `accent/15` field. Dark themes lighten, light themes darken. |
@@ -192,7 +194,79 @@ and no Leeds, Sunderland or Ipswich.
 `@mui/material`. With them converted, `@mui/material`, `@mui/icons-material`,
 `react-table`, `framer-motion`, `@heroicons/react` and `@headlessui/react` have
 zero import sites left. The production bundle fell from 353.03 kB to 246.52 kB
-gzipped. The packages are still in `package.json` and can be uninstalled.
+gzipped, and to 245.83 kB once `MyTeam` dropped `lucide-react` and `ui/card`. The packages are still in `package.json` and can be uninstalled.
+
+---
+
+## The manager page — done
+
+`MyTeam.js` is on the system, split into `MyTeamSquad.js`, `MyTeamSeason.js`
+and `MyTeamLeagues.js`, with `lib/myTeam.js` and `hooks/useMyEntry.js` new
+underneath it.
+
+The page's job is **this manager's season**, and it falls into the three
+questions a manager actually asks: what did I pick, how has the season gone,
+where does that leave me. Those are the three tabs — SQUAD, SEASON, LEAGUES —
+and SQUAD leads, because a page called My Team should open on the team.
+
+- **The squad is built.** The `Pick` tab was a literal placeholder reading
+  "coming soon", on a page named My Team. `entry-picks` had existed the whole
+  time; it returns picks raw, so names, clubs, positions and points come from
+  joining against `bootstrap-static` in `lib/myTeam.js`. It is a hairline list
+  rather than a pitch, for the reason the H2H page stopped drawing one.
+- **Only the current gameweek.** Per-player points come from bootstrap's
+  `event_points`, which is the live gameweek only. A gameweek stepper here
+  would paint this week's scores onto last week's squad, so there isn't one.
+  A stepper needs `event/{gw}/live`, one call per gameweek.
+- **A starter is `position <= 11`, not `multiplier > 0`.** Under Bench Boost
+  every one of the fifteen picks carries a multiplier of 1. Splitting on the
+  multiplier gives a fifteen-man starting eleven every time the chip is played
+  — which `lib/h2h.js`'s `startersOf` still does, and is worth fixing there.
+- **Three previously unused blocks of `team-data` now render.** `leagues.h2h`
+  and `leagues.classic` became the LEAGUES tab, split three ways: head-to-head,
+  mini-leagues you joined (`league_type: 'x'`) and the global ones FPL enrols
+  everyone into (`'s'`). Ranking 1st of 9 and 691,183rd of 8.9 million are both
+  interesting, but not in the same list. `last_deadline_value` / `_bank` /
+  `_total_transfers` are gameweek context on the squad.
+- **The rank chart stopped leading.** It carried a 📈 in its heading and a
+  sentence restating the two numbers printed above it. Points per gameweek
+  leads now — the same 38-slot bar chart the player page uses — and rank
+  follows as a trajectory with a designed empty state below two gameweeks.
+- **`tier_color` is gone.** `team-previous-seasons` returns a hex per season
+  and a medal emoji. A fixed hex cannot survive six themes with panels on both
+  sides of the lightness scale, and the design carries no icons. The ordinal
+  information survives as a percentile track plus a `TOP n%` label, and only a
+  top-5% finish earns the accent chip.
+- **`wildcards_played` is deleted.** The page rendered a "Wildcard chip in
+  play" badge gated on a field `team-data` has never set, so it could not
+  appear. The chip actually played comes from the picks and is on the squad.
+- **`rank_change` has an empty state.** It is only computed once a previous
+  gameweek exists, so in GW1 the Rank Change card was a correct number above a
+  blank space. The rank cell now always carries a line: the movement, `NO
+  CHANGE`, or `FIRST GAMEWEEK`.
+- **The team can be changed.** `setShowInput(false)` ran on a successful load
+  and nothing set it back except the error path, so switching teams meant
+  failing a request first. CHANGE TEAM is always in the masthead.
+
+### Identity is its own key now
+
+This is the part that reaches beyond the page. `MyTeam` wrote `fpl_team_id`
+from `location.state.teamId`, and **every manager name on the H2H and Dashboard
+pages navigates here with exactly that state**. So the stored "my team" was
+really "the last manager I clicked on" — and the H2H page's `YOUR FIXTURE`
+section and the standings `YOU` marker both key off it, so both silently
+followed whoever you last looked at.
+
+`hooks/useMyEntry.js` splits the two. `fpl_my_entry` is identity and is written
+only by a deliberate act: submitting an id on Home or on this page, or pressing
+THIS IS ME on a team you are viewing. The id being *viewed* is component state
+and is never persisted. `WeeklyMatchups`, `Dashboard` and `Home` read the new
+key; a one-time migration at module load seeds it from `fpl_team_id` so
+existing users keep an identity, and the page now lets them correct it.
+
+Identity is also claimed only *after* the id loads, so a typo does not become
+"my team" — and a failed load clears the page rather than leaving the previous
+team's masthead under an error.
 
 ---
 
@@ -206,10 +280,12 @@ gzipped. The packages are still in `package.json` and can be uninstalled.
 | `PlayerStatisticsHub` | Done |
 | `PlayerSearchModal`, `PlayerComparison` | Done |
 | `Dashboard` | Done |
-| `Home.js`, `MyTeam.js` | **Still the old design** |
+| `MyTeam` + `MyTeamSquad` / `MyTeamSeason` / `MyTeamLeagues` | Done |
+| `Home.js` | **Still the old design** |
 
 `Home.js` still carries dead `from-header-bg-from` / `to-header-bg-to` class
-names whose tokens were deleted with the header work. They render nothing.
+names whose tokens were deleted with the header work. They render nothing —
+and they are not the only ones. See **Dead class names** below.
 
 MUI is gone from `src/` entirely. The dependency is still in `package.json` and
 can be uninstalled along with `@mui/icons-material`, `@emotion/*`, `react-table`
@@ -227,35 +303,137 @@ and `@headlessui/react`, none of which are imported any more.
   firing several calls on mount needs this.
 - **Page shell** — every converted page is `mx-auto max-w-[1280px] font-mono`,
   with its route added to `SCOREBOARD_ROUTES` in `Layout.js` so the legacy
-  container stops double-padding it. When `Home` and `MyTeam` are converted,
-  that list covers every route and both it and the legacy container go away.
+  container stops double-padding it. `Home` is the last route not on the list;
+  when it converts, both the list and the legacy container go away.
 - **Desktop steps.** List content needs a `md:` step up. The player hub shipped
   at one size for every width, so player names — the actual content — sat at
   10px on a 1280px desktop. The 7–10px range is for labels beside a large
   number, not for content.
 - **Page identity.** Dashboard and H2H overlapped until each was given a job:
-  H2H is "my league this week", Dashboard is "the gameweek at large". Every
-  FPL-wide figure on the dashboard is labelled `ACROSS FPL`, because the chip
-  counts and most-captained are global numbers in the millions and used to sit
-  under a heading carrying your league id.
+  H2H is "my league this week", Dashboard is "the gameweek at large", MyTeam is
+  "this manager's season". Every FPL-wide figure on the dashboard is labelled
+  `ACROSS FPL`, because the chip counts and most-captained are global numbers
+  in the millions and used to sit under a heading carrying your league id.
+- **`lib/myTeam.js`** — the picks join, the three-way league split, and rank as
+  a share of the field. `entry_percentile_rank` is bucketed to 1/5/10/15/25/50,
+  too coarse to separate the top of a mini-league from the middle, so
+  `topPercent` divides `rank / rank_count` instead. Use FPL's own *Overall*
+  league `rank_count` as the denominator for overall rank, not bootstrap's
+  `total_players` — they differ by ~900k and quoting both contradicts itself.
+- **`hooks/useMyEntry.js`** — "this is me" as its own key. See the manager page
+  section; browsing must never write identity.
 
-### Two known token gaps
+### Dead class names — a CSS variable is not a Tailwind colour
 
-Both affect surfaces that are already shipped, and both are one added token
-each, following the `--accent-chip` pattern:
+A token in `index.css` does nothing until it is also registered under
+`theme.extend.colors` in `tailwind.config.js`. Where it isn't, the class name
+is silently dropped at build time: no rule is emitted, no warning is printed,
+and the element just inherits. It looks like a styling opinion rather than a
+bug, which is why these survive.
 
-- **`bg-primary` with `text-background`** (the hero position chip) measures
-  **2.75:1 in Ocean**, 2.81:1 in Midnight, 3.66:1 in Sage. `--primary` is not
-  guaranteed to contrast with `--background`. Where this mattered most — the
-  player hub's position filter — it was replaced with the value inversion, which
-  is `--foreground` on `--background` by construction and clears 9.6:1 in all
-  six themes. A `--primary-chip` token would fix the rest.
-- **`text-live` as a label** (the active tab) measures **3.2–3.8:1** in Light,
-  Sage and Ocean — below AA for 9.5px text. `--live` as a *fill* behind
-  `--background` text is always fine; as text it is not. A `--live-text` token
-  would fix it.
+Audit by diffing the class names used in `src` against the rules that actually
+exist in the built CSS:
 
----
+```bash
+CSS=$(ls build/static/css/main.*.css | head -1)
+grep -rhoE '\b(bg|text|border|from|via|to|ring|fill|stroke|divide|outline|accent|caret)-[a-z][a-zA-Z0-9-]*' --include='*.js' src \
+  | sort -u | while read -r c; do grep -qF ".$c" "$CSS" || echo "$c"; done
+```
+
+Discount hits that only ever appear behind a variant (`focus:outline-none`
+compiles to `.focus\:outline-none`, so the bare name is absent by design).
+What that leaves today:
+
+| Dead class | Sites | Effect |
+|---|---|---|
+| `bg-success` / `text-success` | `lib/fdr.js` | **Gone.** Every FDR 1–2 drew a bar with a height and no fill, a track with no fill, and a `text-background` numeral on a transparent square — white on white in the light themes. `--success` only ever duplicated `--live`; the bands are `--live` / `--warn` / `--destructive` now. |
+| `bg-primary-darker` | 3 — `Home.js` ×2, `ui/button` | **Gone.** The hover on the primary button never darkened. The variant carries its own colour now and the two `Home.js` overrides were removed. |
+| `text-primary-lighter` | 10 — `Header`, `PlayerStats` ×2, `Dashboard`, `LeagueTable`, `PlayerStatisticsHub`, `MatchupLedger`, `GameweekStats`, `LoginModal`, `MyTeam` | **Still dead, deliberately.** Every action link — COMPARE →, FULL TABLE →, SHOW ALL 22 TEAMS, SHOW / HIDE — falls back to `--foreground`, so the app has no link affordance colour. This is *not* a contrast gap: `--foreground` passes everywhere, which is why the audit is clean. Reviving it is a design decision, and registering `--primary-lighter` as-is would be a regression — on `--panel` it is 2.41:1 in Ocean, 2.93:1 in Sage. It needs a `--primary-ink` at an `-ink` lightness first. |
+| `from-header-bg-from` / `to-header-bg-to` | `Home.js` ×2 | Known. The tokens were deleted with the header work, and go when `Home` converts. |
+
+`--success`, `--success-lighter` and `--destructive-lighter` are now unreferenced
+by any component and can come out of `index.css`, along with the
+`.text-success-color` utility.
+
+### The -ink family — closed
+
+All four known gaps, plus two more found while closing them, were the same
+defect: **every saturated semantic token is tuned to be a fill, and a fill's
+lightness is the wrong lightness for text.** At 7–9px on `--panel` in Light,
+`--live` measured 2.94:1, `--warn` 2.74:1 and `--destructive` 3.32:1. `--live`
+failed in the other direction too — as a fill under `--background`-coloured
+text it was 3.23:1, fine for the 22px value in the cell and not for the 7px
+labels beside it.
+
+The fix is one token per colour, same hue and saturation at the lightness that
+clears 4.5:1, defined as `var(--base)` in the themes where the base already
+passes. **Use the base token for fills, the `-ink` token for text or for a fill
+that carries text.**
+
+| Token | Themes that differ from the base | Worst measured |
+|---|---|---|
+| `--live-ink` | Light `84 62% 29%`, Sage `150 45% 34%`, Ocean `160 60% 31%` | 4.59:1 |
+| `--warn-ink` | Light `38 92% 31%`, Sage `38 80% 32%`, Ocean `38 88% 32%` | 4.70:1 |
+| `--destructive-ink` | all six — `--destructive` failed everywhere, 3.08–4.49:1 | 4.72:1 |
+| `--primary-chip` | Dark `265 85% 67%`, Sage `150 40% 34%`, Ocean `200 80% 37%`, Midnight `230 60% 62%` | 4.71:1 |
+
+Two existing tokens moved with them:
+
+- **`--muted-foreground`** was 4.34:1 in Light and 3.65:1 in Sage — the most
+  widespread miss in the app, since it carries every hairline row's second
+  line. Light is now `45%`, Sage `32%`. Sage needed the second nudge because
+  `--muted` is darker than `--panel` there, and the highlighted YOU row in the
+  standings sits on `--muted`; solving against `--panel` alone left it at 4.03.
+- **`--accent-chip`** was tuned against `accent/15` over `--panel` only. Over
+  the *page background* — which is tinted, not white, in Sage and Ocean — it
+  measured 4.48 and 4.45. Now 31% and 34%.
+
+Call-site rules that came out of it:
+
+- **The tab bar** is `border-live` with a `text-live-ink` label. The underline
+  is a graphic and can stay bright; the label could not.
+- **`bg-primary` is never a chip.** The four mastheads use `bg-primary-chip`
+  with `text-background`. `--primary` stays for structure — percentile fills,
+  the club watermark — where nothing sits on top of it.
+- **`text-primary` on `bg-primary/15` is the accent-chip pattern written the
+  long way round** and measured 2.24–3.32:1 in five themes. The rank chip and
+  the DEFCON label use `bg-accent/15` + `text-accent-chip` like every other
+  chip. `--accent` exists precisely so Turf's chips aren't a second green.
+- **Opacity cannot be layered on an `-ink` fill.** `--live-ink` is tuned so
+  full-strength `--background` text clears 4.5:1; the `opacity-75` those labels
+  used to carry took them back to 2.49:1. The solid summary cells render their
+  labels at full strength now.
+- **`ui/button`'s default variant** was `bg-primary text-primary-foreground`,
+  which is white on `--primary`: 2.86:1 in Ocean. It is `bg-primary-chip
+  text-background` now. Only `Home.js` uses it.
+
+### Verifying it
+
+`frontend/scripts/contrast-audit.js` is the harness. Paste it into the DevTools
+console on any page and call `await contrastAudit()`. It walks every element in
+`<main>` that owns a text node, composites the real background stack including
+alpha and inherited opacity, and checks AA — 4.5:1, or 3:1 for text ≥24px or
+≥18.66px bold — across all six themes.
+
+Two things it gets right that eyeballing does not: it disables the app's 300ms
+colour transition first (a measurement taken straight after a theme switch
+reads a blend of two themes, which is the easiest way to get wrong numbers out
+of it), and it skips `aria-hidden` and disabled controls, which WCAG 1.4.3
+exempts.
+
+As of this pass, every route is clean in all six themes: `/`, `/dashboard`,
+`/weekly-matchups/:id` including an expanded ledger, `/player-statistics` in
+both modes, `/player/:id` on all three tabs, and `/my-team` on all three.
+
+**What it does not cover**, so the "clean" is honest:
+
+1. **Non-text contrast** (WCAG 1.4.11, 3:1 for meaningful graphics and UI
+   boundaries) — the 3px percentile tracks, hairline borders, chart fills, the
+   active-tab underline. Not swept, and some hairlines are deliberately under
+   3:1.
+2. **Dead class names.** A missing Tailwind colour renders as *inherited*,
+   which usually passes AA while being the wrong colour entirely. Contrast
+   maths cannot see it; the grep above can.
 
 ## Constraints
 

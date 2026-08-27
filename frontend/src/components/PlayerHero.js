@@ -4,9 +4,9 @@ import { getPositionShort, formatDecimal, formatCount, toNumber } from '../lib/p
 import { getVerdict } from '../lib/playerVerdict';
 
 const TONE_TEXT = {
-    live: 'text-live',
-    warn: 'text-warn',
-    destructive: 'text-destructive',
+    live: 'text-live-ink',
+    warn: 'text-warn-ink',
+    destructive: 'text-destructive-ink',
     muted: 'text-muted-foreground',
 };
 
@@ -43,7 +43,7 @@ const PlayerHero = ({ playerData, positionCount, currentEvent, isLive }) => {
             <div className="relative flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                        <span className="bg-primary px-1.5 py-1 text-[9px] font-medium leading-none tracking-[0.16em] text-background">
+                        <span className="bg-primary-chip px-1.5 py-1 text-[9px] font-medium leading-none tracking-[0.16em] text-background">
                             {getPositionShort(playerData.element_type)}
                         </span>
                         <span className="text-[9px] tracking-[0.16em] text-muted-foreground">
@@ -72,7 +72,7 @@ const PlayerHero = ({ playerData, positionCount, currentEvent, isLive }) => {
                     <div className="text-right">
                         <div
                             className={`text-[52px] font-bold leading-[0.85] tracking-[-0.06em] ${
-                                hasReturns ? 'text-live' : 'text-muted-foreground'
+                                hasReturns ? 'text-live-ink' : 'text-muted-foreground'
                             }`}
                         >
                             {formatCount(eventPoints)}
@@ -136,12 +136,12 @@ const PlayerHero = ({ playerData, positionCount, currentEvent, isLive }) => {
 };
 
 const HeroNumber = ({ label, value, rank, total, solid }) => (
-    <div className={`flex-1 px-2.5 py-[9px] ${solid ? 'bg-live text-background' : 'bg-panel text-muted-foreground'}`}>
-        <div className={`text-[7.5px] tracking-[0.16em] ${solid ? 'opacity-75' : ''}`}>{label}</div>
+    <div className={`flex-1 px-2.5 py-[9px] ${solid ? 'bg-live-ink text-background' : 'bg-panel text-muted-foreground'}`}>
+        <div className="text-[7.5px] tracking-[0.16em]">{label}</div>
         <div className={`mt-[7px] text-[27px] font-bold leading-none tracking-[-0.04em] ${solid ? '' : 'text-foreground'}`}>
             {value}
         </div>
-        <div className={`mt-[9px] text-[7px] tracking-[0.12em] ${solid ? 'opacity-75' : ''}`}>
+        <div className="mt-[9px] text-[7px] tracking-[0.12em]">
             {rank ? `R${rank} OF ${total || '—'}` : '—'}
         </div>
     </div>
