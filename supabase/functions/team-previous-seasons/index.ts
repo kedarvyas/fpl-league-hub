@@ -46,63 +46,23 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Total players map for calculating percentages
-    const totalPlayersMap = {
-      "2023/24": 11200000,
-      "2022/23": 10900000,
-      "2021/22": 9000000,
-      "2020/21": 8500000,
-      "2019/20": 7600000,
-      "2018/19": 6900000,
-      "2017/18": 5700000,
-      "2016/17": 4600000,
-      "2015/16": 4200000,
-      "2014/15": 3500000,
-      "2013/14": 3200000,
-    }
-
     // Format the seasons data
     const seasons = previousSeasons.map((season: any) => {
       const seasonName = season.season_name
-      const totalPlayers = totalPlayersMap[seasonName as keyof typeof totalPlayersMap] || 10000000
-      const percentage = (season.rank / totalPlayers) * 100
 
-      // Determine rank tier for styling
-      let tier, tier_color, tier_icon
-      if (percentage <= 1) {
-        tier = "top1"
-        tier_color = "#10b981"
-        tier_icon = "🏆"
-      } else if (percentage <= 5) {
-        tier = "top5"
-        tier_color = "#f59e0b"
-        tier_icon = "🥇"
-      } else if (percentage <= 10) {
-        tier = "top10"
-        tier_color = "#8b5cf6"
-        tier_icon = "🥈"
-      } else if (percentage <= 25) {
-        tier = "top25"
-        tier_color = "#3b82f6"
-        tier_icon = "🥉"
-      } else if (percentage <= 50) {
-        tier = "middle"
-        tier_color = "#6b7280"
-        tier_icon = "🔵"
-      } else {
-        tier = "bottom"
-        tier_color = "#dc2626"
-        tier_icon = "🔴"
-      }
+      // The FPL API supplies the finishing percentile per past season as
+      // `rank_percentage`, a string with adaptive precision — "43", "2",
+      // "0.7", "0.0". Use it rather than dividing the rank by a field size
+      // of our own, which has to be maintained by hand every August and
+      // silently goes wrong the season it is not.
+      const parsed = parseFloat(season.rank_percentage)
+      const percentage = Number.isFinite(parsed) ? parsed : null
 
       return {
         season: seasonName,
         total_points: season.total_points,
         rank: season.rank,
-        percentage: Math.round(percentage * 100) / 100,
-        tier,
-        tier_color,
-        tier_icon
+        percentage
       }
     })
 
