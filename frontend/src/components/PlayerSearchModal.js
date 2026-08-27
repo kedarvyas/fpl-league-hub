@@ -1,92 +1,162 @@
-import React, { useState } from 'react';
-import { Search, X } from 'lucide-react';
-import { API_URL } from '../config/supabase';
+import React, { useState, useEffect, useMemo } from 'react';
 import PlayerPhoto from './PlayerPhoto';
+import { API_URL, apiHeaders } from '../config/supabase';
+import { getPositionShort, toNumber } from '../lib/playerStats';
 
-
-
+/**
+ * Player picker for the compare flow, on the Scoreboard system.
+ *
+ * The old version refetched the whole bootstrap-static payload on every
+ * keystroke — roughly a megabyte per character typed, with the results of
+ * whichever request happened to land last winning. It now loads once and
+ * filters in memory.
+ */
 const PlayerSearchModal = ({ onSelect, onClose, excludePlayerId }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  
-  const handleSearch = async (term) => {
-    setSearchTerm(term);
-    if (term.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    
-    try {
-      const response = await fetch(`${API_URL}/bootstrap-static`);
-      const data = await response.json();
-      
-      const filteredPlayers = data.elements
-        .filter(player => 
-          player.id !== excludePlayerId &&
-          (player.web_name.toLowerCase().includes(term.toLowerCase()) ||
-           player.first_name.toLowerCase().includes(term.toLowerCase()) ||
-           player.second_name.toLowerCase().includes(term.toLowerCase()))
-        )
-        .slice(0, 5); // Limit to 5 results
-        
-      setSearchResults(filteredPlayers);
-    } catch (error) {
-      console.error('Error searching players:', error);
-    }
-  };
+    const [players, setPlayers] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg w-full max-w-md">
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Select Player to Compare</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          
-          <div className="relative">
-            <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search players..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              value={searchTerm}
-              onChange={(e) => handleSearch(e.target.value)}
-            />
-          </div>
-        </div>
-        
-        <div className="max-h-96 overflow-y-auto">
-          {searchResults.map((player) => (
-            <button
-              key={player.id}
-              onClick={() => onSelect(player)}
-              className="w-full p-4 text-left hover:bg-gray-50 flex items-center space-x-4 border-b border-gray-100"
+    useEffect(() => {
+        let cancelled = false;
+
+        const load = async () => {
+            try {
+                const response = await fetch(`${API_URL}/bootstrap-static`, { headers: apiHeaders() });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                if (cancelled) return;
+
+                const teams = data.teams || [];
+                setPlayers(
+                    (data.elements || []).map((p) => ({
+                        ...p,
+                        teamShortName: teams.find((t) => t.id === p.team)?.short_name || 'UNK',
+                    })),
+                );
+            } catch (err) {
+                if (!cancelled) setError('Could not load players');
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === 'Escape') onClose();
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
+    const results = useMemo(() => {
+        const term = searchTerm.trim().toLowerCase();
+        if (term.length < 2) return [];
+        return players
+            .filter(
+                (p) =>
+                    p.id !== excludePlayerId &&
+                    (p.web_name.toLowerCase().includes(term) ||
+                        `${p.first_name} ${p.second_name}`.toLowerCase().includes(term) ||
+                        p.teamShortName.toLowerCase() === term),
+            )
+            .sort((a, b) => toNumber(b.total_points) - toNumber(a.total_points))
+            .slice(0, 8);
+    }, [players, searchTerm, excludePlayerId]);
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-start justify-center bg-background/80 p-4 pt-[12vh] font-mono backdrop-blur-sm"
+            onClick={onClose}
+        >
+            <div
+                className="flex max-h-[70vh] w-full max-w-md flex-col border border-border bg-panel"
+                onClick={(e) => e.stopPropagation()}
             >
-              <PlayerPhoto
-                code={player.code}
-                name={player.web_name}
-                size="md"
-                className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 text-sm"
-              />
-              <div>
-                <div className="font-medium">{player.web_name}</div>
-                <div className="text-sm text-gray-500">£{(player.now_cost / 10).toFixed(1)}m</div>
-              </div>
-            </button>
-          ))}
-          
-          {searchTerm.length >= 2 && searchResults.length === 0 && (
-            <div className="p-4 text-center text-gray-500">
-              No players found
+                <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+                    <h2 className="text-[10px] font-medium uppercase tracking-[0.18em] text-foreground">
+                        Compare with
+                    </h2>
+                    <button
+                        onClick={onClose}
+                        aria-label="Close"
+                        className="-mr-2 flex h-11 w-11 items-center justify-center text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <div className="shrink-0 border-b border-border">
+                    <input
+                        type="text"
+                        autoFocus
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder={loading ? 'LOADING PLAYERS…' : 'SEARCH PLAYER OR CLUB'}
+                        aria-label="Search players"
+                        disabled={loading || !!error}
+                        className="min-h-[46px] w-full bg-panel px-4 text-[12px] tracking-[0.06em] text-foreground placeholder:text-muted-foreground placeholder:tracking-[0.12em] focus:outline-none disabled:opacity-60"
+                    />
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                    {error ? (
+                        <div className="border-l-2 border-destructive bg-destructive/10 px-4 py-3">
+                            <p className="text-[9px] leading-[1.5] text-destructive">{error}</p>
+                        </div>
+                    ) : results.length > 0 ? (
+                        <div className="flex flex-col gap-px bg-border">
+                            {results.map((player) => (
+                                <button
+                                    key={player.id}
+                                    onClick={() => onSelect(player)}
+                                    className="flex items-center gap-3 bg-panel px-4 py-2.5 text-left transition-colors hover:bg-muted"
+                                >
+                                    <PlayerPhoto
+                                        code={player.code}
+                                        name={player.web_name}
+                                        size="sm"
+                                        className="h-[38px] w-[30px] shrink-0 border border-border bg-background text-[12px]"
+                                    />
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-[12px] font-medium leading-none text-foreground">
+                                            {player.web_name}
+                                        </span>
+                                        <span className="mt-1.5 block truncate text-[8px] leading-none tracking-[0.1em] text-muted-foreground">
+                                            {getPositionShort(player.element_type)} · {player.teamShortName} · £
+                                            {(toNumber(player.now_cost) / 10).toFixed(1)}M
+                                        </span>
+                                    </span>
+                                    <span className="shrink-0 text-right">
+                                        <span className="block text-[16px] font-bold leading-none tracking-[-0.03em] text-foreground">
+                                            {toNumber(player.total_points)}
+                                        </span>
+                                        <span className="mt-1 block text-[7px] leading-none tracking-[0.1em] text-muted-foreground">
+                                            PTS
+                                        </span>
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="px-4 py-4 text-[8.5px] leading-[1.6] tracking-[0.12em] text-muted-foreground">
+                            {loading
+                                ? 'LOADING…'
+                                : searchTerm.trim().length >= 2
+                                    ? `NO PLAYERS MATCH "${searchTerm.toUpperCase()}"`
+                                    : 'TYPE AT LEAST TWO CHARACTERS'}
+                        </div>
+                    )}
+                </div>
             </div>
-          )}
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default PlayerSearchModal;
