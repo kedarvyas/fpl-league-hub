@@ -27,3 +27,35 @@ export const apiHeaders = () => ({
   'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
   'Content-Type': 'application/json',
 });
+
+/**
+ * Fetch with backoff for the FPL WAF.
+ *
+ * The Edge Functions proxy fantasy.premierleague.com, and FPL's WAF answers a
+ * burst of requests from one origin with a 403 — not a rate-limit status, a
+ * flat refusal that looks exactly like a bug in this app. A page that fires
+ * four calls on mount reliably loses one of them. Retrying the refused call a
+ * moment later almost always succeeds.
+ */
+export const fetchWithRetry = async (url, { attempts = 3, baseDelay = 700, ...init } = {}) => {
+  let lastError;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await fetch(url, { headers: apiHeaders(), ...init });
+      // 403 is the WAF; 429 and 5xx are worth another go too.
+      if (response.ok || (response.status !== 403 && response.status !== 429 && response.status < 500)) {
+        return response;
+      }
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (err) {
+      lastError = err;
+    }
+
+    if (attempt < attempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, baseDelay * 2 ** attempt));
+    }
+  }
+
+  throw lastError || new Error('Request failed');
+};

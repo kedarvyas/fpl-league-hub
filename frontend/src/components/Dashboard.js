@@ -1,651 +1,536 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import {
-  ArrowUp,
-  ArrowDown,
-  Trophy,
-  Star,
-  BarChart,
-  Users,
-  ChevronRight,
-  ChevronDown
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge";
-import { Separator } from "./ui/separator";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./ui/dropdown-menu";
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import PlayerPhoto from './PlayerPhoto';
+import LeagueTable from './LeagueTable';
+import { SectionHeader } from './PlayerStatCell';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import { DEFAULT_LEAGUE_ID } from '../config/league';
-import { API_URL, SUPABASE_ANON_KEY } from '../config/supabase';
+import { API_URL, fetchWithRetry } from '../config/supabase';
+import { formatCount, getPositionShort, toNumber } from '../lib/playerStats';
 
+/**
+ * The gameweek dashboard, on the Scoreboard system.
+ *
+ * The old page overlapped heavily with the H2H page — both showed a league
+ * average, both showed transfers, neither said which numbers were about your
+ * league and which were about all of FPL. The two pages have distinct jobs now:
+ * H2H is "my league this week", this is "the gameweek at large" — what all ten
+ * million managers did, and what actually happened on the pitch. The one place
+ * they meet is the summary strip, which puts your league's average next to
+ * FPL's so the comparison is the point rather than a coincidence.
+ *
+ * Every global figure is labelled ACROSS FPL. That was the single most
+ * misleading thing about the old page: "Most Captained" and the chip counts are
+ * FPL-wide numbers in the millions, sitting in a card headed by your league id.
+ */
+
+const CHIPS = [
+  { key: 'wildcard', label: 'WILDCARD' },
+  { key: 'bboost', label: 'BENCH BOOST' },
+  { key: '3xc', label: 'TRIPLE CAPT' },
+  { key: 'freehit', label: 'FREE HIT' },
+];
+
+const kickoff = (iso) => {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '—';
+  }
+};
+
+const shortDay = (iso) => {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleDateString([], { weekday: 'short' }).toUpperCase();
+  } catch {
+    return '';
+  }
+};
+
+/** A player row — photo, name, club, one number. Used by both lists. */
+const PlayerRow = ({ player, rank, value, label }) => (
+  <Link
+    to={`/player/${player.id}`}
+    className="flex items-center gap-2.5 bg-panel px-3 py-2.5 transition-colors hover:bg-muted md:gap-3 md:px-4 md:py-3"
+  >
+    <span className="w-[12px] shrink-0 text-[9px] leading-none text-muted-foreground md:w-[16px] md:text-[11px]">
+      {rank}
+    </span>
+    <PlayerPhoto
+      code={player.code}
+      name={player.name}
+      size="sm"
+      className="h-[30px] w-[24px] shrink-0 border border-border bg-background text-[10px] md:h-[40px] md:w-[31px] md:text-[13px]"
+    />
+    <span className="min-w-0 flex-1">
+      <span className="block truncate text-[10px] font-medium leading-none text-foreground md:text-[13px]">
+        {player.name}
+      </span>
+      <span className="mt-1 block truncate text-[7.5px] leading-none tracking-[0.1em] text-muted-foreground md:mt-1.5 md:text-[9px]">
+        {player.position} · {player.team}
+      </span>
+    </span>
+    <span className="shrink-0 text-right">
+      <span className="block text-[14px] font-bold leading-none tracking-[-0.03em] text-foreground md:text-[20px]">
+        {value}
+      </span>
+      <span className="mt-1 block text-[7px] leading-none tracking-[0.1em] text-muted-foreground md:text-[8px]">
+        {label}
+      </span>
+    </span>
+  </Link>
+);
+
+/** One of the three headline numbers under the masthead. */
+const SummaryCell = ({ label, value, solid }) => (
+  <div className={`flex-1 px-2.5 py-[9px] ${solid ? 'bg-live text-background' : 'bg-panel'}`}>
+    <div className={`text-[7.5px] tracking-[0.16em] ${solid ? 'opacity-75' : 'text-muted-foreground'}`}>
+      {label}
+    </div>
+    <div
+      className={`mt-1.5 text-[22px] font-bold leading-[0.9] tracking-[-0.04em] ${
+        solid ? '' : value === null ? 'text-muted-foreground' : 'text-foreground'
+      }`}
+    >
+      {value === null ? '0' : formatCount(value)}
+    </div>
+  </div>
+);
+
+/** A real Premier League fixture. Score once it starts, kickoff before. */
+const FixtureRow = ({ fixture }) => (
+  <div className="flex items-center gap-2 bg-panel px-3 py-2.5 md:px-4">
+    <span className="min-w-0 flex-1 truncate text-right text-[10px] font-medium leading-none text-foreground md:text-[12px]">
+      {fixture.home}
+    </span>
+
+    {fixture.started ? (
+      <span className="flex shrink-0 items-baseline gap-1.5 text-[14px] font-bold leading-none tracking-[-0.03em] text-foreground md:text-[16px]">
+        <span>{fixture.homeScore}</span>
+        <span className="text-[8px] font-normal text-muted-foreground">–</span>
+        <span>{fixture.awayScore}</span>
+      </span>
+    ) : (
+      <span className="shrink-0 text-[9px] leading-none tracking-[0.06em] text-muted-foreground md:text-[10px]">
+        {kickoff(fixture.kickoffTime)}
+      </span>
+    )}
+
+    <span className="min-w-0 flex-1 truncate text-[10px] font-medium leading-none text-foreground md:text-[12px]">
+      {fixture.away}
+    </span>
+
+    <span className="w-[26px] shrink-0 text-right text-[7px] leading-none tracking-[0.1em] text-muted-foreground md:w-[30px] md:text-[8px]">
+      {fixture.finished ? 'FT' : fixture.started ? 'LIVE' : shortDay(fixture.kickoffTime)}
+    </span>
+  </div>
+);
 
 const Dashboard = ({ leagueId: propLeagueId }) => {
+  const navigate = useNavigate();
   const { leagueId: urlLeagueId } = useParams();
   const leagueId = urlLeagueId || propLeagueId || DEFAULT_LEAGUE_ID;
-  const [bootstrapData, setBootstrapData] = useState(null);
-  const [leagueData, setLeagueData] = useState(null);
+  const [myEntry] = useLocalStorage('fpl_team_id', '');
+
+  const [bootstrap, setBootstrap] = useState(null);
+  const [standings, setStandings] = useState([]);
+  const [matchups, setMatchups] = useState([]);
+  const [fixtures, setFixtures] = useState([]);
+  const [fixtureEvent, setFixtureEvent] = useState(null);
+  const [transferView, setTransferView] = useState('in');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentGameweek, setCurrentGameweek] = useState(null);
-  const [weeklyMatchups, setWeeklyMatchups] = useState(null);
-  const [transferView, setTransferView] = useState('in'); // 'in' or 'out'
-  const [gameweekResults, setGameweekResults] = useState([]);
-  const [selectedGameweek, setSelectedGameweek] = useState(null); // Will be set to current gameweek
-
 
   useEffect(() => {
-    const fetchAllData = async () => {
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
+        const [bootstrapRes, standingsRes] = await Promise.all([
+          fetchWithRetry(`${API_URL}/bootstrap-static`),
+          fetchWithRetry(`${API_URL}/league-standings/${leagueId}/standings`),
+        ]);
+        if (!bootstrapRes.ok) throw new Error(`HTTP ${bootstrapRes.status}`);
 
-        const headers = {
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json'
-        };
+        const bootstrapData = await bootstrapRes.json();
+        if (cancelled) return;
+        setBootstrap(bootstrapData);
 
-        // Fetch bootstrap data - Updated URL
-        const bootstrapResponse = await fetch(`${API_URL}/bootstrap-static`, { headers });
-        if (!bootstrapResponse.ok) {
-          throw new Error('Failed to fetch bootstrap data');
-        }
-        const bootstrapResult = await bootstrapResponse.json();
-        console.log('Bootstrap Data:', bootstrapResult); // Add logging
-        setBootstrapData(bootstrapResult);
+        const standingsData = standingsRes.ok ? await standingsRes.json() : [];
+        if (cancelled) return;
+        setStandings(Array.isArray(standingsData) ? standingsData : []);
 
-        // Find current gameweek
-        const current = bootstrapResult.events?.find(gw => gw.is_current);
-        if (!current) {
-          console.warn('No current gameweek found');
-        }
-        console.log('Current Gameweek:', current); // Add logging
-        setCurrentGameweek(current || null);
-
-        // Set selected gameweek to current gameweek for Results section
-        if (current && !selectedGameweek) {
-          setSelectedGameweek(current.id);
-        }
-
-        // Fetch league standings - Updated URL
-        const leagueResponse = await fetch(`${API_URL}/league-standings/${leagueId}/standings`, { headers });
-        const leagueResult = await leagueResponse.json();
-
-        // Initialize leagueData as an empty array if the response is null/undefined
-        setLeagueData(Array.isArray(leagueResult) ? leagueResult : []);
-
-        setError(null);
+        const current =
+          bootstrapData.events?.find((e) => e.is_current) ||
+          bootstrapData.events?.find((e) => e.is_next);
+        if (current) setFixtureEvent((prev) => prev ?? current.id);
       } catch (err) {
-        console.error('Error fetching data:', err);
-        setError(err.message || 'Failed to fetch data');
-        setLeagueData([]);
+        if (!cancelled) {
+          console.error('Error loading dashboard:', err);
+          setError('Could not load gameweek data');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    if (leagueId) {
-      fetchAllData();
-    }
+    if (leagueId) load();
+    return () => {
+      cancelled = true;
+    };
   }, [leagueId]);
 
-  useEffect(() => {
-    const fetchWeeklyMatchups = async () => {
-      if (!currentGameweek?.id) return;
+  const currentEvent = useMemo(
+    () => bootstrap?.events?.find((e) => e.is_current) || bootstrap?.events?.find((e) => e.is_next),
+    [bootstrap],
+  );
 
+  useEffect(() => {
+    if (!currentEvent?.id || !leagueId) return undefined;
+    let cancelled = false;
+
+    const load = async () => {
       try {
-        const headers = {
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json'
-        };
-        // Updated URL
-        const matchupsResponse = await fetch(
-          `${API_URL}/weekly-matchups/${leagueId}?event=${currentGameweek.id}`,
-          { headers }
+        const res = await fetchWithRetry(
+          `${API_URL}/weekly-matchups/${leagueId}?event=${currentEvent.id}`,
         );
-        const matchupsResult = await matchupsResponse.json();
-        // The endpoint returns { has_next, page, results: [...] }; unwrap it so
-        // downstream array checks don't silently fall through to zero.
-        setWeeklyMatchups(matchupsResult?.results ?? matchupsResult);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled) setMatchups(data?.results ?? (Array.isArray(data) ? data : []));
       } catch (err) {
-        console.error('Error fetching weekly matchups:', err);
+        if (!cancelled) console.error('Error loading league matchups:', err);
       }
     };
 
-    fetchWeeklyMatchups();
-  }, [leagueId, currentGameweek?.id]);
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [leagueId, currentEvent?.id]);
 
-  // Fetch real match results for selected gameweek
+  // The cancel flag matters twice over: StrictMode double-invokes this in
+  // development, and stepping gameweeks quickly can otherwise let a slow
+  // earlier response land on top of a newer one.
   useEffect(() => {
-    const fetchGameweekResults = async () => {
+    if (!fixtureEvent || !bootstrap?.teams) return undefined;
+    let cancelled = false;
+
+    const load = async () => {
       try {
-        const headers = {
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json'
-        };
-        const response = await fetch(`${API_URL}/fixtures/${selectedGameweek}`, { headers });
-        if (!response.ok) {
-          throw new Error('Failed to fetch fixtures');
-        }
-        const results = await response.json();
+        const res = await fetchWithRetry(`${API_URL}/fixtures/${fixtureEvent}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
 
-        // Transform fixtures data to match expected format
-        const transformedResults = results.map(fixture => {
-          const homeTeam = bootstrapData?.teams?.find(t => t.id === fixture.team_h);
-          const awayTeam = bootstrapData?.teams?.find(t => t.id === fixture.team_a);
-
-          return {
-            homeTeam: {
-              abbreviation: homeTeam?.short_name || 'TBD',
-              name: homeTeam?.name || 'TBD'
-            },
-            awayTeam: {
-              abbreviation: awayTeam?.short_name || 'TBD',
-              name: awayTeam?.name || 'TBD'
-            },
-            homeScore: fixture.team_h_score !== null ? fixture.team_h_score : '-',
-            awayScore: fixture.team_a_score !== null ? fixture.team_a_score : '-',
-            started: fixture.started,
-            finished: fixture.finished,
-            kickoffTime: fixture.kickoff_time
-          };
-        });
-
-        setGameweekResults(transformedResults);
+        const nameOf = (id) => bootstrap.teams.find((t) => t.id === id)?.short_name || 'TBD';
+        setFixtures(
+          (Array.isArray(data) ? data : []).map((f) => ({
+            id: f.id,
+            home: nameOf(f.team_h),
+            away: nameOf(f.team_a),
+            homeScore: f.team_h_score ?? 0,
+            awayScore: f.team_a_score ?? 0,
+            started: !!f.started,
+            finished: !!f.finished,
+            kickoffTime: f.kickoff_time,
+          })),
+        );
       } catch (err) {
-        console.error('Error fetching gameweek results:', err);
-        setGameweekResults([]);
+        if (!cancelled) {
+          console.error('Error loading fixtures:', err);
+          setFixtures([]);
+        }
       }
     };
 
-    if (bootstrapData?.teams) {
-      fetchGameweekResults();
-    }
-  }, [selectedGameweek, bootstrapData?.teams]);
-
-
-  // Data processing functions
-  const getGameweekTopPerformers = () => {
-    if (!bootstrapData?.elements) return [];
-    return bootstrapData.elements
-      .sort((a, b) => b.event_points - a.event_points)
-      .slice(0, 5)
-      .map(player => ({
-        id: player.id,
-        name: player.second_name,
-        points: player.event_points,
-        team: bootstrapData.teams.find(t => t.id === player.team)?.short_name || ''
-      }));
-  };
-
-  const getTransferTrends = () => {
-    if (!bootstrapData?.elements) return { in: [], out: [] };
-
-    const transfersIn = bootstrapData.elements
-      .sort((a, b) => b.transfers_in_event - a.transfers_in_event)
-      .slice(0, 5)
-      .map(player => ({
-        id: player.id,
-        name: player.second_name,
-        transfers: player.transfers_in_event,
-        team: bootstrapData.teams.find(t => t.id === player.team)?.short_name || ''
-      }));
-
-    const transfersOut = bootstrapData.elements
-      .sort((a, b) => b.transfers_out_event - a.transfers_out_event)
-      .slice(0, 5)
-      .map(player => ({
-        id: player.id,
-        name: player.second_name,
-        transfers: player.transfers_out_event,
-        team: bootstrapData.teams.find(t => t.id === player.team)?.short_name || ''
-      }));
-
-    return { in: transfersIn, out: transfersOut };
-  };
-
-
-  const getGameweekSummary = () => {
-    if (!currentGameweek) return null;
-
-    // Add logging to debug the data
-    console.log('Current Gameweek Data:', currentGameweek);
-
-    // Add null checks and default values
-    const chipPlays = currentGameweek.chip_plays || [];
-    const summary = {
-      averagePoints: currentGameweek.average_entry_score || 0,
-      highestPoints: currentGameweek.highest_score || 0,
-      mostCaptained: bootstrapData?.elements?.find(p =>
-        p.id === currentGameweek.most_captained
-      ),
-      mostViceCaptained: bootstrapData?.elements?.find(p =>
-        p.id === currentGameweek.most_vice_captained
-      ),
-      chipUsage: {
-        wildcard: chipPlays.find(c => c.chip_name === 'wildcard')?.num_played || 0,
-        benchBoost: chipPlays.find(c => c.chip_name === 'bboost')?.num_played || 0,
-        tripleCaptain: chipPlays.find(c => c.chip_name === '3xc')?.num_played || 0,
-        freeHit: chipPlays.find(c => c.chip_name === 'freehit')?.num_played || 0,
-      }
+    load();
+    return () => {
+      cancelled = true;
     };
+  }, [fixtureEvent, bootstrap]);
 
-    console.log('Processed Summary:', summary);
-    console.log('Chip Plays:', currentGameweek.chip_plays);
-    return summary;
-  };
+  // Derived data. All of these copy before sorting — the old page called
+  // .sort() straight on bootstrap.elements three times per render, mutating
+  // React state in place.
+  const teamName = useMemo(() => {
+    const map = new Map((bootstrap?.teams || []).map((t) => [t.id, t.short_name]));
+    return (id) => map.get(id) || '';
+  }, [bootstrap]);
 
+  const shape = (p) => ({
+    id: p.id,
+    code: p.code,
+    name: p.web_name,
+    team: teamName(p.team),
+    position: getPositionShort(p.element_type),
+  });
 
+  const topPerformers = useMemo(() => {
+    if (!bootstrap?.elements) return [];
+    return [...bootstrap.elements]
+      .sort((a, b) => toNumber(b.event_points) - toNumber(a.event_points))
+      .slice(0, 5)
+      .map((p) => ({ ...shape(p), value: toNumber(p.event_points) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bootstrap]);
 
+  const transfers = useMemo(() => {
+    if (!bootstrap?.elements) return { in: [], out: [] };
+    const top = (key) =>
+      [...bootstrap.elements]
+        .sort((a, b) => toNumber(b[key]) - toNumber(a[key]))
+        .slice(0, 5)
+        .map((p) => ({ ...shape(p), value: toNumber(p[key]) }));
+    return { in: top('transfers_in_event'), out: top('transfers_out_event') };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bootstrap]);
 
-  const getLeagueAverageScore = () => {
-    // Updated to handle direct array
-    const matchupsData = weeklyMatchups || [];
-    if (!Array.isArray(matchupsData) || matchupsData.length === 0) return 0;
+  const leagueAverage = useMemo(() => {
+    const scores = matchups.flatMap((m) => [m.entry_1_points, m.entry_2_points]).map((v) => toNumber(v));
+    if (!scores.length) return null;
+    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+  }, [matchups]);
 
-    const allScores = matchupsData.flatMap(match => [
-      match.entry_1_points,
-      match.entry_2_points
-    ]);
+  const captains = useMemo(() => {
+    if (!bootstrap?.elements || !currentEvent) return { captain: null, vice: null };
+    const find = (id) => bootstrap.elements.find((p) => p.id === id);
+    return {
+      captain: find(currentEvent.most_captained),
+      vice: find(currentEvent.most_vice_captained),
+    };
+  }, [bootstrap, currentEvent]);
 
-    const sum = allScores.reduce((acc, score) => acc + score, 0);
-    return Math.round(sum / allScores.length);
-  };
+  const chipCounts = useMemo(() => {
+    const plays = currentEvent?.chip_plays || [];
+    return CHIPS.map((chip) => ({
+      ...chip,
+      count: toNumber(plays.find((c) => c.chip_name === chip.key)?.num_played),
+    }));
+  }, [currentEvent]);
 
-  const HeaderCard = ({ children }) => (
-    <Card className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
-      <CardHeader>
-        {children}
-      </CardHeader>
-    </Card>
-  );
+  const events = bootstrap?.events || [];
+  const fixtureIndex = events.findIndex((e) => e.id === fixtureEvent);
 
-  const SectionHeader = ({ icon, title }) => (
-    <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
-      <CardTitle className="card-header-text flex items-center">
-        {React.cloneElement(icon, { className: 'h-6 w-6 mr-2 card-header-text' })}
-        <span>{title}</span>
-      </CardTitle>
-    </CardHeader>
-  );
-
-  const StatBox = ({ value, label }) => (
-    <div className="text-center p-4 bg-muted rounded-lg">
-      <div className="text-2xl font-bold text-primary">
-        {value}
-      </div>
-      <div className="text-sm text-muted-foreground">{label}</div>
-    </div>
-  );
-
-  const ListItem = ({ leadingText, mainText, trailingText, color = "primary", variant = "default" }) => (
-    <div className="flex items-center justify-between border-b border-border pb-2">
-      <div className="flex items-center">
-        <span className={`text-${color} font-bold mr-2`}>{leadingText}</span>
-        <span className="text-foreground">{mainText}</span>
-      </div>
-      <span className={`font-bold ${variant === "negative" ? "text-destructive" : `text-${color}`}`}>
-        {trailingText}
-      </span>
-    </div>
-  );
-
-  // Update the player link component
-  const PlayerLink = ({ index, player, showPoints = true }) => (
-    <Link
-      to={`/player/${player.id}`}
-      className="flex items-center justify-between gap-2 border-b border-border hover:bg-muted/50 px-2 py-2 min-h-[44px] rounded transition-colors"
-    >
-      <div className="flex items-center min-w-0">
-        <span className="text-primary font-bold mr-2 flex-shrink-0">{index + 1}.</span>
-        <span className="text-foreground truncate">{player.name}</span>
-        <span className="text-muted-foreground text-sm ml-2 flex-shrink-0">({player.team})</span>
-      </div>
-      {showPoints && (
-        <div className="flex items-center space-x-2 flex-shrink-0">
-          <span className="font-bold text-primary">{player.points} pts</span>
-          <ChevronRight className="w-4 h-4 text-primary/60" />
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-[1280px] animate-pulse font-mono">
+        <div className="px-4 pt-4 md:px-7">
+          <div className="h-[25px] w-1/2 bg-panel md:h-[46px]" />
+          <div className="mt-4 flex gap-px bg-border">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-[56px] flex-1 bg-panel" />
+            ))}
+          </div>
+          <div className="mt-6 h-[260px] bg-panel" />
         </div>
-      )}
-    </Link>
-  );
+      </div>
+    );
+  }
 
-  // Team colors mapping for Premier League teams
-  const getTeamColors = (teamCode) => {
-    const teamColors = {
-      'ARS': { primary: '#EF0107', secondary: '#FFFFFF' }, // Arsenal - Red/White
-      'AVL': { primary: '#95BFE5', secondary: '#670E36' }, // Aston Villa - Claret/Blue
-      'BOU': { primary: '#DA020E', secondary: '#000000' }, // Bournemouth - Red/Black
-      'BRE': { primary: '#E30613', secondary: '#FFFFFF' }, // Brentford - Red/White
-      'BHA': { primary: '#0057B8', secondary: '#FFCD00' }, // Brighton - Blue/White
-      'BUR': { primary: '#6C1D45', secondary: '#99D6EA' }, // Burnley - Claret/Blue
-      'CHE': { primary: '#034694', secondary: '#FFFFFF' }, // Chelsea - Blue/White
-      'CRY': { primary: '#1B458F', secondary: '#A7A5A6' }, // Crystal Palace - Blue/Red
-      'EVE': { primary: '#003399', secondary: '#FFFFFF' }, // Everton - Blue/White
-      'FUL': { primary: '#FFFFFF', secondary: '#000000' }, // Fulham - White/Black
-      'LEE': { primary: '#FFFFFF', secondary: '#1D428A' }, // Leeds - White/Blue
-      'LIV': { primary: '#C8102E', secondary: '#FFFFFF' }, // Liverpool - Red/White
-      'MCI': { primary: '#6CABDD', secondary: '#FFFFFF' }, // Man City - Sky Blue/White
-      'MUN': { primary: '#DA020E', secondary: '#FBE122' }, // Man United - Red/Yellow
-      'NEW': { primary: '#241F20', secondary: '#FFFFFF' }, // Newcastle - Black/White
-      'NFO': { primary: '#DD0000', secondary: '#FFFFFF' }, // Nottingham Forest - Red/White
-      'SUN': { primary: '#EB172B', secondary: '#FFFFFF' }, // Sunderland - Red/White
-      'TOT': { primary: '#132257', secondary: '#FFFFFF' }, // Tottenham - Navy/White
-      'WHU': { primary: '#7A263A', secondary: '#1BB1E7' }, // West Ham - Claret/Blue
-      'WOL': { primary: '#FDB913', secondary: '#231F20' }, // Wolves - Gold/Black
-    };
+  if (error) {
+    return (
+      <div className="mx-auto max-w-[1280px] font-mono">
+        <div className="px-4 pt-6 md:px-7">
+          <SectionHeader label="Gameweek" />
+          <div className="border-l-2 border-destructive bg-destructive/10 px-3 py-2.5">
+            <p className="text-[9px] leading-[1.5] text-destructive">{error}. Try again shortly.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-    return teamColors[teamCode] || { primary: '#6B7280', secondary: '#FFFFFF' }; // Default gray
-  };
+  const isLive = !!currentEvent?.is_current && !currentEvent?.finished;
+  const arrow =
+    'flex h-[30px] w-[28px] items-center justify-center bg-panel text-[10px] text-foreground ' +
+    'transition-colors hover:bg-muted disabled:text-muted-foreground/40 disabled:hover:bg-panel';
 
-  const getGameweekResults = () => {
-    // Return real data from state instead of mock data
-    return gameweekResults;
-  };
-
-  // Rest of your JSX remains the same, but now let's use the processed data:
   return (
-    <div className="space-y-6 px-4 sm:px-0">
-      <HeaderCard>
-        <CardTitle className="card-header-text text-2xl sm:text-3xl">
-          FPL League Hub Dashboard
-        </CardTitle>
-        <CardDescription className="card-header-text-secondary">
-          <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <span>League ID: {leagueId}</span>
-            {currentGameweek && (
-              <Badge variant="secondary" className="bg-primary-darker/50 card-header-text">
-                Gameweek {currentGameweek.id}
-              </Badge>
-            )}
+    <div className="mx-auto max-w-[1280px] font-mono">
+      <div className="px-4 pt-4 md:px-7">
+        <div className="flex items-center gap-2">
+          <span className="bg-primary px-1.5 py-1 text-[9px] font-medium leading-none tracking-[0.16em] text-background">
+            FPL
           </span>
-        </CardDescription>
-      </HeaderCard>
-      {/*
-        Single column on phone/tablet, ordered by what matters at a glance:
-        gameweek summary first, then performers, then results. Three columns
-        again from lg up.
-      */}
-      <div className="flex flex-col lg:grid lg:grid-cols-3 lg:items-start gap-6">
-        {/* Left Column */}
-        <div className="order-2 lg:order-1 space-y-6 min-w-0">
-          <Card>
-            <SectionHeader
-              icon={<Star />}
-              title={`Gameweek ${currentGameweek?.id} Top Performers`}
-            />
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                {getGameweekTopPerformers().map((player, index) => (
-                  <PlayerLink
-                    key={player.id}
-                    index={index}
-                    player={player}
-                  />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <span className="text-[9px] tracking-[0.16em] text-muted-foreground">
+            LEAGUE {leagueId}
+            {isLive ? ' · LIVE' : ''}
+          </span>
+        </div>
+        <h1 className="mt-2.5 text-[25px] font-bold uppercase leading-[1.05] tracking-[-0.03em] text-foreground md:text-[46px] md:tracking-[-0.045em]">
+          Gameweek {currentEvent?.id ?? '—'}
+        </h1>
+        <div className="mt-2.5 flex flex-wrap gap-2.5 text-[10px] leading-none tracking-[0.06em]">
+          <span className="text-foreground">{isLive ? 'IN PROGRESS' : 'FINISHED'}</span>
+          <span className="text-muted-foreground">{standings.length} TEAMS IN LEAGUE</span>
+        </div>
 
+        {/* The one place league and global numbers meet, so the comparison is
+            the point rather than an accident of layout. */}
+        <div className="mt-4 flex gap-px bg-border">
+          <SummaryCell label="FPL AVERAGE" value={toNumber(currentEvent?.average_entry_score, null)} />
+          <SummaryCell
+            label="FPL HIGHEST"
+            value={toNumber(currentEvent?.highest_score, null)}
+            solid={toNumber(currentEvent?.highest_score, null) !== null}
+          />
+          <SummaryCell label="YOUR LEAGUE AVG" value={leagueAverage} />
+        </div>
+      </div>
 
-          <Card>
-            <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
-              <CardTitle className="card-header-text flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <span className="flex items-center">
-                  <ArrowUp className="h-6 w-6 mr-2 card-header-text" />
-                  Transfer Trends
+      <div className="px-4 pb-8 md:px-7 lg:grid lg:grid-cols-[1fr_326px] lg:items-start lg:gap-7">
+        <div className="min-w-0">
+          <SectionHeader label="Top performers" tone="live">
+            <span className="text-[7px] tracking-[0.1em] text-muted-foreground">ACROSS FPL</span>
+          </SectionHeader>
+          {topPerformers.length === 0 ? (
+            <div className="bg-panel px-3 py-3 text-[8.5px] tracking-[0.12em] text-muted-foreground">
+              NO SCORES YET
+            </div>
+          ) : (
+            <div className="flex flex-col gap-px bg-border">
+              {topPerformers.map((p, i) => (
+                <PlayerRow key={p.id} player={p} rank={i + 1} value={formatCount(p.value)} label="PTS" />
+              ))}
+            </div>
+          )}
+
+          <SectionHeader label="Premier League">
+            <div className="flex items-center gap-px bg-border">
+              <button
+                type="button"
+                onClick={() => setFixtureEvent(events[fixtureIndex - 1].id)}
+                disabled={fixtureIndex <= 0}
+                aria-label="Previous gameweek fixtures"
+                className={arrow}
+              >
+                ◀
+              </button>
+              <span className="bg-panel px-2 text-[8px] leading-[30px] tracking-[0.12em] text-foreground">
+                GW {fixtureEvent ?? '—'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setFixtureEvent(events[fixtureIndex + 1].id)}
+                disabled={fixtureIndex < 0 || fixtureIndex >= events.length - 1}
+                aria-label="Next gameweek fixtures"
+                className={arrow}
+              >
+                ▶
+              </button>
+            </div>
+          </SectionHeader>
+          {fixtures.length === 0 ? (
+            <div className="bg-panel px-3 py-3 text-[8.5px] tracking-[0.12em] text-muted-foreground">
+              NO FIXTURES FOR THIS GAMEWEEK
+            </div>
+          ) : (
+            <div className="flex flex-col gap-px bg-border">
+              {fixtures.map((f) => (
+                <FixtureRow key={f.id} fixture={f} />
+              ))}
+            </div>
+          )}
+
+          <SectionHeader label="Transfers">
+            <div className="flex gap-px bg-border">
+              {[
+                { id: 'in', label: 'IN' },
+                { id: 'out', label: 'OUT' },
+              ].map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setTransferView(v.id)}
+                  aria-pressed={transferView === v.id}
+                  className={`min-h-[24px] px-2.5 text-[8px] font-medium tracking-[0.12em] transition-colors ${
+                    transferView === v.id
+                      ? 'bg-inverted text-background'
+                      : 'bg-panel text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </SectionHeader>
+          <div className="flex flex-col gap-px bg-border">
+            {(transferView === 'in' ? transfers.in : transfers.out).map((p, i) => (
+              <PlayerRow
+                key={p.id}
+                player={p}
+                rank={i + 1}
+                value={formatCount(p.value)}
+                label={transferView === 'in' ? 'IN' : 'OUT'}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <SectionHeader label="Captaincy">
+            <span className="text-[7px] tracking-[0.1em] text-muted-foreground">ACROSS FPL</span>
+          </SectionHeader>
+          <div className="flex flex-col gap-px bg-border">
+            {[
+              { label: 'MOST CAPTAINED', player: captains.captain },
+              { label: 'MOST VICE', player: captains.vice },
+            ].map((row) => (
+              <div key={row.label} className="flex items-center gap-2.5 bg-panel px-3 py-2.5">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[7.5px] leading-none tracking-[0.12em] text-muted-foreground">
+                    {row.label}
+                  </span>
+                  <span className="mt-1.5 block truncate text-[13px] font-bold uppercase leading-none tracking-[-0.02em] text-foreground">
+                    {row.player?.web_name || '—'}
+                  </span>
                 </span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="card-header-text flex items-center justify-between sm:justify-center w-full sm:w-auto space-x-1 hover:bg-white/10 px-3 min-h-[44px] rounded">
-                    <span className="text-sm">
-                      {transferView === 'in' ? 'Transferred In' : 'Transferred Out'}
-                    </span>
-                    <ChevronDown className="h-4 w-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => setTransferView('in')}>
-                      Most Transferred In
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTransferView('out')}>
-                      Most Transferred Out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                {transferView === 'in'
-                  ? getTransferTrends().in.map((player, index) => (
-                      <Link
-                        key={player.id}
-                        to={`/player/${player.id}`}
-                        className="flex items-center justify-between gap-2 border-b hover:bg-muted/50 px-2 py-2 min-h-[44px] rounded transition-colors"
-                      >
-                        <div className="flex items-center min-w-0">
-                          <span className="text-primary font-bold mr-2 flex-shrink-0">{index + 1}.</span>
-                          <span className="truncate">{player.name}</span>
-                          <span className="text-muted-foreground text-sm ml-2 flex-shrink-0">({player.team})</span>
-                        </div>
-                        <div className="flex items-center space-x-2 flex-shrink-0">
-                          <span className="font-bold text-success-color">+{player.transfers}</span>
-                          <ChevronRight className="w-4 h-4 text-primary/60" />
-                        </div>
-                      </Link>
-                    ))
-                  : getTransferTrends().out.map((player, index) => (
-                      <Link
-                        key={player.id}
-                        to={`/player/${player.id}`}
-                        className="flex items-center justify-between gap-2 border-b hover:bg-muted/50 px-2 py-2 min-h-[44px] rounded transition-colors"
-                      >
-                        <div className="flex items-center min-w-0">
-                          <span className="text-primary font-bold mr-2 flex-shrink-0">{index + 1}.</span>
-                          <span className="truncate">{player.name}</span>
-                          <span className="text-muted-foreground text-sm ml-2 flex-shrink-0">({player.team})</span>
-                        </div>
-                        <div className="flex items-center space-x-2 flex-shrink-0">
-                          <span className="font-bold text-destructive">-{player.transfers}</span>
-                          <ChevronRight className="w-4 h-4 text-primary/60" />
-                        </div>
-                      </Link>
-                    ))
-                }
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Middle Column */}
-        <div className="order-1 lg:order-2 space-y-6 min-w-0">
-          <Card>
-            <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
-              <CardTitle className="card-header-text flex items-center">
-                <BarChart className="h-6 w-6 mr-2 card-header-text" />
-                Gameweek Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-2 gap-4">
-                <StatBox
-                  value={getGameweekSummary()?.averagePoints || 0}
-                  label="Avg. Points"
-                />
-                <StatBox
-                  value={getGameweekSummary()?.highestPoints || 0}
-                  label="Highest Score"
-                />
-              </div>
-
-              <div className="mt-6 space-y-4">
-                <h3 className="font-semibold">Chip Usage</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-sm">
-                    <span className="block text-muted-foreground">Wildcard:</span>
-                    <span className="font-semibold">{getGameweekSummary()?.chipUsage.wildcard || 0}</span>
-                  </div>
-                  <div className="text-sm">
-                    <span className="block text-muted-foreground">Bench Boost:</span>
-                    <span className="font-semibold">{getGameweekSummary()?.chipUsage.benchBoost || 0}</span>
-                  </div>
-                  <div className="text-sm">
-                    <span className="block text-muted-foreground">Triple Captain:</span>
-                    <span className="font-semibold">{getGameweekSummary()?.chipUsage.tripleCaptain || 0}</span>
-                  </div>
-                  <div className="text-sm">
-                    <span className="block text-muted-foreground">Free Hit:</span>
-                    <span className="font-semibold">{getGameweekSummary()?.chipUsage.freeHit || 0}</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Team Form & Captaincy - Moved from right column */}
-          <Card>
-            <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
-              <CardTitle className="card-header-text flex items-center">
-                <Users className="h-6 w-6 mr-2 card-header-text" />
-                Team Form & Captaincy
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-semibold mb-3">Most Captained</h3>
-                  {getGameweekSummary()?.mostCaptained && (
-                    <div className="flex items-center justify-between border-b pb-2">
-                      <span>
-                        {getGameweekSummary().mostCaptained.second_name}
-                      </span>
-                      <Badge variant="secondary">Captain</Badge>
-                    </div>
-                  )}
-                  {getGameweekSummary()?.mostViceCaptained && (
-                    <div className="flex items-center justify-between border-b pb-2">
-                      <span>
-                        {getGameweekSummary().mostViceCaptained.first_name}{' '}
-                        {getGameweekSummary().mostViceCaptained.second_name}
-                      </span>
-                      <Badge variant="outline">Vice</Badge>
-                    </div>
-                  )}
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="font-semibold mb-3">League Stats</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Teams:</span>
-                      <span className="font-semibold">{leagueData?.length || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">League Avg. GW{currentGameweek?.id || ''}:</span>
-                      <span className="font-semibold">
-                        {getLeagueAverageScore()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column - Results */}
-        <div className="order-3 space-y-6 min-w-0">
-          <Card>
-            <CardHeader className="bg-gradient-to-r from-header-bg-from to-header-bg-to">
-              <CardTitle className="card-header-text flex items-center">
-                <Trophy className="h-6 w-6 mr-2 card-header-text" />
-                Results
-              </CardTitle>
-              <CardDescription className="card-header-text">
-                Gameweek {selectedGameweek} Match Results
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="flex space-x-1 bg-muted p-1 rounded-lg overflow-x-auto max-w-full">
-                    {bootstrapData?.events?.slice(0, currentGameweek?.id || 7).map((event) => (
-                      <button
-                        key={event.id}
-                        aria-label={`Gameweek ${event.id}`}
-                        onClick={() => setSelectedGameweek(event.id)}
-                        className={`flex-shrink-0 min-w-[44px] min-h-[44px] px-3 rounded text-sm font-medium transition-colors whitespace-nowrap ${
-                          event.id === selectedGameweek
-                            ? 'bg-primary text-primary-foreground'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        {event.id}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {getGameweekResults().map((match, index) => {
-                    const homeColors = getTeamColors(match.homeTeam.abbreviation);
-                    const awayColors = getTeamColors(match.awayTeam.abbreviation);
-
-                    return (
-                      <div key={index} className="grid grid-cols-3 items-center p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                        {/* Home Team */}
-                        <div className="flex items-center space-x-3">
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-sm"
-                            style={{
-                              backgroundColor: homeColors.primary,
-                              color: homeColors.secondary
-                            }}
-                          >
-                            <span className="text-xs font-bold">
-                              {match.homeTeam.abbreviation}
-                            </span>
-                          </div>
-                          <span className="text-sm font-medium">{match.homeTeam.abbreviation}</span>
-                        </div>
-
-                        {/* Score - Perfectly Centered */}
-                        <div className="flex items-center justify-center space-x-2">
-                          <div className="w-8 h-8 bg-blue-600 text-white rounded flex items-center justify-center font-bold text-sm">
-                            {match.homeScore}
-                          </div>
-                          <div className="w-8 h-8 bg-blue-600 text-white rounded flex items-center justify-center font-bold text-sm">
-                            {match.awayScore}
-                          </div>
-                        </div>
-
-                        {/* Away Team */}
-                        <div className="flex items-center justify-end space-x-3">
-                          <span className="text-sm font-medium">{match.awayTeam.abbreviation}</span>
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-sm"
-                            style={{
-                              backgroundColor: awayColors.primary,
-                              color: awayColors.secondary
-                            }}
-                          >
-                            <span className="text-xs font-bold">
-                              {match.awayTeam.abbreviation}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {getGameweekResults().length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Trophy className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>No match results available</p>
-                  </div>
+                {row.player && (
+                  <span className="shrink-0 text-right text-[9px] leading-none tracking-[0.1em] text-muted-foreground">
+                    {teamName(row.player.team)}
+                  </span>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
+
+          <SectionHeader label="Chips played">
+            <span className="text-[7px] tracking-[0.1em] text-muted-foreground">ACROSS FPL</span>
+          </SectionHeader>
+          <div className="grid grid-cols-2 gap-px bg-border">
+            {chipCounts.map((chip) => (
+              <div key={chip.key} className="bg-panel px-3 pb-3 pt-[11px]">
+                <p className="h-[22px] text-[8.5px] font-medium uppercase leading-[1.3] tracking-[0.13em] text-muted-foreground">
+                  {chip.label}
+                </p>
+                <span
+                  className={`mt-1.5 block text-[20px] font-bold leading-[0.9] tracking-[-0.04em] ${
+                    chip.count === 0 ? 'text-muted-foreground' : 'text-foreground'
+                  }`}
+                >
+                  {formatCount(chip.count)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <SectionHeader label="Your league">
+            <Link
+              to={`/weekly-matchups/${leagueId}`}
+              className="text-[8px] font-medium tracking-[0.12em] text-primary-lighter"
+            >
+              FULL TABLE →
+            </Link>
+          </SectionHeader>
+          <LeagueTable
+            standings={standings.slice(0, 5)}
+            myEntry={myEntry}
+            onManagerClick={(teamId) => navigate('/my-team', { state: { teamId: String(teamId) } })}
+          />
         </div>
       </div>
     </div>
