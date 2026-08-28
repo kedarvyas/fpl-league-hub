@@ -1,11 +1,6 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-import { fetchFPL } from "../_shared/fpl.ts"
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders, fetchFPL } from "../_shared/fpl.ts"
 
 /**
  * `entry/{id}/history/`, mapped for the SEASON tab and passed through for the

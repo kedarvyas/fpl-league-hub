@@ -22,10 +22,28 @@ export const API_URL = process.env.REACT_APP_API_URL
 export const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY
   || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z290bGZpd3dpcmZwZXp2eGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NDMwNDAsImV4cCI6MjA3NDUxOTA0MH0.DKs4wMlerIHnXfS3DxRkQugktFEZo-rgsSpRFsmKXJE';
 
-/** Headers every Edge Function call needs. */
+/**
+ * Headers every Edge Function call needs.
+ *
+ * **No `Content-Type`.** Every call the app makes is a GET with no body, so
+ * there is no content to describe, and sending it is not free: the header is
+ * only CORS-safelisted for form and plain-text values, so `application/json`
+ * is one of the two things forcing a preflight on each request.
+ *
+ * It cannot remove the preflight on its own — `Authorization` is not
+ * safelisted either, and the anon key has to travel somewhere. What it does is
+ * narrow what the preflight has to agree on, which matters more than it
+ * sounds: when `fixtures-future` was missing, Supabase's gateway 404 came back
+ * allowing `authorization` but *not* `content-type`, so the preflight was
+ * refused and the browser raised a `TypeError` instead of handing back the
+ * 404. Sending one fewer header would have turned that failure into an
+ * ordinary "not found" the caller already handled.
+ *
+ * The repeat-preflight cost is handled at the other end, by
+ * `Access-Control-Max-Age` in `supabase/functions/_shared/fpl.ts`.
+ */
 export const apiHeaders = () => ({
   'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-  'Content-Type': 'application/json',
 });
 
 /**

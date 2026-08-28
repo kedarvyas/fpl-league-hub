@@ -1,8 +1,24 @@
 // Shared helpers for the FPL API proxy functions.
 
+/** CORS headers for every function. One definition, spread into both the
+ *  preflight reply and the real response.
+ *
+ *  **`Access-Control-Max-Age` is the load-bearing line.** `Authorization` is
+ *  not a CORS-safelisted request header, so every call the browser makes to
+ *  these functions is preflighted — that cannot be avoided while the anon key
+ *  travels in a header, and it is not worth avoiding by moving a credential
+ *  into a query string. What *can* be avoided is doing it over and over: with
+ *  no max-age the browser falls back to the spec default of five seconds, so
+ *  it re-runs the OPTIONS round trip for essentially every navigation. A day
+ *  is the conventional ceiling (Firefox honours 86400, Chrome caps itself at
+ *  7200), and it turns a per-request cost into a per-session one.
+ *
+ *  If the allowed headers below ever change, this cache is why the change can
+ *  take up to two hours to reach a browser that has already preflighted. */
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Max-Age': '86400',
 }
 
 export const FPL_BASE = 'https://fantasy.premierleague.com/api'
