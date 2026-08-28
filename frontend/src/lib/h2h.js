@@ -81,19 +81,39 @@ const provisionalTotal = (team, bonus) =>
 const sum = (list, key = 'points') => list.reduce((total, item) => total + toNumber(item[key]), 0);
 
 /** One side of a fixture: identity from the matchup, squad detail from picks. */
-const sideOf = (matchData, n, bonus) => {
+const sideOf = (matchData, n, bonus, unscored) => {
     const m = matchData?.matchup || {};
     const team = n === 1 ? matchData?.team1 : matchData?.team2;
     const history = team?.entry_history || {};
     const provisional = provisionalTotal(team, bonus);
 
+    /*
+     * FPL does not score a H2H gameweek until it is over. Mid-match the
+     * fixture reports both sides on 0 while the picks underneath are plainly
+     * scoring — which rendered as a 0–0 scoreline sitting directly above a
+     * ledger full of points.
+     *
+     * The picks are the better source and they are already here, so the score
+     * is summed from them — filtered on the multiplier rather than on the
+     * eleven, because under Bench Boost the bench carries one and its points
+     * count. The multiplier is the filter rather than the slot for a second
+     * reason: `points` arrives already multiplied, so a benched player should
+     * be on zero, and reading the multiplier means a payload where they are
+     * not cannot quietly inflate the score. The hit comes off for the same
+     * reason FPL takes it off — the sum is what the players scored, not what
+     * the manager banked.
+     */
+    const fromPicks =
+        sum((team?.picks || []).filter((p) => toNumber(p?.multiplier, 0) > 0)) -
+        toNumber(history.event_transfers_cost);
+
     return {
         entry: m[`entry_${n}_entry`] ?? null,
         teamName: m[`entry_${n}_name`] || '—',
         managerName: m[`entry_${n}_player_name`] || '',
-        // The scoreline FPL publishes plus what it has not awarded yet, so the
+        // FPL's scoreline once it exists, the picks while it does not, so the
         // headline and the columns below it cannot disagree.
-        points: toNumber(m[`entry_${n}_points`]) + provisional,
+        points: (unscored ? fromPicks : toNumber(m[`entry_${n}_points`])) + provisional,
         provisional,
         won: !!m[`entry_${n}_win`],
         drew: !!m[`entry_${n}_draw`],
@@ -118,8 +138,15 @@ const sideOf = (matchData, n, bonus) => {
 export const buildLedger = (matchData, bonus = null) => {
     if (!matchData) return null;
 
-    const home = sideOf(matchData, 1, bonus);
-    const away = sideOf(matchData, 2, bonus);
+    // Both sides on nothing is what an unscored gameweek looks like and what
+    // nothing else does. A settled fixture keeps FPL's own figure, which
+    // accounts for automatic substitutions the picks cannot show; a genuinely
+    // goalless one sums to zero either way.
+    const m = matchData.matchup || {};
+    const unscored = !toNumber(m.entry_1_points) && !toNumber(m.entry_2_points);
+
+    const home = sideOf(matchData, 1, bonus, unscored);
+    const away = sideOf(matchData, 2, bonus, unscored);
 
     const homeById = new Map(home.starters.map((p) => [p.id, p]));
     const awayById = new Map(away.starters.map((p) => [p.id, p]));

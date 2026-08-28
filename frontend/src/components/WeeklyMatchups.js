@@ -524,19 +524,6 @@ const WeeklyMatchups = () => {
                 </div>
 
                 <div className="min-w-0 pb-8 lg:border-l lg:border-border lg:pl-7">
-                    {/* The scores in the list above are FPL's own, which do
-                        not include bonus until a match is settled. Only an
-                        expanded fixture has the picks needed to work out who
-                        is winning bonus, so the two disagree while matches are
-                        in play — said here rather than left to look like a
-                        bug. */}
-                    {bonus.size > 0 && (
-                        <p className="pt-2.5 text-[8px] leading-[1.6] tracking-[0.06em] text-muted-foreground">
-                            FIXTURE SCORES ABOVE ARE FPL'S PUBLISHED TOTALS · EXPAND A FIXTURE TO SEE
-                            IT WITH <span className="text-live-ink">PROVISIONAL BONUS</span> ADDED
-                        </p>
-                    )}
-
                     <SectionHeader label="Standings" />
                     <LeagueTable
                         standings={standings}

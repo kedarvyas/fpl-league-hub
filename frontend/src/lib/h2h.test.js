@@ -127,3 +127,60 @@ describe('buildLedger with unawarded bonus', () => {
         expect(led.home.points - led.away.points).toBe(led.totals.edge);
     });
 });
+
+/* ------------------------------------------------------------------ */
+/* Live scorelines                                                     */
+/* ------------------------------------------------------------------ */
+
+/** A fixture FPL has not scored yet: both sides reported on nothing. */
+const unscored = (team1, team2) => {
+    const f = fixture(team1, team2);
+    f.matchup.entry_1_points = 0;
+    f.matchup.entry_2_points = 0;
+    return f;
+};
+
+describe('buildLedger while FPL has not scored the gameweek', () => {
+    it('takes the scoreline from the picks instead of showing 0–0', () => {
+        // FPL reports 0 for both sides until a H2H gameweek is over, which put
+        // a 0–0 directly above a ledger full of points.
+        const led = buildLedger(unscored(squad(100), squad(200)));
+        expect(led.home.points).toBe(55);
+        expect(led.away.points).toBe(55);
+    });
+
+    it('subtracts the hit, as FPL does', () => {
+        const home = squad(100);
+        home.entry_history = { event_transfers: 2, event_transfers_cost: 8, points_on_bench: 0, value: 1000 };
+        expect(buildLedger(unscored(home, squad(200))).home.points).toBe(47);
+    });
+
+    it('leaves a benched player out, however their points are reported', () => {
+        // `points` arrives already multiplied, so a benched player should be
+        // on zero — but the score is filtered on the multiplier so that a
+        // payload reporting otherwise cannot inflate it.
+        const led = buildLedger(unscored(squad(100), squad(200)));
+        expect(led.home.points).toBe(55);
+    });
+
+    it('counts the bench under Bench Boost', () => {
+        // Eleven starters on 5 plus four bench on 2.
+        const led = buildLedger(unscored(squad(100, { bboost: true }), squad(200)));
+        expect(led.home.points).toBe(63);
+    });
+
+    it('keeps FPL’s own figure once the fixture has been scored', () => {
+        // After settlement FPL accounts for automatic substitutions, which a
+        // sum of the picks cannot see.
+        const led = buildLedger(fixture(squad(100), squad(200)));
+        expect(led.home.points).toBe(55);
+        expect(led.away.points).toBe(55);
+    });
+
+    it('does not treat a one-sided blank as unscored', () => {
+        const f = fixture(squad(100), squad(200));
+        f.matchup.entry_1_points = 0;
+        f.matchup.entry_2_points = 12;
+        expect(buildLedger(f).home.points).toBe(0);
+    });
+});

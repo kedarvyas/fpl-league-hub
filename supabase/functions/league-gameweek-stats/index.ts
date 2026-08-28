@@ -39,9 +39,28 @@ Deno.serve(async (req) => {
     const standings = standingsPayload.standings?.results ?? []
 
     const playerNames = new Map<number, string>()
+    // `event_points` is live throughout a gameweek, unlike the entry-level
+    // totals below. See the live-points note on `points` further down.
+    const playerPoints = new Map<number, number>()
     for (const player of bootstrapData.elements) {
       playerNames.set(player.id, player.web_name)
+      playerPoints.set(player.id, player.event_points ?? 0)
     }
+
+    /** What a squad is worth right now, from the per-player scores.
+     *
+     *  `entry_history.points` is 0 until FPL scores the gameweek, which left
+     *  Manager of the Week reading 0 PTS beside a HIGHEST of 22. The picks are
+     *  already here and `event_points` is live, so the total is summed from
+     *  them instead: multiplier rather than squad slot, so a captain doubles
+     *  and a Bench Boost bench counts, less the hit, exactly as FPL totals it.
+     */
+    const livePoints = (picksData: any) =>
+      (picksData?.picks ?? []).reduce(
+        (total: number, pick: any) =>
+          total + (playerPoints.get(pick.element) ?? 0) * (pick.multiplier ?? 0),
+        0,
+      ) - (picksData?.entry_history?.event_transfers_cost ?? 0)
 
     const perManager = await mapWithConcurrency(standings, 4, async (team: any) => {
       const entry = team.entry
@@ -67,7 +86,8 @@ Deno.serve(async (req) => {
         entry,
         manager_name: team.player_name,
         team_name: team.entry_name,
-        points: picksData?.entry_history?.points ?? 0,
+        // FPL's own figure once it exists, the live sum while it does not.
+        points: picksData?.entry_history?.points || livePoints(picksData),
         transfers,
       }
     })
