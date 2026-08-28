@@ -249,13 +249,33 @@ const MyTeam = () => {
 
     const isMine = !!myEntry && String(myEntry) === String(teamId);
     const currentEvent = toNumber(teamData?.current_event, null);
-    const eventFinished = bootstrap?.events?.find((e) => e.id === currentEvent)?.finished;
-    // FPL's own live figure, plus bonus it has not awarded yet. Without the
-    // second half this cell reads 53 while the eleven below it reads 59 — the
-    // same squad, two totals, and nothing on screen saying which to believe.
+    const currentEventData = bootstrap?.events?.find((e) => e.id === currentEvent);
+    const eventFinished = currentEventData?.finished;
+    // `data_checked` is false until FPL has settled the gameweek, bonus and
+    // automatic substitutions included.
+    const settled = currentEventData?.data_checked !== false;
+
+    /*
+     * Which total to trust, and when.
+     *
+     * `summary_event_points` is FPL's own figure for the entry, but FPL
+     * recomputes it on a slower cycle than it updates per-player scores — so
+     * mid-gameweek this cell read 0 while the eleven directly below it was
+     * visibly on 8. Two numbers for the same squad, and the stale one was the
+     * bigger, bolder of the pair.
+     *
+     * So during play the squad leads, because it is built from the same
+     * `event_points` the rows below are showing and cannot disagree with them.
+     * Once the gameweek is settled FPL's figure wins, because by then it is
+     * current *and* it accounts for automatic substitutions, which a sum of
+     * the starting eleven cannot see.
+     *
+     * The hit is subtracted here for the same reason FPL subtracts it: the
+     * squad sum is what the players scored, not what the manager banked.
+     */
     const officialPoints = toNumber(teamData?.summary_event_points, null);
-    const gwPoints =
-        officialPoints === null ? null : officialPoints + toNumber(squad?.xiProvisional);
+    const livePoints = squad ? squad.xiPoints - squad.hit : null;
+    const gwPoints = settled || livePoints === null ? officialPoints : livePoints;
     const rankChange = toNumber(teamData?.rank_change, null);
 
     if (loading) return <MyTeamSkeleton />;
