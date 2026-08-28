@@ -6,6 +6,7 @@ import MyTeamLeagues from './MyTeamLeagues';
 import { useMyEntry } from '../hooks/useMyEntry';
 import { API_URL, fetchWithRetry } from '../config/supabase';
 import { buildSquad, groupLeagues } from '../lib/myTeam';
+import { provisionalBonus } from '../lib/liveBonus';
 import { formatCount, toNumber } from '../lib/playerStats';
 
 /**
@@ -96,6 +97,7 @@ const MyTeam = () => {
     const [picks, setPicks] = useState(null);
     const [history, setHistory] = useState(null);
     const [previousSeasons, setPreviousSeasons] = useState(null);
+    const [bonusRows, setBonusRows] = useState(null);
 
     const [loading, setLoading] = useState(!!teamId);
     const [detailLoading, setDetailLoading] = useState(!!teamId);
@@ -123,6 +125,7 @@ const MyTeam = () => {
             setPicks(null);
             setHistory(null);
             setPreviousSeasons(null);
+            setBonusRows(null);
 
             try {
                 // Two waves rather than five parallel calls: the Edge Functions
@@ -169,6 +172,25 @@ const MyTeam = () => {
                 if (picksRes?.ok) setPicks(await picksRes.json());
                 if (historyRes.ok) setHistory(await historyRes.json());
                 if (seasonsRes.ok) setPreviousSeasons(await seasonsRes.json());
+
+                // Bonus FPL has not awarded yet, fetched only while the
+                // gameweek is unsettled: `data_checked` flips true once every
+                // fixture is final, and after that the API's own bonus is
+                // already inside `event_points`. Its own wave and its own
+                // failure — points without provisional bonus are the points
+                // FPL is publishing, so a squad still renders correctly
+                // without it.
+                const unsettled =
+                    event && bootstrapData?.events?.find((e) => e.id === event)?.data_checked === false;
+                if (unsettled) {
+                    try {
+                        const bonusRes = await fetchWithRetry(`${API_URL}/event-bonus?event=${event}`);
+                        if (cancelled) return;
+                        if (bonusRes.ok) setBonusRows((await bonusRes.json()).rows || []);
+                    } catch (bonusErr) {
+                        console.error('Could not load provisional bonus:', bonusErr);
+                    }
+                }
             } catch (err) {
                 if (cancelled) return;
                 console.error('Error loading manager entry:', err);
@@ -197,7 +219,8 @@ const MyTeam = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [teamId]);
 
-    const squad = useMemo(() => buildSquad(picks, bootstrap), [picks, bootstrap]);
+    const bonus = useMemo(() => provisionalBonus(bonusRows), [bonusRows]);
+    const squad = useMemo(() => buildSquad(picks, bootstrap, bonus), [picks, bootstrap, bonus]);
     const leagues = useMemo(() => groupLeagues(teamData?.leagues), [teamData]);
 
     const submit = useCallback(
@@ -227,7 +250,12 @@ const MyTeam = () => {
     const isMine = !!myEntry && String(myEntry) === String(teamId);
     const currentEvent = toNumber(teamData?.current_event, null);
     const eventFinished = bootstrap?.events?.find((e) => e.id === currentEvent)?.finished;
-    const gwPoints = toNumber(teamData?.summary_event_points, null);
+    // FPL's own live figure, plus bonus it has not awarded yet. Without the
+    // second half this cell reads 53 while the eleven below it reads 59 — the
+    // same squad, two totals, and nothing on screen saying which to believe.
+    const officialPoints = toNumber(teamData?.summary_event_points, null);
+    const gwPoints =
+        officialPoints === null ? null : officialPoints + toNumber(squad?.xiProvisional);
     const rankChange = toNumber(teamData?.rank_change, null);
 
     if (loading) return <MyTeamSkeleton />;
@@ -321,9 +349,11 @@ const MyTeam = () => {
                                 note={
                                     !squad
                                         ? ''
-                                        : squad.hit > 0
-                                            ? `AFTER A −${formatCount(squad.hit)} HIT`
-                                            : 'NO HIT TAKEN'
+                                        : squad.xiProvisional > 0
+                                            ? `INCL ${formatCount(squad.xiProvisional)} PROV BONUS`
+                                            : squad.hit > 0
+                                                ? `AFTER A −${formatCount(squad.hit)} HIT`
+                                                : 'NO HIT TAKEN'
                                 }
                             />
                             <SummaryCell

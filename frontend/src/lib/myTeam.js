@@ -1,4 +1,5 @@
 import { toNumber, getPositionShort } from './playerStats';
+import { bonusFor } from './liveBonus';
 
 /**
  * Manager-entry helpers.
@@ -37,7 +38,7 @@ export const armband = (pick) => {
  * applied — never multiplied a second time. That double-multiply is exactly
  * what the old H2H pitch got wrong, so it is done in one place here.
  */
-export const buildSquad = (picksData, bootstrap) => {
+export const buildSquad = (picksData, bootstrap, bonus = null) => {
     const picks = picksData?.picks;
     if (!Array.isArray(picks) || picks.length === 0) return null;
 
@@ -47,7 +48,12 @@ export const buildSquad = (picksData, bootstrap) => {
     const shape = (pick) => {
         const element = elements.get(pick.element);
         const multiplier = toNumber(pick.multiplier, 0);
-        const raw = toNumber(element?.event_points);
+        const scored = toNumber(element?.event_points);
+        // Bonus FPL has not awarded yet. It is multiplied like any other
+        // point, so a captain's provisional bonus doubles with him — which is
+        // exactly what will happen when the real bonus lands.
+        const provisional = bonusFor(bonus, pick.element);
+        const raw = scored + provisional;
 
         return {
             id: pick.element,
@@ -64,6 +70,9 @@ export const buildSquad = (picksData, bootstrap) => {
             points: raw * multiplier,
             // What the player scored, regardless of whether it counted.
             rawPoints: raw,
+            // The part of that which FPL has not confirmed, so the interface
+            // can say so rather than quietly presenting it as settled.
+            provisional,
             counted: multiplier > 0,
         };
     };
@@ -81,6 +90,8 @@ export const buildSquad = (picksData, bootstrap) => {
         // Goalkeeper is always one, so the shorthand is the outfield shape.
         formation: `${count(2)}-${count(3)}-${count(4)}`,
         xiPoints: starters.reduce((total, p) => total + p.points, 0),
+        // How much of the eleven's total is still provisional.
+        xiProvisional: starters.reduce((total, p) => total + p.provisional * p.multiplier, 0),
         // Under Bench Boost the bench carries a multiplier and does count.
         benchPoints: bench.reduce((total, p) => total + p.rawPoints, 0),
         benchCounted: bench.some((p) => p.counted),

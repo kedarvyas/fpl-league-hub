@@ -1,3 +1,4 @@
+import { bonusFor } from './liveBonus';
 import { toNumber } from './playerStats';
 
 /**
@@ -49,23 +50,55 @@ const startersOf = (team) =>
 
 const byPointsDesc = (a, b) => toNumber(b.points) - toNumber(a.points);
 
+/**
+ * Fold bonus FPL has not awarded yet into a pick's score.
+ *
+ * `points` arrives from the matchup function already multiplied, so the
+ * provisional bonus is multiplied to match — a captain's bonus doubles, which
+ * is what will happen when the real bonus lands.
+ */
+const withProvisional = (pick, bonus) => {
+    const provisional = bonusFor(bonus, pick?.id);
+    if (provisional === 0) return pick;
+    return {
+        ...pick,
+        points: toNumber(pick.points) + provisional * toNumber(pick.multiplier, 1),
+        provisional,
+    };
+};
+
+/**
+ * A side's unawarded bonus, counted over every pick that is scoring rather
+ * than over the eleven. Under Bench Boost the bench carries a multiplier and
+ * its bonus counts too; every other week those picks multiply out to zero.
+ */
+const provisionalTotal = (team, bonus) =>
+    (team?.picks || []).reduce(
+        (total, p) => total + bonusFor(bonus, p?.id) * toNumber(p?.multiplier, 0),
+        0,
+    );
+
 const sum = (list, key = 'points') => list.reduce((total, item) => total + toNumber(item[key]), 0);
 
 /** One side of a fixture: identity from the matchup, squad detail from picks. */
-const sideOf = (matchData, n) => {
+const sideOf = (matchData, n, bonus) => {
     const m = matchData?.matchup || {};
     const team = n === 1 ? matchData?.team1 : matchData?.team2;
     const history = team?.entry_history || {};
+    const provisional = provisionalTotal(team, bonus);
 
     return {
         entry: m[`entry_${n}_entry`] ?? null,
         teamName: m[`entry_${n}_name`] || '—',
         managerName: m[`entry_${n}_player_name`] || '',
-        points: toNumber(m[`entry_${n}_points`]),
+        // The scoreline FPL publishes plus what it has not awarded yet, so the
+        // headline and the columns below it cannot disagree.
+        points: toNumber(m[`entry_${n}_points`]) + provisional,
+        provisional,
         won: !!m[`entry_${n}_win`],
         drew: !!m[`entry_${n}_draw`],
         lost: !!m[`entry_${n}_loss`],
-        starters: startersOf(team),
+        starters: startersOf(team).map((p) => withProvisional(p, bonus)),
         // entry_history is fetched on every expand and has never been shown.
         // "He took a -8 and left 14 on the bench" is the story of a lot of
         // these fixtures.
@@ -82,11 +115,11 @@ const sideOf = (matchData, n) => {
  * nets zero, but not if one manager captained him — that is why shared players
  * carry a net rather than a single figure.
  */
-export const buildLedger = (matchData) => {
+export const buildLedger = (matchData, bonus = null) => {
     if (!matchData) return null;
 
-    const home = sideOf(matchData, 1);
-    const away = sideOf(matchData, 2);
+    const home = sideOf(matchData, 1, bonus);
+    const away = sideOf(matchData, 2, bonus);
 
     const homeById = new Map(home.starters.map((p) => [p.id, p]));
     const awayById = new Map(away.starters.map((p) => [p.id, p]));

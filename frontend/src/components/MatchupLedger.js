@@ -156,9 +156,9 @@ const SideContext = ({ side, align = 'left' }) => {
     );
 };
 
-const MatchupLedger = ({ matchData }) => {
+const MatchupLedger = ({ matchData, bonus = null }) => {
     const [showShared, setShowShared] = useState(false);
-    const ledger = buildLedger(matchData);
+    const ledger = buildLedger(matchData, bonus);
 
     if (!ledger) return null;
 
@@ -172,6 +172,16 @@ const MatchupLedger = ({ matchData }) => {
                 <SideContext side={home} />
                 <SideContext side={away} align="right" />
             </div>
+
+            {/* Said out loud rather than folded in silently: a scoreline that
+                quietly disagrees with the FPL site makes a reader distrust
+                every other number on the page. */}
+            {(home.provisional > 0 || away.provisional > 0) && (
+                <p className="pt-2.5 text-[8px] leading-[1.6] tracking-[0.06em] text-muted-foreground">
+                    INCLUDES <span className="text-live-ink">PROVISIONAL BONUS</span> FROM MATCHES
+                    STILL IN PLAY · FPL CONFIRMS BONUS AFTER THE FINAL WHISTLE
+                </p>
+            )}
 
             <SectionHeader label="Differentials">
                 <span className="bg-accent/15 px-1.5 py-[3px] text-[8px] font-medium tracking-[0.1em] text-accent-chip">

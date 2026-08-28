@@ -69,6 +69,16 @@ const SquadRow = ({ player, dimmed }) => {
                 </span>
             )}
 
+            {/* Bonus FPL has not awarded yet, marked rather than folded in
+                silently. A total that quietly disagrees with the FPL site is
+                the kind of thing that makes a reader distrust every other
+                number on the page. */}
+            {player.provisional > 0 && (
+                <span className="shrink-0 text-[7.5px] font-medium leading-none tracking-[0.1em] text-live-ink">
+                    +{formatCount(player.provisional)}B
+                </span>
+            )}
+
             {/* Rule 4 — a blank gameweek keeps the same geometry as a haul and
                 drops to muted, so the column is read by ink, not by presence. */}
             <span
@@ -174,6 +184,16 @@ const MyTeamSquad = ({ squad, bootstrap, gameweek, isMine = false }) => {
                     <SquadRow key={p.id} player={p} />
                 ))}
             </div>
+
+            {squad.xiProvisional > 0 && (
+                <p className="pt-2 text-[8px] leading-[1.6] tracking-[0.06em] text-muted-foreground">
+                    INCLUDES <span className="text-live-ink">
+                        {formatCount(squad.xiProvisional)} PROVISIONAL BONUS
+                    </span>{' '}
+                    FROM MATCHES STILL IN PLAY · FPL CONFIRMS BONUS AFTER THE FINAL WHISTLE, SO THIS
+                    CAN STILL CHANGE
+                </p>
+            )}
 
             <SectionHeader label="Bench">
                 <span className="text-[8px] tracking-[0.1em] text-muted-foreground">

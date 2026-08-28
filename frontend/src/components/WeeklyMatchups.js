@@ -13,6 +13,7 @@ import {
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useMyEntry } from '../hooks/useMyEntry';
 import { API_URL, apiHeaders } from '../config/supabase';
+import { provisionalBonus } from '../lib/liveBonus';
 import { formatCount, toNumber } from '../lib/playerStats';
 import { homeShare, summariseGameweek } from '../lib/h2h';
 
@@ -32,7 +33,7 @@ import { homeShare, summariseGameweek } from '../lib/h2h';
  */
 
 /** Collapsed fixture. The split bar is the "who's ahead" read at a glance. */
-const FixtureRow = ({ matchup, isExpanded, onToggle, eventId, leagueId, myEntry }) => {
+const FixtureRow = ({ matchup, isExpanded, onToggle, eventId, leagueId, myEntry, bonus }) => {
     const [detail, setDetail] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -132,7 +133,7 @@ const FixtureRow = ({ matchup, isExpanded, onToggle, eventId, leagueId, myEntry 
                             <p className="text-[9px] leading-[1.5] text-destructive-ink">{error}</p>
                         </div>
                     )}
-                    {!loading && !error && detail && <MatchupLedger matchData={detail} />}
+                    {!loading && !error && detail && <MatchupLedger matchData={detail} bonus={bonus} />}
                 </div>
             )}
         </div>
@@ -235,6 +236,7 @@ const WeeklyMatchups = () => {
     const [expanded, setExpanded] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [events, setEvents] = useState([]);
+    const [bonusRows, setBonusRows] = useState(null);
 
     useEffect(() => {
         if (urlLeagueId && urlLeagueId !== savedLeagueId) {
@@ -255,6 +257,33 @@ const WeeklyMatchups = () => {
         navigate(`/weekly-matchups/${inputLeagueId.trim()}`);
     };
 
+    // Bonus FPL has not awarded yet, for the gameweek being viewed. Fetched
+    // only while that gameweek is unsettled — afterwards the real bonus is
+    // already inside the points the matchup function returns, and adding
+    // anything would double count. Its own failure: a fixture without
+    // provisional bonus is the fixture FPL is publishing.
+    useEffect(() => {
+        const event = events.find((e) => e.id === selectedEvent);
+        if (!selectedEvent || !event || event.dataChecked !== false) {
+            setBonusRows(null);
+            return undefined;
+        }
+        let cancelled = false;
+
+        fetch(`${API_URL}/event-bonus?event=${selectedEvent}`, { headers: apiHeaders() })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+                if (!cancelled && data) setBonusRows(data.rows || []);
+            })
+            .catch((err) => console.error('Could not load provisional bonus:', err));
+
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedEvent, events]);
+
+    const bonus = useMemo(() => provisionalBonus(bonusRows), [bonusRows]);
+
     useEffect(() => {
         if (!LEAGUE_ID) return;
 
@@ -267,6 +296,10 @@ const WeeklyMatchups = () => {
                     id: event.id,
                     isCurrent: event.is_current,
                     isNext: event.is_next,
+                    // False until FPL has settled every fixture, bonus
+                    // included. It is the gate for the provisional bonus
+                    // fetch below.
+                    dataChecked: event.data_checked,
                 }));
                 setEvents(list);
                 const current = list.find((e) => e.isCurrent) || list.find((e) => e.isNext);
@@ -458,6 +491,7 @@ const WeeklyMatchups = () => {
                                 <>
                                     <SectionHeader label="Your fixture" tone="live" />
                                     <FixtureRow
+                                        bonus={bonus}
                                         matchup={mine}
                                         isExpanded={expanded === mine.id}
                                         onToggle={() => setExpanded(expanded === mine.id ? null : mine.id)}
@@ -472,6 +506,7 @@ const WeeklyMatchups = () => {
                             <div className="flex flex-col gap-px bg-border">
                                 {others.map((matchup) => (
                                     <FixtureRow
+                                        bonus={bonus}
                                         key={matchup.id}
                                         matchup={matchup}
                                         isExpanded={expanded === matchup.id}
@@ -489,6 +524,19 @@ const WeeklyMatchups = () => {
                 </div>
 
                 <div className="min-w-0 pb-8 lg:border-l lg:border-border lg:pl-7">
+                    {/* The scores in the list above are FPL's own, which do
+                        not include bonus until a match is settled. Only an
+                        expanded fixture has the picks needed to work out who
+                        is winning bonus, so the two disagree while matches are
+                        in play — said here rather than left to look like a
+                        bug. */}
+                    {bonus.size > 0 && (
+                        <p className="pt-2.5 text-[8px] leading-[1.6] tracking-[0.06em] text-muted-foreground">
+                            FIXTURE SCORES ABOVE ARE FPL'S PUBLISHED TOTALS · EXPAND A FIXTURE TO SEE
+                            IT WITH <span className="text-live-ink">PROVISIONAL BONUS</span> ADDED
+                        </p>
+                    )}
+
                     <SectionHeader label="Standings" />
                     <LeagueTable
                         standings={standings}
