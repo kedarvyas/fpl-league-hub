@@ -41,29 +41,44 @@ export const useTransferPlan = (entry, targetEvent) => {
     const ready = !!entry && targetEvent !== null && targetEvent !== undefined;
     const key = ready ? planStorageKey(entry, targetEvent) : null;
 
-    const [plan, setPlan] = useState(() => read(key, entry, targetEvent));
+    // The plan is held *with* the key it was read for. Keeping them in one
+    // piece of state is what makes the write below safe: the target gameweek
+    // is not known until `team-data` lands, so `key` starts null and only then
+    // becomes real — and on that render the plan is still the empty one from
+    // before the key existed. Storing them separately let the write effect
+    // fire with that stale empty plan and overwrite a perfectly good saved
+    // plan under the newly-valid key, losing every move and the team sheet the
+    // moment the page was revisited.
+    const [state, setState] = useState(() => ({ key, plan: read(key, entry, targetEvent) }));
 
-    // The key is not known until the entry and the target gameweek have
-    // loaded, so the first read happens here rather than only in useState.
+    // The first read for a real key happens here rather than in useState,
+    // because the key is not known during the first render.
     useEffect(() => {
-        setPlan(read(key, entry, targetEvent));
+        setState({ key, plan: read(key, entry, targetEvent) });
     }, [key, entry, targetEvent]);
 
-    // Writing to storage happens here, not inside the state updater. React
-    // treats updaters as pure and double-invokes them under StrictMode, so any
-    // side effect placed in one runs twice.
+    // Writing happens here, not inside a state updater: React treats updaters
+    // as pure and double-invokes them under StrictMode, so a side effect in
+    // one runs twice.
     useEffect(() => {
-        if (!key || typeof window === 'undefined') return;
+        // Never write a plan that was read for a different key.
+        if (!key || state.key !== key || typeof window === 'undefined') return;
         try {
-            window.localStorage.setItem(key, JSON.stringify(plan));
+            window.localStorage.setItem(key, JSON.stringify(state.plan));
         } catch (err) {
             // Storage is full or blocked. Keep the plan in memory.
         }
-    }, [key, plan]);
+    }, [key, state]);
 
-    const update = useCallback((next) => setPlan(next), []);
+    const update = useCallback(
+        (next) => setState((current) => ({
+            key: current.key,
+            plan: typeof next === 'function' ? next(current.plan) : next,
+        })),
+        [],
+    );
 
     const reset = useCallback(() => update(emptyPlan(entry, targetEvent)), [update, entry, targetEvent]);
 
-    return [plan, update, reset];
+    return [state.plan, update, reset];
 };

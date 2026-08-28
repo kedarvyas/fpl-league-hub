@@ -125,9 +125,14 @@ const PlanPlayerPanel = ({
                             {target.original.position} · UP TO {formatMoney(budget)}
                         </span>
                     </span>
+                    {/* The action strip above the pitch also has a CANCEL,
+                        so this one is named for what it cancels — otherwise a
+                        screen reader hears two identical buttons doing
+                        different things on the same screen. */}
                     <button
                         type="button"
                         onClick={onCancelTarget}
+                        aria-label={`Cancel replacing ${target.original.name}`}
                         className="min-h-[32px] shrink-0 px-1 text-[8px] font-medium tracking-[0.12em] text-muted-foreground hover:text-foreground"
                     >
                         CANCEL
