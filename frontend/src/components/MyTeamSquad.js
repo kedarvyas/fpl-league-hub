@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import PlayerPhoto from './PlayerPhoto';
+import TeamScorePanel from './TeamScorePanel';
 import { SectionHeader } from './PlayerStatCell';
 import { chipName } from '../lib/h2h';
 import { describeSubs, formatMoney } from '../lib/myTeam';
@@ -112,34 +113,15 @@ const ContextCell = ({ label, value, tone = 'default' }) => (
     </div>
 );
 
-/**
- * The way into the transfer planner.
- *
- * Only when the team on screen is the reader's own. This page is a viewer for
- * *any* manager — clicking a name on the H2H or Dashboard pages lands here
- * with someone else's entry — and planning transfers for a squad you do not
- * own is meaningless, so the control follows `isMine` rather than appearing
- * for everyone. `--inverted` because it is the one action on a tab of
- * readouts, and rule 3's value inversion says that without spending a colour.
- */
-const PlanLink = ({ gameweek }) => (
-    <Link
-        to="/my-team/plan"
-        className="mt-4 flex min-h-[44px] items-center justify-between gap-3 bg-inverted px-3 transition-opacity hover:opacity-90 md:px-4"
-    >
-        <span className="min-w-0">
-            <span className="block text-[9px] font-medium leading-none tracking-[0.16em] text-background">
-                PLAN TRANSFERS{gameweek ? ` FOR GW${gameweek + 1}` : ''}
-            </span>
-            <span className="mt-1.5 block truncate text-[7.5px] leading-none tracking-[0.1em] text-background/70">
-                BUDGET, FREE TRANSFERS AND THE HIT, WORKED OUT AS YOU GO
-            </span>
-        </span>
-        <span className="shrink-0 text-[11px] leading-none text-background">→</span>
-    </Link>
-);
-
-const MyTeamSquad = ({ squad, bootstrap, gameweek, isMine = false }) => {
+const MyTeamSquad = ({
+    squad,
+    bootstrap,
+    gameweek,
+    weekScore = null,
+    runScore = null,
+    nextEvent = null,
+    runLength = 0,
+}) => {
     if (!squad) {
         return (
             <div className="px-4 pb-10 md:px-7">
@@ -150,7 +132,6 @@ const MyTeamSquad = ({ squad, bootstrap, gameweek, isMine = false }) => {
                 <p className="pt-2 text-[8px] leading-[1.6] tracking-[0.06em] text-muted-foreground">
                     PICKS BECOME PUBLIC AFTER THE GAMEWEEK DEADLINE.
                 </p>
-                {isMine && <PlanLink gameweek={gameweek} />}
             </div>
         );
     }
@@ -163,7 +144,16 @@ const MyTeamSquad = ({ squad, bootstrap, gameweek, isMine = false }) => {
 
     return (
         <div className="px-4 pb-10 md:px-7">
-            {isMine && <PlanLink gameweek={gameweek} />}
+            {/* The rating leads, and the eleven it is rating is directly
+                underneath — which is the point. It is shown for any manager,
+                not just your own team: rating the squad you are drawn against
+                this week is the same question asked about someone else. */}
+            <TeamScorePanel
+                week={weekScore}
+                run={runScore}
+                gameweek={nextEvent}
+                runLength={runLength}
+            />
 
             <SectionHeader label={`Starting XI · ${squad.formation}`} >
                 <span className="text-[8px] tracking-[0.1em] text-muted-foreground">

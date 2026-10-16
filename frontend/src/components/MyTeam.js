@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import MyTeamSquad from './MyTeamSquad';
 import MyTeamSeason from './MyTeamSeason';
 import MyTeamLeagues from './MyTeamLeagues';
 import { useMyEntry } from '../hooks/useMyEntry';
 import { API_URL, fetchWithRetry } from '../config/supabase';
 import { buildSquad, groupLeagues } from '../lib/myTeam';
+import { buildFixtureIndex, clubMap, planEvents } from '../lib/transferPlan';
+import { scoreSquad } from '../lib/teamScore';
 import { provisionalBonus } from '../lib/liveBonus';
 import { formatCount, toNumber } from '../lib/playerStats';
 
@@ -98,6 +100,7 @@ const MyTeam = () => {
     const [history, setHistory] = useState(null);
     const [previousSeasons, setPreviousSeasons] = useState(null);
     const [bonusRows, setBonusRows] = useState(null);
+    const [fixtures, setFixtures] = useState(null);
 
     const [loading, setLoading] = useState(!!teamId);
     const [detailLoading, setDetailLoading] = useState(!!teamId);
@@ -126,6 +129,7 @@ const MyTeam = () => {
             setHistory(null);
             setPreviousSeasons(null);
             setBonusRows(null);
+            setFixtures(null);
 
             try {
                 // Two waves rather than five parallel calls: the Edge Functions
@@ -173,6 +177,19 @@ const MyTeam = () => {
                 if (historyRes.ok) setHistory(await historyRes.json());
                 if (seasonsRes.ok) setPreviousSeasons(await seasonsRes.json());
 
+                // The rest of the season's fixtures, for the team score. Its
+                // own wave and its own failure, like the bonus below: without
+                // them the score declines to render and every other thing on
+                // the page is unaffected. One call rather than one per
+                // gameweek — see the `fixtures-future` function.
+                try {
+                    const fixturesRes = await fetchWithRetry(`${API_URL}/fixtures-future`);
+                    if (cancelled) return;
+                    if (fixturesRes.ok) setFixtures(await fixturesRes.json());
+                } catch (fixtureErr) {
+                    console.error('Could not load fixtures for the team score:', fixtureErr);
+                }
+
                 // Bonus FPL has not awarded yet, fetched only while the
                 // gameweek is unsettled: `data_checked` flips true once every
                 // fixture is final, and after that the API's own bonus is
@@ -204,6 +221,7 @@ const MyTeam = () => {
                 // masthead with an error floating above it.
                 setTeamData(null);
                 setBootstrap(null);
+                setFixtures(null);
                 setLoading(false);
                 setShowInput(true);
             } finally {
@@ -277,6 +295,63 @@ const MyTeam = () => {
     const livePoints = squad ? squad.xiPoints - squad.hit : null;
     const gwPoints = settled || livePoints === null ? officialPoints : livePoints;
     const rankChange = toNumber(teamData?.rank_change, null);
+
+    /*
+     * The team score rates the squad you hold against the gameweek you are
+     * about to play, because that is the only version of the question a
+     * manager can still act on. `is_next` is FPL's own answer to "which
+     * gameweek is upcoming" and survives the week between a gameweek
+     * finishing and the next one becoming current, which `current_event + 1`
+     * does not.
+     *
+     * It inherits the transfer planner's caveat for the same reason the
+     * planner has it: `entry/{id}/event/{next}/picks` is a 404 until that
+     * deadline passes, so this is the squad as it stands, not as it will be
+     * fielded.
+     */
+    const nextEvent =
+        toNumber(bootstrap?.events?.find((e) => e.is_next)?.id, null) ??
+        (currentEvent === null ? null : currentEvent + 1);
+
+    // The denominator behind the minutes component. Gameweeks that have
+    // *finished*, not gameweeks that have started — a gameweek in play would
+    // charge every player for minutes nobody has had the chance to play yet.
+    const gamesPlayed = (bootstrap?.events || []).filter((e) => e.finished).length;
+
+    const fixtureIndex = useMemo(
+        () => (fixtures ? buildFixtureIndex(fixtures, clubMap(bootstrap)) : null),
+        [fixtures, bootstrap],
+    );
+
+    // Five is the horizon a transfer is usually judged over, and `planEvents`
+    // clips it to the gameweeks the season actually has left.
+    const runEvents = useMemo(() => planEvents(bootstrap, nextEvent, 5), [bootstrap, nextEvent]);
+
+    const weekScore = useMemo(
+        () =>
+            scoreSquad({
+                squad,
+                bootstrap,
+                index: fixtureIndex,
+                events: nextEvent ? [nextEvent] : [],
+                gamesPlayed,
+                horizon: 'gw',
+            }),
+        [squad, bootstrap, fixtureIndex, nextEvent, gamesPlayed],
+    );
+
+    const runScore = useMemo(
+        () =>
+            scoreSquad({
+                squad,
+                bootstrap,
+                index: fixtureIndex,
+                events: runEvents,
+                gamesPlayed,
+                horizon: 'run',
+            }),
+        [squad, bootstrap, fixtureIndex, runEvents, gamesPlayed],
+    );
 
     if (loading) return <MyTeamSkeleton />;
 
@@ -405,6 +480,18 @@ const MyTeam = () => {
 
             {teamData && (
                 <>
+                    {/* The planner is a page-level action, not a squad-tab
+                        one. It used to sit inside the squad, below the tab
+                        bar and below the score, which put the page's single
+                        call to action under a fold on every phone. Still
+                        gated on `isMine` — planning transfers for a squad you
+                        do not own is meaningless. */}
+                    {isMine && (
+                        <div className="px-4 pt-4 md:px-7">
+                            <PlanLink gameweek={nextEvent} />
+                        </div>
+                    )}
+
                     <div className="mt-4 flex border-t border-border px-4 md:px-7">
                         {TABS.map((t) => (
                             <button
@@ -430,7 +517,10 @@ const MyTeam = () => {
                             squad={squad}
                             bootstrap={bootstrap}
                             gameweek={currentEvent}
-                            isMine={isMine}
+                            weekScore={weekScore}
+                            runScore={runScore}
+                            nextEvent={nextEvent}
+                            runLength={runEvents.length}
                         />
                     ) : tab === 'season' ? (
                         <MyTeamSeason
@@ -447,6 +537,34 @@ const MyTeam = () => {
         </div>
     );
 };
+
+/**
+ * The way into the transfer planner.
+ *
+ * Lives here rather than on the squad tab so it is reachable from all three
+ * tabs and sits above the fold, and takes the gameweek it is planning *for*
+ * rather than deriving it — the page's own `nextEvent` already answers that,
+ * and `currentEvent + 1` was a second, worse answer to the same question.
+ *
+ * `--inverted` because it is the one action on a page of readouts, and rule
+ * 3's value inversion says that without spending a colour.
+ */
+const PlanLink = ({ gameweek }) => (
+    <Link
+        to="/my-team/plan"
+        className="flex min-h-[44px] items-center justify-between gap-3 bg-inverted px-3 transition-opacity hover:opacity-90 md:px-4"
+    >
+        <span className="min-w-0">
+            <span className="block text-[9px] font-medium leading-none tracking-[0.16em] text-background">
+                PLAN TRANSFERS{gameweek ? ` FOR GW${gameweek}` : ''}
+            </span>
+            <span className="mt-1.5 block truncate text-[7.5px] leading-none tracking-[0.1em] text-background/70">
+                BUDGET, FREE TRANSFERS AND THE HIT, WORKED OUT AS YOU GO
+            </span>
+        </span>
+        <span className="shrink-0 text-[11px] leading-none text-background">→</span>
+    </Link>
+);
 
 /** The only place a team id is entered. Always reachable from the masthead. */
 const TeamIdForm = ({ value, onChange, onSubmit, onCancel }) => (
