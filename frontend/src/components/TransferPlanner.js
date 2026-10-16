@@ -4,6 +4,7 @@ import PlanPitch from './PlanPitch';
 import PlanPlayerPanel from './PlanPlayerPanel';
 import PlanLedger from './PlanLedger';
 import TransferPlanFixtures from './TransferPlanFixtures';
+import TeamScorePanel, { PlanScoreBand } from './TeamScorePanel';
 import { useMyEntry } from '../hooks/useMyEntry';
 import { useTransferPlan } from '../hooks/useTransferPlan';
 import { API_URL, fetchWithRetry } from '../config/supabase';
@@ -25,6 +26,7 @@ import {
     untilDeadline,
     validatePlan,
 } from '../lib/transferPlan';
+import { compareScores, scoreSquad, squadFromPlan } from '../lib/teamScore';
 
 /**
  * The transfer planner.
@@ -69,6 +71,7 @@ import {
 const TABS = [
     { id: 'pitch', label: 'PITCH' },
     { id: 'fixtures', label: 'FIXTURES' },
+    { id: 'score', label: 'SCORE' },
 ];
 
 /** What each card's bottom line shows. The toggle is what makes 375px work. */
@@ -283,6 +286,75 @@ const TransferPlanner = () => {
     const chips = useMemo(
         () => availableTransferChips(bootstrap, history?.chips, targetEvent),
         [bootstrap, history, targetEvent],
+    );
+
+    /*
+     * The rating, live against the plan.
+     *
+     * Three memos rather than one, and the split is deliberate: the baseline
+     * is the squad actually owned, so it does not change when a move is made
+     * and must not be recomputed on every click. Each score walks the whole
+     * element list once per player per component, which is cheap but not free,
+     * and this page recomputes on every tap of a shirt.
+     */
+    const scoreEvents = useMemo(
+        () => (targetEvent === null ? [] : [targetEvent]),
+        [targetEvent],
+    );
+    const runScoreEvents = useMemo(
+        () => planEvents(bootstrap, targetEvent, 5),
+        [bootstrap, targetEvent],
+    );
+    const gamesPlayed = useMemo(
+        () => (bootstrap?.events || []).filter((e) => e.finished).length,
+        [bootstrap],
+    );
+
+    const planSquad = useMemo(() => squadFromPlan(applied), [applied]);
+
+    // The fifteen as they stand on FPL, rated over the same gameweek. Keyed on
+    // `base` alone, so planning does not touch it.
+    const baselineScore = useMemo(() => {
+        const untouched = squadFromPlan(applyPlan(base, { moves: [] }, bootstrap));
+        return scoreSquad({
+            squad: untouched,
+            bootstrap,
+            index: fixtureIndex,
+            events: scoreEvents,
+            gamesPlayed,
+            horizon: 'gw',
+        });
+    }, [base, bootstrap, fixtureIndex, scoreEvents, gamesPlayed]);
+
+    const weekScore = useMemo(
+        () =>
+            scoreSquad({
+                squad: planSquad,
+                bootstrap,
+                index: fixtureIndex,
+                events: scoreEvents,
+                gamesPlayed,
+                horizon: 'gw',
+            }),
+        [planSquad, bootstrap, fixtureIndex, scoreEvents, gamesPlayed],
+    );
+
+    const runScore = useMemo(
+        () =>
+            scoreSquad({
+                squad: planSquad,
+                bootstrap,
+                index: fixtureIndex,
+                events: runScoreEvents,
+                gamesPlayed,
+                horizon: 'run',
+            }),
+        [planSquad, bootstrap, fixtureIndex, runScoreEvents, gamesPlayed],
+    );
+
+    const comparison = useMemo(
+        () => compareScores(baselineScore, weekScore),
+        [baselineScore, weekScore],
     );
     const cardEvents = mode === 'three' ? gridEvents : gridEvents.slice(0, 1);
 
@@ -634,6 +706,17 @@ const TransferPlanner = () => {
                             />
                         </div>
 
+                        {/* Above the tab bar, because "did that move help"
+                            is asked while the move is being made, on the
+                            pitch. Behind a tab it would be an answer nobody
+                            reads. */}
+                        <PlanScoreBand
+                            score={weekScore}
+                            comparison={comparison}
+                            open={planSquad?.open || 0}
+                            gameweek={targetEvent}
+                        />
+
                         {/* Shown on both views, because an illegal squad is
                             illegal on both. Named, never blocked. */}
                         {issues.length > 0 && (
@@ -782,13 +865,26 @@ const TransferPlanner = () => {
                                 />
                             </div>
                         </div>
-                    ) : (
+                    ) : tab === 'fixtures' ? (
                         <TransferPlanFixtures
                             applied={applied}
                             fixtureIndex={fixtureIndex}
                             events={gridEvents}
                             state={fixturesState}
                         />
+                    ) : (
+                        /* The same panel the squad tab uses, so the two pages
+                           cannot drift into disagreeing about what a squad is
+                           worth — plus what this plan moved. */
+                        <div className="px-4 pb-10 md:px-7">
+                            <TeamScorePanel
+                                week={weekScore}
+                                run={runScore}
+                                gameweek={targetEvent}
+                                runLength={runScoreEvents.length}
+                                comparison={comparison}
+                            />
+                        </div>
                     )}
                 </>
             )}

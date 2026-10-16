@@ -51,6 +51,84 @@ const GRID_COLS = {
     6: 'md:grid-cols-6',
 };
 
+/**
+ * A movement, in the smallest form that still says which way.
+ *
+ * Under half a point is shown as no change rather than rounded into a `▲ 0`,
+ * which reads as a rendering fault. `-ink` because these are text (rule 6).
+ */
+const DELTA_INK = {
+    up: 'text-live-ink',
+    down: 'text-destructive-ink',
+    flat: 'text-muted-foreground',
+};
+
+export const deltaOf = (value) => {
+    const d = Number(value) || 0;
+    if (Math.abs(d) < 0.5) return { dir: 'flat', label: 'NO CHANGE', short: '—' };
+    const rounded = Math.round(Math.abs(d));
+    return d > 0
+        ? { dir: 'up', label: `▲ ${rounded}`, short: `▲${rounded}` }
+        : { dir: 'down', label: `▼ ${rounded}`, short: `▼${rounded}` };
+};
+
+/**
+ * The planner's headline.
+ *
+ * It sits above the tab bar rather than inside a tab, because the question it
+ * answers — did that move help — is asked *while* the move is being made, on
+ * the pitch, and an answer behind a tab is an answer nobody reads. The number
+ * is the plan's; the delta is against the squad actually owned.
+ */
+export const PlanScoreBand = ({ score, comparison, open = 0, gameweek }) => {
+    if (!score) {
+        return (
+            <div className="mt-px bg-panel px-3 py-2.5 text-[8.5px] tracking-[0.12em] text-muted-foreground">
+                NOT ENOUGH DATA TO RATE THIS PLAN
+            </div>
+        );
+    }
+
+    const move = deltaOf(comparison?.delta);
+    const was = comparison ? Math.round(comparison.before) : null;
+
+    return (
+        <div className="mt-px flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-1.5 bg-panel px-3 py-2.5">
+            <span className="text-[7.5px] tracking-[0.16em] text-muted-foreground">
+                TEAM SCORE{gameweek ? ` · GW${gameweek}` : ''}
+            </span>
+
+            <span className="text-[22px] font-bold leading-[0.9] tracking-[-0.04em] text-foreground md:text-[26px]">
+                {Math.round(score.score)}
+            </span>
+
+            <span
+                className={`px-1.5 py-1 text-[8px] font-medium leading-none tracking-[0.16em] ${
+                    TONE_CHIP[score.band.tone]
+                }`}
+            >
+                {score.band.word}
+            </span>
+
+            <span
+                className={`text-[9px] font-medium leading-none tracking-[0.1em] ${DELTA_INK[move.dir]}`}
+            >
+                {move.label}
+            </span>
+
+            {/* Rule 4 — the right-hand context is always rendered, so the band
+                does not change height the moment a plan has moves in it. */}
+            <span className="ml-auto text-right text-[7px] leading-[1.5] tracking-[0.1em] text-muted-foreground">
+                {open > 0
+                    ? `RATED ON ${11 - open} OF 11 · ${open} SLOT${open === 1 ? '' : 'S'} OPEN`
+                    : was === null
+                        ? 'AGAINST YOUR CURRENT SQUAD'
+                        : `YOUR SQUAD NOW RATES ${was}`}
+            </span>
+        </div>
+    );
+};
+
 const HorizonTab = ({ label, active, onClick }) => (
     <button
         type="button"
@@ -131,7 +209,40 @@ const WeakRow = ({ player }) => {
     );
 };
 
-const TeamScorePanel = ({ week, run, gameweek, runLength = 0 }) => {
+/**
+ * What the plan moved, component by component.
+ *
+ * A list rather than the tiles above it, because this answers a different
+ * question. The tiles say what the squad is; this says what changed, and a
+ * before-and-after pair on one line is read by running an eye down the right
+ * edge. It also catches the move that leaves the headline flat — trading
+ * fixtures for form is a real decision and a `0` would hide it.
+ */
+const ComparisonRow = ({ row, strong = false }) => {
+    const move = deltaOf(row.delta);
+
+    return (
+        <div className="flex min-h-[32px] items-center gap-2.5 bg-panel px-3 py-2">
+            <span
+                className={`min-w-0 flex-1 truncate text-[8.5px] font-medium uppercase tracking-[0.13em] ${
+                    strong ? 'text-foreground' : 'text-muted-foreground'
+                }`}
+            >
+                {row.label}
+            </span>
+            <span className="shrink-0 text-[10px] leading-none tracking-[0.06em] text-muted-foreground md:text-[11px]">
+                {Math.round(row.before)} → <span className="text-foreground">{Math.round(row.after)}</span>
+            </span>
+            <span
+                className={`w-[34px] shrink-0 text-right text-[9px] font-medium leading-none tracking-[0.1em] ${DELTA_INK[move.dir]}`}
+            >
+                {move.short}
+            </span>
+        </div>
+    );
+};
+
+const TeamScorePanel = ({ week, run, gameweek, runLength = 0, comparison = null }) => {
     const [horizon, setHorizon] = useState('week');
     const active = horizon === 'run' ? run : week;
 
@@ -219,6 +330,50 @@ const TeamScorePanel = ({ week, run, gameweek, runLength = 0 }) => {
                     />
                 ))}
             </div>
+
+            {/* Only on the planner, and only on the horizon the plan is for —
+                the comparison is against a baseline rated over the same
+                gameweeks, so showing it beside the five-week view would be
+                comparing two different questions. */}
+            {comparison && horizon === 'week' && (
+                <>
+                    <SectionHeader label="What the plan changed">
+                        <span
+                            className={`text-[8px] tracking-[0.1em] ${
+                                DELTA_INK[deltaOf(comparison.delta).dir]
+                            }`}
+                        >
+                            {Math.round(comparison.before)} → {Math.round(comparison.after)}
+                        </span>
+                    </SectionHeader>
+                    {/* The arithmetic behind the headline first, because it
+                        is what moved. A new weak link hits the floor far
+                        harder than it moves a mean, and that is usually the
+                        whole story of a transfer. */}
+                    <div className="flex flex-col gap-px bg-border">
+                        {comparison.aggregates.map((row) => (
+                            <ComparisonRow key={row.key} row={row} strong />
+                        ))}
+                    </div>
+
+                    {/*
+                     * Said out loud, because without it the two lists appear
+                     * to contradict each other: a 25%-doubt striker lifts
+                     * every average below and drops the score above, and four
+                     * rising components over a falling number reads as a bug.
+                     */}
+                    <p className="pt-2.5 text-[8px] leading-[1.6] tracking-[0.06em] text-muted-foreground">
+                        BELOW IS THE ELEVEN'S AVERAGE ON EACH MEASURE, BEFORE THE CHANCE-OF-PLAYING
+                        DISCOUNT — SO THESE CAN RISE WHILE THE SCORE FALLS.
+                    </p>
+
+                    <div className="mt-1.5 flex flex-col gap-px bg-border">
+                        {comparison.components.map((row) => (
+                            <ComparisonRow key={row.key} row={row} />
+                        ))}
+                    </div>
+                </>
+            )}
 
             {(active.betterCaptain || active.unavailable.length > 0 || active.blanks.length > 0 ||
                 active.doubles.length > 0) && (

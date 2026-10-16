@@ -1,12 +1,14 @@
 import { buildSquad } from './myTeam';
-import { buildFixtureIndex, clubMap } from './transferPlan';
+import { applyPlan, buildFixtureIndex, buildPlanBase, clubMap, emptyPlan } from './transferPlan';
 import {
     availabilityOf,
     bandFor,
+    compareScores,
     minutesShare,
     rateFixtures,
     rateUnderlying,
     scoreSquad,
+    squadFromPlan,
 } from './teamScore';
 
 /**
@@ -18,6 +20,15 @@ import {
  */
 
 const TYPES = [1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 1, 2, 3, 4];
+
+/**
+ * Players nobody owns, so a planned transfer has somewhere to transfer *from*.
+ * Without them `{ out, in }` resolves to an element that is not in bootstrap,
+ * which `applyPlan` treats as an open slot — so a test meaning to swap a weak
+ * starter for a strong one was really testing an empty shirt.
+ */
+const MARKET = [4, 3, 2, 1, 4];
+const ALL_TYPES = [...TYPES, ...MARKET];
 
 /** Club 1 plays a kind fixture in GW7; club 2 is blank; club 3 has a double. */
 const FIXTURES = [
@@ -38,7 +49,7 @@ const element = (i, overrides = {}) => ({
     id: i + 1,
     code: i + 1,
     web_name: `P${i + 1}`,
-    element_type: TYPES[i],
+    element_type: ALL_TYPES[i],
     team: 1,
     now_cost: 50,
     event_points: 2,
@@ -59,7 +70,7 @@ const element = (i, overrides = {}) => ({
 
 const bootstrapWith = (overrides = {}) => ({
     teams: CLUBS,
-    elements: TYPES.map((_, i) => element(i, overrides[i + 1] || {})),
+    elements: ALL_TYPES.map((_, i) => element(i, overrides[i + 1] || {})),
 });
 
 const picksWith = (captain = 9) => ({
@@ -292,11 +303,13 @@ describe('scoreSquad', () => {
     });
 
     it('names a better captain only when the gap is worth saying', () => {
-        // Captaining the weakest forward when the strongest is in the side.
+        // Captaining the weakest forward when better options are in the side.
         expect(rate({ captain: 9 }).betterCaptain).not.toBeNull();
-        // Captaining the best player in the squad leaves nothing to say.
-        const best = rate({ captain: 11 });
-        expect(best.betterCaptain === null || best.betterCaptain.id === 11).toBe(true);
+        // Captaining whoever the model rates highest leaves nothing to say.
+        // Taken from the ranking rather than hardcoded, because who that is
+        // depends on the peer set each percentile is drawn from.
+        const top = rate({ captain: 9 }).strongest[0].id;
+        expect(rate({ captain: top }).betterCaptain).toBeNull();
     });
 
     it('docks the squad for its weak links rather than averaging them away', () => {
@@ -386,5 +399,143 @@ describe('bandFor', () => {
 
     it('always returns a band, even for nonsense', () => {
         expect(bandFor(null).word).toBe('WEAK');
+    });
+});
+
+
+/* ------------------------------------------------------------------ */
+/* The transfer planner                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * These go through the planner's own `buildPlanBase` and `applyPlan` rather
+ * than a hand-built approximation of their output. The adapter exists to
+ * bridge two real shapes, so a test against an imagined one would pass while
+ * the bridge was broken.
+ */
+const planOf = (bootstrap, moves = [], captain = 9) => {
+    const base = buildPlanBase({
+        picks: picksWith(captain),
+        bootstrap,
+        transfers: [],
+        chips: [],
+    });
+    return applyPlan(base, { ...emptyPlan('1', 7), moves }, bootstrap);
+};
+
+const scoreOf = (squad, bootstrap) =>
+    scoreSquad({ squad, bootstrap, index, events: [7], gamesPlayed: 6 });
+
+describe('squadFromPlan', () => {
+    it('is null-safe on a planner that has not loaded', () => {
+        expect(squadFromPlan(null)).toBeNull();
+        expect(squadFromPlan({})).toBeNull();
+    });
+
+    it('splits the eleven and the bench the way the squad tab does', () => {
+        const squad = squadFromPlan(planOf(bootstrapWith()));
+        expect(squad.starters).toHaveLength(11);
+        expect(squad.bench).toHaveLength(4);
+        expect(squad.open).toBe(0);
+    });
+
+    it('rates an untouched plan exactly as the squad tab rates the same squad', () => {
+        /*
+         * The whole reason the adapter exists. `buildSquad` and `applyPlan`
+         * describe the same fifteen players in two shapes, and if the bridge
+         * between them drifts, the planner and the squad tab quietly disagree
+         * about what the same squad is worth — which is the kind of thing a
+         * reader notices and never trusts either number again.
+         */
+        const bootstrap = bootstrapWith();
+        const fromPicks = scoreOf(buildSquad(picksWith(9), bootstrap), bootstrap);
+        const fromPlan = scoreOf(squadFromPlan(planOf(bootstrap)), bootstrap);
+        expect(fromPlan.score).toBeCloseTo(fromPicks.score, 10);
+        expect(fromPlan.captain.id).toBe(fromPicks.captain.id);
+    });
+
+    it('keeps the armband on the shirt when the captain is sold', () => {
+        // The planner keys captaincy by baseline slot, so whoever replaces the
+        // captain inherits it. Reading `wasCaptain` off the player would drop
+        // the armband the moment he left the squad.
+        const bootstrap = bootstrapWith();
+        const squad = squadFromPlan(planOf(bootstrap, [{ out: 9, in: 11 }], 9));
+        const marked = squad.starters.filter((p) => p.mark === 'C');
+        expect(marked).toHaveLength(1);
+        expect(marked[0].id).toBe(11);
+    });
+
+    it('drops an open slot and counts it rather than scoring a hole as zero', () => {
+        // Marking a player out with nobody in yet is a decision in progress.
+        const bootstrap = bootstrapWith();
+        const squad = squadFromPlan(planOf(bootstrap, [{ out: 5, in: null }]));
+        expect(squad.starters).toHaveLength(10);
+        expect(squad.open).toBe(1);
+        // And it still rates, on the ten who are there.
+        expect(scoreOf(squad, bootstrap).score).toBeGreaterThan(0);
+    });
+
+    it('lifts the score when a weak starter is replaced by a strong one', () => {
+        // P9 is the weakest forward in the eleven; P20 is the best in the
+        // game, and unowned, so this is a real swap rather than an open slot.
+        const bootstrap = bootstrapWith();
+        const before = scoreOf(squadFromPlan(planOf(bootstrap)), bootstrap);
+        const plan = squadFromPlan(planOf(bootstrap, [{ out: 9, in: 20 }]));
+
+        expect(plan.starters).toHaveLength(11);
+        expect(plan.open).toBe(0);
+        expect(plan.starters.some((p) => p.id === 20)).toBe(true);
+        expect(scoreOf(plan, bootstrap).score).toBeGreaterThan(before.score);
+    });
+});
+
+describe('compareScores', () => {
+    const bootstrap = bootstrapWith();
+    const before = scoreOf(squadFromPlan(planOf(bootstrap)), bootstrap);
+
+    it('is null-safe before either side has been rated', () => {
+        expect(compareScores(null, before)).toBeNull();
+        expect(compareScores(before, null)).toBeNull();
+    });
+
+    it('reports no movement for a plan with no moves', () => {
+        const same = compareScores(before, before);
+        expect(same.delta).toBe(0);
+        expect(same.bandChanged).toBe(false);
+        same.components.forEach((c) => expect(c.delta).toBe(0));
+    });
+
+    it('carries the arithmetic the headline is built from', () => {
+        /*
+         * The regression this guards: bringing in a 25%-doubt striker raised
+         * every component average and dropped the score, because components
+         * are percentiles before the availability discount and the score is
+         * after it. Four rising rows over a falling number reads as a bug, so
+         * the figures that actually moved have to be on screen too.
+         */
+        const doubtful = bootstrapWith({ 20: { chance_of_playing_next_round: 25, status: 'd' } });
+        const after = scoreOf(squadFromPlan(planOf(doubtful, [{ out: 9, in: 20 }])), doubtful);
+        const diff = compareScores(before, after);
+
+        expect(diff.aggregates.map((a) => a.key)).toEqual(['xi', 'floor', 'bench']);
+        diff.aggregates.forEach((a) => expect(a.delta).toBeCloseTo(a.after - a.before, 10));
+        // The weak link is what moved, and it moved down.
+        expect(diff.aggregates.find((a) => a.key === 'floor').delta).toBeLessThan(0);
+    });
+
+    it('carries the before and after of every component', () => {
+        // A move that leaves the score flat by trading fixtures for form has
+        // still told the manager something; a bare 0 has not.
+        const injured = bootstrapWith({ 9: { status: 'i', chance_of_playing_next_round: 0 } });
+        const after = scoreOf(squadFromPlan(planOf(injured)), injured);
+        const diff = compareScores(before, after);
+
+        expect(diff.before).toBe(before.score);
+        expect(diff.after).toBe(after.score);
+        expect(diff.delta).toBeCloseTo(after.score - before.score, 10);
+        expect(diff.components.map((c) => c.key)).toEqual(before.components.map((c) => c.key));
+        diff.components.forEach((c) => {
+            expect(c.delta).toBeCloseTo(c.after - c.before, 10);
+        });
     });
 });

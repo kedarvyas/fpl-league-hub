@@ -288,6 +288,116 @@ export const ratePlayer = ({ pick, element, elements, index, events, gamesPlayed
 };
 
 /* ------------------------------------------------------------------ */
+/* The transfer planner's squad                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The planner's applied plan, in the shape `scoreSquad` reads.
+ *
+ * `buildSquad` and `applyPlan` describe the same fifteen players in two
+ * different shapes, because they answer different questions: one joins picks
+ * against bootstrap for a gameweek that has happened, the other lays moves
+ * over a baseline for one that has not. Rather than teach the model both, this
+ * translates — so the planner is rated by exactly the code the squad tab uses,
+ * and the two pages can never quietly disagree about what a squad is worth.
+ *
+ * **The armband comes from the sheet, not the pick.** The planner keys the
+ * captaincy by baseline slot, so transferring out your captain moves the
+ * armband onto whoever replaces him; reading `wasCaptain` off the player would
+ * lose it the moment he was sold.
+ */
+export const squadFromPlan = (applied) => {
+    if (!applied || !Array.isArray(applied.xi)) return null;
+
+    const captainSlot = applied.captain?.slot ?? null;
+    const viceSlot = applied.vice?.slot ?? null;
+
+    const shape = (entry) => {
+        // A slot marked out with nobody in yet. Not an error — it is how you
+        // open a slot — so it is dropped here and counted below.
+        if (!entry?.player) return null;
+        const player = entry.player;
+        return {
+            id: player.id,
+            code: player.code ?? null,
+            name: player.name || 'Unknown',
+            club: player.club || '—',
+            position: player.position || '—',
+            elementType: player.elementType ?? null,
+            price: toNumber(player.price),
+            slot: toNumber(entry.slot),
+            mark: entry.slot === captainSlot ? 'C' : entry.slot === viceSlot ? 'V' : null,
+        };
+    };
+
+    const starters = (applied.xi || []).map(shape).filter(Boolean);
+    const bench = (applied.bench || []).map(shape).filter(Boolean);
+    if (starters.length === 0) return null;
+
+    return {
+        starters,
+        bench,
+        // How much of the eleven is not filled in yet. The score is computed
+        // on the players who are there rather than counting a hole as a zero:
+        // mid-plan, a slot you have just opened is a decision in progress, and
+        // a rating that collapses while you are choosing is noise, not news.
+        open: (applied.xi || []).length - starters.length,
+    };
+};
+
+/**
+ * What a plan did to the rating.
+ *
+ * The planner's question is never "what is this squad worth" on its own — it
+ * is "is this better than what I already have". So the comparison is the
+ * product, and the components are carried alongside it, because a move that
+ * leaves the score flat by trading fixtures for form has told the manager
+ * something and a bare `0` has not.
+ */
+export const compareScores = (before, after) => {
+    if (!before || !after) return null;
+
+    const was = new Map(before.components.map((c) => [c.key, c.value]));
+    const pair = (key, label, read) => ({
+        key,
+        label,
+        before: read(before),
+        after: read(after),
+        delta: read(after) - read(before),
+    });
+
+    return {
+        before: before.score,
+        after: after.score,
+        delta: after.score - before.score,
+        bandChanged: before.band.word !== after.band.word,
+        /*
+         * The three figures the headline is actually built from.
+         *
+         * Without these the comparison can look broken, and did: bringing in a
+         * 25%-doubt striker raised every component average and dropped the
+         * score by six, because the components are percentiles *before* the
+         * chance-of-playing discount while the score is after it — and because
+         * a new weak link hits the floor far harder than it moves a mean. Four
+         * green arrows above a falling number is the kind of thing that makes
+         * a reader stop believing the page.
+         */
+        aggregates: [
+            pair('xi', 'XI mean', (s) => s.xi),
+            pair('floor', 'Worst 3', (s) => s.floor),
+            pair('bench', 'Bench', (s) => s.bench),
+        ],
+        components: after.components.map((c) => ({
+            key: c.key,
+            label: c.label,
+            before: was.get(c.key) ?? 0,
+            after: c.value,
+            delta: c.value - (was.get(c.key) ?? 0),
+        })),
+    };
+};
+
+/* ------------------------------------------------------------------ */
 /* Bands                                                               */
 /* ------------------------------------------------------------------ */
 
