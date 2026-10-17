@@ -51,6 +51,13 @@ export const useTransferPlan = (entry, targetEvent) => {
     // moment the page was revisited.
     const [state, setState] = useState(() => ({ key, plan: read(key, entry, targetEvent) }));
 
+    // Whether the last write actually reached storage. The page tells the
+    // reader their plan is saved, so it needs to know when it is not: a
+    // blocked or full `localStorage` used to be swallowed silently, leaving
+    // the plan in memory only — gone on the next reload, with nothing on
+    // screen to say so.
+    const [persisted, setPersisted] = useState(true);
+
     // The first read for a real key happens here rather than in useState,
     // because the key is not known during the first render.
     useEffect(() => {
@@ -65,8 +72,10 @@ export const useTransferPlan = (entry, targetEvent) => {
         if (!key || state.key !== key || typeof window === 'undefined') return;
         try {
             window.localStorage.setItem(key, JSON.stringify(state.plan));
+            setPersisted(true);
         } catch (err) {
-            // Storage is full or blocked. Keep the plan in memory.
+            // Storage is full or blocked. Keep the plan in memory, and say so.
+            setPersisted(false);
         }
     }, [key, state]);
 
@@ -80,5 +89,7 @@ export const useTransferPlan = (entry, targetEvent) => {
 
     const reset = useCallback(() => update(emptyPlan(entry, targetEvent)), [update, entry, targetEvent]);
 
-    return [state.plan, update, reset];
+    // A fourth element rather than a reshaped return, so every existing
+    // three-element destructure keeps working.
+    return [state.plan, update, reset, persisted];
 };

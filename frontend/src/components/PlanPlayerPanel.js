@@ -42,6 +42,13 @@ const SORTS = [
 const chip =
     'flex min-h-[34px] flex-1 items-center justify-center px-1 text-[8px] font-medium tracking-[0.12em] transition-colors';
 
+/** Name, full name or exact club code — shared by the list and what it hides. */
+const matchesSearch = (player, term) =>
+    !term ||
+    player.web_name.toLowerCase().includes(term) ||
+    `${player.first_name} ${player.second_name}`.toLowerCase().includes(term) ||
+    player.club.toLowerCase() === term;
+
 const PlanPlayerPanel = ({
     bootstrap,
     fixtureIndex,
@@ -52,6 +59,7 @@ const PlanPlayerPanel = ({
     target,
     onPick,
     onCancelTarget,
+    onUndo = null,
 }) => {
     const [position, setPosition] = useState(0);
     const [sort, setSort] = useState('price');
@@ -86,8 +94,9 @@ const PlanPlayerPanel = ({
     const ceiling = maxPrice === null ? priceBounds[1] : maxPrice;
     const budget = budgetFor(target);
 
+    const term = search.trim().toLowerCase();
+
     const results = useMemo(() => {
-        const term = search.trim().toLowerCase();
         const sorter = SORTS.find((s) => s.id === sort) || SORTS[0];
 
         return players
@@ -95,16 +104,36 @@ const PlanPlayerPanel = ({
             .filter((p) => !activePosition || p.element_type === activePosition)
             .filter((p) => toNumber(p.now_cost) <= ceiling)
             .filter((p) => !affordableOnly || toNumber(p.now_cost) <= budget)
-            .filter(
-                (p) =>
-                    !term ||
-                    p.web_name.toLowerCase().includes(term) ||
-                    `${p.first_name} ${p.second_name}`.toLowerCase().includes(term) ||
-                    p.club.toLowerCase() === term,
-            )
+            .filter((p) => matchesSearch(p, term))
             .sort((a, b) => sorter.get(b) - sorter.get(a))
             .slice(0, 60);
-    }, [players, owned, activePosition, ceiling, affordableOnly, budget, search, sort]);
+    }, [players, owned, activePosition, ceiling, affordableOnly, budget, term, sort]);
+
+    /*
+     * The players a search found and the list then hid, said rather than
+     * silently dropped.
+     *
+     * `owned` leaves out everyone in the planned squad — you cannot buy a
+     * player you have — and, while a slot is being filled, the player who
+     * started in it, because bringing him back is the UNDO beside his name and
+     * not a purchase. Both rules are right. What was wrong is that a search for
+     * either returned nothing at all: transfer Hall out, type "Hall" to get him
+     * back, and the list was empty, which reads exactly like a broken search.
+     *
+     * Only on a search. With no term there is nothing the reader asked for
+     * that is missing, and the target strip already offers the undo.
+     */
+    const hidden = useMemo(() => {
+        if (!term) return { sold: null, inSquad: [] };
+
+        const soldId = target?.removed ? target.original.id : null;
+        const matched = players.filter((p) => owned.has(p.id) && matchesSearch(p, term));
+
+        return {
+            sold: matched.find((p) => p.id === soldId) || null,
+            inSquad: matched.filter((p) => p.id !== soldId),
+        };
+    }, [players, owned, target, term]);
 
     return (
         <div className="flex flex-col gap-px bg-border">
@@ -227,10 +256,46 @@ const PlanPlayerPanel = ({
 
             <div className="max-h-[420px] overflow-y-auto lg:max-h-[560px]">
                 <div className="flex flex-col gap-px bg-border">
-                    {results.length === 0 ? (
-                        <div className="bg-panel px-3 py-4 text-[8.5px] leading-[1.6] tracking-[0.12em] text-muted-foreground">
-                            NO PLAYERS MATCH THESE FILTERS
+                    {/* The player you sold out of this slot. Tapping him is
+                        the undo, not a purchase — so the row says so, and it
+                        sits above the list rather than among players you would
+                        be buying. */}
+                    {hidden.sold && onUndo && (
+                        <button
+                            type="button"
+                            onClick={onUndo}
+                            className="flex min-h-[44px] items-center gap-2 border-l-2 border-live bg-panel px-3 py-2 text-left transition-colors hover:bg-muted"
+                        >
+                            <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[10px] font-medium leading-none text-foreground">
+                                    {hidden.sold.web_name}
+                                </span>
+                                <span className="mt-1 block truncate text-[7px] leading-none tracking-[0.1em] text-muted-foreground">
+                                    {hidden.sold.club} · THE PLAYER YOU TRANSFERRED OUT
+                                </span>
+                            </span>
+                            <span className="shrink-0 text-[8px] font-medium leading-none tracking-[0.12em] text-live-ink">
+                                UNDO TRANSFER
+                            </span>
+                        </button>
+                    )}
+
+                    {hidden.inSquad.length > 0 && (
+                        <div className="bg-panel px-3 py-2.5 text-[7.5px] leading-[1.6] tracking-[0.1em] text-muted-foreground">
+                            ALREADY IN YOUR SQUAD:{' '}
+                            <span className="text-foreground">
+                                {hidden.inSquad.map((p) => p.web_name.toUpperCase()).join(', ')}
+                            </span>
                         </div>
+                    )}
+
+                    {results.length === 0 ? (
+                        // Said only when nothing above has explained the gap.
+                        !hidden.sold && hidden.inSquad.length === 0 && (
+                            <div className="bg-panel px-3 py-4 text-[8.5px] leading-[1.6] tracking-[0.12em] text-muted-foreground">
+                                NO PLAYERS MATCH THESE FILTERS
+                            </div>
+                        )
                     ) : (
                         results.map((p) => {
                             const short = toNumber(p.now_cost) - budget;

@@ -75,25 +75,40 @@ const Column = ({ label, rows, subtotal, empty, align = 'left' }) => (
     </div>
 );
 
-const PlanLedger = ({ applied, finances, onReset }) => {
+const PlanLedger = ({ applied, finances, onReset, saved = true }) => {
     const outRows = applied.slots
         .filter((s) => s.removed)
         .map((s) => ({ ...s.original, money: s.original.selling }));
     const inRows = applied.slots
         .filter((s) => s.incoming)
         .map((s) => ({ ...s.incoming, money: s.incoming.price }));
+    const hasPlan = finances.transfers > 0 || applied.pending.length > 0;
 
     return (
         <>
             <SectionHeader label="Ledger">
-                {finances.transfers > 0 || applied.pending.length > 0 ? (
-                    <button
-                        type="button"
-                        onClick={onReset}
-                        className="min-h-[24px] px-1 text-[8px] font-medium tracking-[0.12em] text-muted-foreground hover:text-foreground"
-                    >
-                        CLEAR PLAN
-                    </button>
+                {hasPlan ? (
+                    <>
+                        {/* Beside CLEAR PLAN because that is where you look
+                            to manage the plan, and it answers the question a
+                            missing SAVE button raises. Says the opposite when
+                            storage refused the write — a "saved" that is not
+                            true is worse than none. */}
+                        <span
+                            className={`text-[7.5px] leading-none tracking-[0.12em] ${
+                                saved ? 'text-muted-foreground' : 'text-destructive-ink'
+                            }`}
+                        >
+                            {saved ? 'SAVED ON THIS DEVICE' : 'NOT SAVED · STORAGE BLOCKED'}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={onReset}
+                            className="min-h-[24px] px-1 text-[8px] font-medium tracking-[0.12em] text-muted-foreground hover:text-foreground"
+                        >
+                            CLEAR PLAN
+                        </button>
+                    </>
                 ) : null}
             </SectionHeader>
 
@@ -135,6 +150,18 @@ const PlanLedger = ({ applied, finances, onReset }) => {
                     {formatCount(applied.pending.length)} SLOT
                     {applied.pending.length === 1 ? '' : 'S'} STILL EMPTY — THE MONEY IS RELEASED, BUT
                     AN EMPTY SLOT IS NOT A TRANSFER AND COSTS NOTHING YET.
+                </p>
+            )}
+
+            {/* The other half of "is it saved": saved is not submitted. A
+                plan that looks finished here is easy to mistake for a team
+                that has been changed. */}
+            {hasPlan && (
+                <p className="pt-2 text-[8px] leading-[1.6] tracking-[0.06em] text-muted-foreground">
+                    {saved
+                        ? 'YOUR PLAN SAVES AS YOU GO, IN THIS BROWSER ONLY. '
+                        : 'THIS BROWSER IS BLOCKING STORAGE, SO THE PLAN WILL BE LOST ON RELOAD. '}
+                    NOTHING HERE IS SENT TO FPL — MAKE THE TRANSFERS IN THE FPL APP BEFORE THE DEADLINE.
                 </p>
             )}
         </>

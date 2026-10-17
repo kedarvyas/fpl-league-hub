@@ -245,7 +245,7 @@ const TransferPlanner = () => {
     );
     const targetEvent = targetEventData ? toNumber(targetEventData.id) : null;
 
-    const [plan, updatePlan, resetPlan] = useTransferPlan(myEntry, targetEvent);
+    const [plan, updatePlan, resetPlan, planSaved] = useTransferPlan(myEntry, targetEvent);
 
     const base = useMemo(
         () => buildPlanBase({ picks, bootstrap, transfers, chips: history?.chips }),
@@ -845,7 +845,12 @@ const TransferPlanner = () => {
                                     />
                                 </div>
 
-                                <PlanLedger applied={applied} finances={finances} onReset={resetPlan} />
+                                <PlanLedger
+                                    applied={applied}
+                                    finances={finances}
+                                    onReset={resetPlan}
+                                    saved={planSaved}
+                                />
                             </div>
 
                             <div ref={panelRef} className="mt-4 lg:mt-0 lg:w-[336px] lg:shrink-0">
@@ -860,6 +865,13 @@ const TransferPlanner = () => {
                                     onPick={onPick}
                                     onCancelTarget={() => {
                                         if (target?.removed && !target.incoming) dropMove(target.original.id);
+                                        setSelected(null);
+                                    }}
+                                    // Same as UNDO TRANSFER in the strip above
+                                    // the pitch, reachable from a search for
+                                    // the player you sold.
+                                    onUndo={() => {
+                                        if (target) dropMove(target.original.id);
                                         setSelected(null);
                                     }}
                                 />
