@@ -4,6 +4,9 @@ import {
     availabilityOf,
     bandFor,
     compareScores,
+    CALIBRATION,
+    rescale,
+    shownDelta,
     minutesShare,
     rateFixtures,
     rateUnderlying,
@@ -255,7 +258,7 @@ describe('scoreSquad', () => {
 
     it('drops the score when a starter is ruled out', () => {
         const injured = bootstrapWith({ 9: { status: 'i', chance_of_playing_next_round: 0 } });
-        expect(rate({ bootstrap: injured }).score).toBeLessThan(rate().score);
+        expect(rate({ bootstrap: injured }).raw).toBeLessThan(rate().raw);
     });
 
     it('zeroes a ruled-out player but keeps his rating visible', () => {
@@ -281,7 +284,7 @@ describe('scoreSquad', () => {
     it('weights the captain twice', () => {
         // P11 is the strongest forward and P9 the weakest. Moving the armband
         // between them must move the squad rating.
-        expect(rate({ captain: 11 }).score).toBeGreaterThan(rate({ captain: 9 }).score);
+        expect(rate({ captain: 11 }).raw).toBeGreaterThan(rate({ captain: 9 }).raw);
     });
 
     it('reads the armband off the pick, not the multiplier', () => {
@@ -319,7 +322,7 @@ describe('scoreSquad', () => {
         // below it.
         const result = rate();
         expect(result.floor).toBeLessThan(result.xi);
-        expect(result.score).toBeLessThan(result.xi);
+        expect(result.raw).toBeLessThan(result.xi);
     });
 
     it('lets one ruined starter move the score more than a flat mean would', () => {
@@ -328,7 +331,7 @@ describe('scoreSquad', () => {
         const hurt = rate({ bootstrap: injured });
         // One of eleven at zero is a 1/11 ≈ 9-point hit on a flat mean. The
         // floor must make it cost more than that.
-        expect(base.score - hurt.score).toBeGreaterThan((base.xi - hurt.xi) * 1.1);
+        expect(base.raw - hurt.raw).toBeGreaterThan((base.xi - hurt.xi) * 1.1);
     });
 
     it('surfaces the three weakest starters, worst first', () => {
@@ -355,7 +358,7 @@ describe('scoreSquad', () => {
             gamesPlayed: 6,
             weights: { fixture: 1 },
         });
-        expect(fixturesOnly.score).not.toBeCloseTo(only.score, 1);
+        expect(fixturesOnly.raw).not.toBeCloseTo(only.raw, 1);
         expect(fixturesOnly.components.map((c) => c.key)).toEqual(['fixture']);
     });
 
@@ -371,30 +374,32 @@ describe('scoreSquad', () => {
 describe('bandFor', () => {
     it('bands the scale from elite down to weak', () => {
         expect(bandFor(92).word).toBe('ELITE');
-        expect(bandFor(64).word).toBe('STRONG');
-        expect(bandFor(58).word).toBe('SOLID');
-        expect(bandFor(50).word).toBe('THIN');
+        expect(bandFor(70).word).toBe('STRONG');
+        expect(bandFor(50).word).toBe('SOLID');
+        expect(bandFor(20).word).toBe('THIN');
         expect(bandFor(10).word).toBe('WEAK');
     });
 
     it('puts every band within reach of a real squad', () => {
         /*
-         * The cutoffs this replaced were 80/66/52/38, and on 27 real squads
-         * rated for one gameweek the field ran 40 to 69 — so ELITE and WEAK
-         * could not happen and the word beside the number said nothing. These
-         * are measured against that distribution; the guard is that the whole
-         * observed range is still spanned by more than one band.
+         * Raw ratings measured on 132 real squads rated for GW7, from the
+         * worst (a side with several starters out) to the best. Two earlier
+         * sets of cutoffs failed this in opposite directions: one left ELITE
+         * and WEAK unreachable, the next let a quarter of squads into ELITE.
          */
-        const observed = [40, 49.6, 52.1, 57.6, 61, 62, 63.6, 66, 68.9];
-        const words = new Set(observed.map((v) => bandFor(v).word));
+        const observed = [38.9, 52, 57.8, 59.6, 62.5, 66.5, 69.1, 72.3, 73.8];
+        const words = new Set(observed.map((raw) => bandFor(Math.round(rescale(raw))).word));
         expect(words.size).toBeGreaterThanOrEqual(4);
-        expect(bandFor(68.9).word).toBe('ELITE');
-        expect(bandFor(40).word).toBe('WEAK');
+        // The user's own squad, the best in their league, reads ELITE.
+        expect(bandFor(Math.round(rescale(72.3))).word).toBe('ELITE');
+        expect(bandFor(Math.round(rescale(38.9))).word).toBe('WEAK');
+        // And the typical squad does not.
+        expect(bandFor(Math.round(rescale(62.5))).word).toBe('SOLID');
     });
 
     it('spends no colour on an unremarkable squad', () => {
         // Rule 5 — colour is earned, and SOLID is where most squads land.
-        expect(bandFor(58).tone).toBe('neutral');
+        expect(bandFor(50).tone).toBe('neutral');
     });
 
     it('always returns a band, even for nonsense', () => {
@@ -450,6 +455,10 @@ describe('squadFromPlan', () => {
         const bootstrap = bootstrapWith();
         const fromPicks = scoreOf(buildSquad(picksWith(9), bootstrap), bootstrap);
         const fromPlan = scoreOf(squadFromPlan(planOf(bootstrap)), bootstrap);
+        // On the raw rating: these test squads sit below the range real
+        // squads occupy, so both displayed scores clamp to 0 and would agree
+        // whatever the adapter did.
+        expect(fromPlan.raw).toBeCloseTo(fromPicks.raw, 10);
         expect(fromPlan.score).toBeCloseTo(fromPicks.score, 10);
         expect(fromPlan.captain.id).toBe(fromPicks.captain.id);
     });
@@ -472,7 +481,7 @@ describe('squadFromPlan', () => {
         expect(squad.starters).toHaveLength(10);
         expect(squad.open).toBe(1);
         // And it still rates, on the ten who are there.
-        expect(scoreOf(squad, bootstrap).score).toBeGreaterThan(0);
+        expect(scoreOf(squad, bootstrap).raw).toBeGreaterThan(0);
     });
 
     it('lifts the score when a weak starter is replaced by a strong one', () => {
@@ -485,7 +494,7 @@ describe('squadFromPlan', () => {
         expect(plan.starters).toHaveLength(11);
         expect(plan.open).toBe(0);
         expect(plan.starters.some((p) => p.id === 20)).toBe(true);
-        expect(scoreOf(plan, bootstrap).score).toBeGreaterThan(before.score);
+        expect(scoreOf(plan, bootstrap).raw).toBeGreaterThan(before.raw);
     });
 });
 
@@ -537,5 +546,85 @@ describe('compareScores', () => {
         diff.components.forEach((c) => {
             expect(c.delta).toBeCloseTo(c.after - c.before, 10);
         });
+    });
+});
+
+
+describe('shownDelta', () => {
+    it('is the difference between the numbers on screen, not underneath them', () => {
+        // The bug: 72.4 → 72.6 read NO CHANGE between a displayed 72 and 73.
+        expect(shownDelta(72.4, 72.6)).toBe(1);
+        expect(shownDelta(72.6, 72.4)).toBe(-1);
+    });
+
+    it('calls a move that does not change the displayed number no change', () => {
+        // 72.1 → 72.4 is a real 0.3, but both read 72.
+        expect(shownDelta(72.1, 72.4)).toBe(0);
+    });
+
+    it('is null-safe', () => {
+        expect(shownDelta(null, undefined)).toBe(0);
+    });
+});
+
+describe('agreement with the displayed number', () => {
+    it('bands the score as it is displayed', () => {
+        // 84.6 is shown as 85, which is ELITE; the band must not say STRONG.
+        expect(bandFor(Math.round(84.6)).word).toBe('ELITE');
+        const result = rate();
+        expect(result.band.word).toBe(bandFor(Math.round(result.score)).word);
+    });
+
+    it('reports the movement the reader sees alongside the raw one', () => {
+        const bootstrap = bootstrapWith();
+        const before = scoreOf(squadFromPlan(planOf(bootstrap)), bootstrap);
+        const after = scoreOf(squadFromPlan(planOf(bootstrap, [{ out: 9, in: 20 }])), bootstrap);
+        const diff = compareScores(before, after);
+        expect(diff.shown).toBe(Math.round(after.score) - Math.round(before.score));
+    });
+});
+
+
+describe('rescale', () => {
+    it('puts a typical squad at 50', () => {
+        expect(rescale(CALIBRATION.gw.median, 'gw')).toBeCloseTo(50, 10);
+        expect(rescale(CALIBRATION.run.median, 'run')).toBeCloseTo(50, 10);
+    });
+
+    it('keeps the order of the raw ratings', () => {
+        const raws = [40, 55, 60, 62, 65, 70, 74];
+        const shown = raws.map((r) => rescale(r));
+        shown.slice(1).forEach((v, i) => expect(v).toBeGreaterThanOrEqual(shown[i]));
+    });
+
+    it('stays responsive at the top, where a percentile curve went flat', () => {
+        /*
+         * The reason this is linear. A share-of-squads-beaten curve fitted the
+         * sample well but, at an elite squad's 99, moved 0.4 for a whole raw
+         * point — so nearly every transfer an elite manager planned read NO
+         * CHANGE. One raw point must move the display by the same amount at
+         * the top as in the middle.
+         */
+        const middle = rescale(61) - rescale(60);
+        const top = rescale(71) - rescale(70);
+        expect(top).toBeCloseTo(middle, 10);
+        expect(top).toBeGreaterThan(3);
+    });
+
+    it('clamps both ends to the 0–100 a reader expects', () => {
+        expect(rescale(0)).toBe(0);
+        expect(rescale(100)).toBe(100);
+    });
+
+    it('calibrates each horizon on its own', () => {
+        // The five-week blend sits a little higher and wider than one week.
+        expect(rescale(62.08, 'run')).toBeCloseTo(50, 10);
+        expect(rescale(62.08, 'gw')).toBeGreaterThan(50);
+    });
+
+    it('rates the user\'s squad around 90, not 72', () => {
+        // The complaint that started this: an elite squad read 73.
+        expect(Math.round(rescale(72.3, 'gw'))).toBeGreaterThanOrEqual(88);
+        expect(Math.round(rescale(72.3, 'gw'))).toBeLessThanOrEqual(94);
     });
 });

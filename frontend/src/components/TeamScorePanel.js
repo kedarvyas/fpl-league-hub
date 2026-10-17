@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import PlayerStatCell, { SectionHeader } from './PlayerStatCell';
 import { formatCount } from '../lib/playerStats';
+import { shownDelta } from '../lib/teamScore';
 
 /**
  * The team score.
@@ -63,13 +64,16 @@ const DELTA_INK = {
     flat: 'text-muted-foreground',
 };
 
-export const deltaOf = (value) => {
-    const d = Number(value) || 0;
-    if (Math.abs(d) < 0.5) return { dir: 'flat', label: 'NO CHANGE', short: '—' };
-    const rounded = Math.round(Math.abs(d));
+/**
+ * Always from the two numbers as displayed — see `shownDelta`. Taking a raw
+ * difference here is what produced NO CHANGE between a 72 and a 73.
+ */
+export const deltaOf = (before, after) => {
+    const d = shownDelta(before, after);
+    if (d === 0) return { dir: 'flat', label: 'NO CHANGE', short: '—' };
     return d > 0
-        ? { dir: 'up', label: `▲ ${rounded}`, short: `▲${rounded}` }
-        : { dir: 'down', label: `▼ ${rounded}`, short: `▼${rounded}` };
+        ? { dir: 'up', label: `▲ ${d}`, short: `▲${d}` }
+        : { dir: 'down', label: `▼ ${Math.abs(d)}`, short: `▼${Math.abs(d)}` };
 };
 
 /**
@@ -89,7 +93,9 @@ export const PlanScoreBand = ({ score, comparison, open = 0, gameweek }) => {
         );
     }
 
-    const move = deltaOf(comparison?.delta);
+    const move = comparison
+        ? deltaOf(comparison.before, comparison.after)
+        : deltaOf(score.score, score.score);
     const was = comparison ? Math.round(comparison.before) : null;
 
     return (
@@ -219,7 +225,7 @@ const WeakRow = ({ player }) => {
  * fixtures for form is a real decision and a `0` would hide it.
  */
 const ComparisonRow = ({ row, strong = false }) => {
-    const move = deltaOf(row.delta);
+    const move = deltaOf(row.before, row.after);
 
     return (
         <div className="flex min-h-[32px] items-center gap-2.5 bg-panel px-3 py-2">
@@ -266,7 +272,9 @@ const TeamScorePanel = ({ week, run, gameweek, runLength = 0, comparison = null 
     return (
         <>
             <SectionHeader label="Team score">
-                <span className="text-[8px] tracking-[0.1em] text-muted-foreground">OUT OF 100</span>
+                <span className="text-[8px] tracking-[0.1em] text-muted-foreground">
+                    50 IS A TYPICAL SQUAD
+                </span>
             </SectionHeader>
 
             <div className="flex gap-px bg-border">
@@ -299,9 +307,14 @@ const TeamScorePanel = ({ week, run, gameweek, runLength = 0, comparison = null 
                         average, because the gap between them is exactly what
                         the score is docking — and without it a reader cannot
                         tell a flat squad from a top-heavy one. */}
+                    {/* Player averages, on a different scale from the
+                        headline: the headline places the squad against
+                        other squads, these average its players. Labelled,
+                        or a 91 above a 72 reads as arithmetic that does not
+                        add up. */}
                     <span className="mb-2 ml-auto text-right text-[7.5px] leading-[1.5] tracking-[0.1em] text-muted-foreground">
-                        XI {Math.round(active.xi)} · WORST 3 {Math.round(active.floor)} · BENCH{' '}
-                        {Math.round(active.bench)}
+                        PLAYER AVG · XI {Math.round(active.xi)} · WORST 3 {Math.round(active.floor)}{' '}
+                        · BENCH {Math.round(active.bench)}
                     </span>
                 </div>
 
@@ -340,7 +353,7 @@ const TeamScorePanel = ({ week, run, gameweek, runLength = 0, comparison = null 
                     <SectionHeader label="What the plan changed">
                         <span
                             className={`text-[8px] tracking-[0.1em] ${
-                                DELTA_INK[deltaOf(comparison.delta).dir]
+                                DELTA_INK[deltaOf(comparison.before, comparison.after).dir]
                             }`}
                         >
                             {Math.round(comparison.before)} → {Math.round(comparison.after)}
@@ -363,8 +376,10 @@ const TeamScorePanel = ({ week, run, gameweek, runLength = 0, comparison = null 
                      * rising components over a falling number reads as a bug.
                      */}
                     <p className="pt-2.5 text-[8px] leading-[1.6] tracking-[0.06em] text-muted-foreground">
-                        BELOW IS THE ELEVEN'S AVERAGE ON EACH MEASURE, BEFORE THE CHANCE-OF-PLAYING
-                        DISCOUNT — SO THESE CAN RISE WHILE THE SCORE FALLS.
+                        THE THREE ABOVE ARE PLAYER AVERAGES; THE SCORE IS THEM PLACED AGAINST OTHER
+                        SQUADS, SO IT MOVES ABOUT THREE TIMES AS FAR. BELOW IS THE ELEVEN'S AVERAGE ON
+                        EACH MEASURE, BEFORE THE CHANCE-OF-PLAYING DISCOUNT — SO THESE CAN RISE WHILE
+                        THE SCORE FALLS.
                     </p>
 
                     <div className="mt-1.5 flex flex-col gap-px bg-border">
@@ -437,7 +452,9 @@ const TeamScorePanel = ({ week, run, gameweek, runLength = 0, comparison = null 
                 OUR OWN MODEL, NOT FPL'S — EACH PLAYER IS RATED AGAINST OTHERS IN HIS POSITION ON
                 FORM, FIXTURES, UNDERLYING NUMBERS AND MINUTES, THEN SCALED BY HIS CHANCE OF
                 PLAYING. THE CAPTAIN COUNTS TWICE, AND THE WEAKEST THREE CARRY 40% OF THE ELEVEN —
-                A SQUAD IS JUDGED ON ITS WEAK LINKS, NOT JUST ITS AVERAGE.
+                A SQUAD IS JUDGED ON ITS WEAK LINKS, NOT JUST ITS AVERAGE. THE SCORE THEN PLACES
+                THAT AGAINST REAL SQUADS SAMPLED ACROSS THE OVERALL RANKINGS: 50 IS TYPICAL, AND
+                AROUND 90 IS ROUGHLY THE TOP 2%.
             </p>
         </>
     );

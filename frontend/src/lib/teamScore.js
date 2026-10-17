@@ -370,6 +370,8 @@ export const compareScores = (before, after) => {
         before: before.score,
         after: after.score,
         delta: after.score - before.score,
+        // What the reader sees move, as opposed to `delta` above.
+        shown: shownDelta(before.score, after.score),
         bandChanged: before.band.word !== after.band.word,
         /*
          * The three figures the headline is actually built from.
@@ -401,36 +403,88 @@ export const compareScores = (before, after) => {
 /* Bands                                                               */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* The displayed scale                                                 */
+/* ------------------------------------------------------------------ */
+
 /**
- * The cutoffs are measured, not invented.
+ * Where real squads land on the raw blend, so the displayed number can mean
+ * something to a reader.
  *
- * They were 80/66/52/38 — a guess at what a 0–100 scale ought to look like,
- * and on real squads nothing ever reached ELITE or fell to WEAK, so the word
- * beside the number was decoration. These sit on the actual distribution of 27
- * real squads rated for the same gameweek:
+ * The raw rating is a mean of within-position percentiles, docked for weak
+ * links, and on real squads it only spans about 40–74 — so an elite squad read
+ * 73, which sounds like a C grade. These are the population-weighted median
+ * and spread of 110 squads sampled across the Overall league (rank 1 to ~10M),
+ * rated for GW7 before it kicked off, each weighted by the band of ranks it
+ * stands for. The rank sample alone over-represents the top: ranks 1–165k are
+ * ~1.5% of managers and four of its eleven sampling points.
  *
- *     min 40 · p10 52 · p25 58 · p50 61 · p75 64 · p90 66 · max 69
+ * **One gameweek's calibration.** A week of unusually kind fixtures lifts the
+ * whole field, so if the bands start to look generous, re-measure (see
+ * `.score-validation/` locally) rather than nudging these by eye.
+ */
+export const CALIBRATION = {
+    gw: { median: 60.9, sd: 4.47 },
+    run: { median: 62.08, sd: 4.97 },
+};
+
+/** Displayed points per standard deviation of the raw rating. */
+const SCALE_PER_SD = 16;
+
+/**
+ * Raw rating → the 0–100 a reader sees: 50 is a typical squad, ~90 is roughly
+ * the top 2%.
  *
- * which puts roughly 7% in ELITE, 22% STRONG, 48% SOLID, 15% THIN, 4% WEAK.
+ * **Linear, deliberately not a percentile.** A "share of squads you beat"
+ * curve was tried first and fitted the sample well, but it flattens out at the
+ * top: at 99, a whole raw point of improvement moved the display by 0.4, so
+ * almost every transfer an elite manager planned read NO CHANGE. A straight
+ * line keeps one raw point worth the same ~3.5 displayed points everywhere,
+ * which is what a planner that answers "did that help" needs. The cost is
+ * that the number is a rating, not a literal percentage, and both ends clamp.
+ */
+export const rescale = (raw, horizon = 'gw') => {
+    const { median, sd } = CALIBRATION[horizon] || CALIBRATION.gw;
+    return clamp(50 + (SCALE_PER_SD * (toNumber(raw) - median)) / sd);
+};
+
+/**
+ * Cutoffs on the displayed scale. On the calibration sample, for the
+ * gameweek view, ELITE is ~6% of FPL squads, STRONG ~13%, SOLID ~72%, THIN
+ * ~9%; WEAK is the squad with several starters out. The five-week view
+ * spreads a little wider (ELITE ~2%).
  *
- * **Calibrated on one gameweek**, so a week of unusually kind fixtures will
- * drift the whole field upward. If the bands start to look generous, re-measure
- * the distribution rather than nudging the numbers by eye.
+ * The first cutoffs were 80/66/52/38 on the raw scale and nothing ever
+ * reached ELITE or WEAK; the second set was fitted on 26 squads and, at 132,
+ * let a quarter of them into ELITE. Measure before moving these.
  *
  * Rule 5 — colour is earned. SOLID is the shape of most squads most weeks and
  * takes no colour at all; a band only lights up when it is telling the reader
  * something they would act on.
  */
 export const SCORE_BANDS = [
-    { min: 67, word: 'ELITE', tone: 'live' },
-    { min: 63, word: 'STRONG', tone: 'live' },
-    { min: 56, word: 'SOLID', tone: 'neutral' },
-    { min: 48, word: 'THIN', tone: 'warn' },
+    { min: 85, word: 'ELITE', tone: 'live' },
+    { min: 65, word: 'STRONG', tone: 'live' },
+    { min: 35, word: 'SOLID', tone: 'neutral' },
+    { min: 15, word: 'THIN', tone: 'warn' },
     { min: 0, word: 'WEAK', tone: 'destructive' },
 ];
 
 export const bandFor = (score) =>
     SCORE_BANDS.find((band) => toNumber(score) >= band.min) || SCORE_BANDS[SCORE_BANDS.length - 1];
+
+/**
+ * The movement a reader sees: the difference between the two numbers on
+ * screen, not between the two numbers underneath them.
+ *
+ * Scores are shown rounded and carried unrounded, and the gap between those is
+ * exactly where this went wrong: 72.4 → 72.6 is a 0.2 move, so the label said
+ * NO CHANGE, while the two numbers either side of it read 72 and 73. A label
+ * that contradicts the figures beside it makes every figure on the page
+ * suspect, so the label is derived from what is displayed.
+ */
+export const shownDelta = (before, after) =>
+    Math.round(toNumber(after)) - Math.round(toNumber(before));
 
 /* ------------------------------------------------------------------ */
 /* The squad                                                           */
@@ -551,7 +605,10 @@ export const scoreSquad = ({
     const captainPenalty = Math.min(CAPTAIN_PENALTY_CAP, captainGap * CAPTAIN_PENALTY);
 
     const base = eleven * (1 - benchShare) + benchScore * benchShare;
-    const score = clamp(base - captainPenalty);
+    // The model's own figure, on the player scale the breakdown uses.
+    const raw = clamp(base - captainPenalty);
+    // What the reader sees: the same rating placed against real squads.
+    const score = rescale(raw, horizon);
 
     // Averaged across the eleven, so the breakdown is on the same 0–100 scale
     // as the headline and the two can be read against each other.
@@ -565,9 +622,13 @@ export const scoreSquad = ({
 
     return {
         score,
-        band: bandFor(score),
+        raw,
+        // From the number as displayed, for the same reason as `shownDelta`:
+        // 84.6 is shown as 85, and 85 is ELITE, so it must not read STRONG.
+        band: bandFor(Math.round(score)),
         // The plain mean of the eleven, kept separate from `score` so the
-        // interface can show what the weak links cost.
+        // interface can show what the weak links cost. On the player scale,
+        // like `floor` and `bench` — not on the displayed squad scale.
         xi,
         floor,
         bench: benchScore,
