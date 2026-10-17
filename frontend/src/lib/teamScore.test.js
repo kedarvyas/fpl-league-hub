@@ -516,11 +516,11 @@ describe('compareScores', () => {
 
     it('carries the arithmetic the headline is built from', () => {
         /*
-         * The regression this guards: bringing in a 25%-doubt striker raised
-         * every component average and dropped the score, because components
-         * are percentiles before the availability discount and the score is
-         * after it. Four rising rows over a falling number reads as a bug, so
-         * the figures that actually moved have to be on screen too.
+         * The regression this guards: bringing in a 25%-doubt striker lifted
+         * form and underlying while the score dropped, because components are
+         * percentiles before the availability discount and the score is after
+         * it. Rising rows over a falling number reads as a bug, so the figures
+         * that actually moved have to be on screen too.
          */
         const doubtful = bootstrapWith({ 20: { chance_of_playing_next_round: 25, status: 'd' } });
         const after = scoreOf(squadFromPlan(planOf(doubtful, [{ out: 9, in: 20 }])), doubtful);

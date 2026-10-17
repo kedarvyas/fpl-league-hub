@@ -279,8 +279,11 @@ what drove every decision below.
   every manager name on the H2H and Dashboard pages navigates there with
   someone else's entry, which is why `fpl_my_entry` exists at all. Planning
   transfers for a team you do not own is meaningless, so this page keys to
-  `fpl_my_entry`, has no team switcher, and is reached from a control on
-  MyTeam's SQUAD tab that only appears when `isMine`.
+  `fpl_my_entry`, has no team switcher, and is reached from PLAN TRANSFERS on
+  MyTeam, which only appears when `isMine`. That control sits above MyTeam's
+  tab bar, not inside the SQUAD tab: it was a page-level action buried below
+  the fold on every phone, and it takes `is_next` as the gameweek it plans for
+  rather than deriving `current_event + 1`.
 - **The pitch came back, and that is not a reversal of the H2H decision.**
   That pitch was a readout of a finished gameweek, and it spent its whole width
   on eleven pieces of decoration with nowhere left for the numbers. Here the
@@ -312,6 +315,22 @@ what drove every decision below.
   existing the moment they are transferred out. It also gives the expected
   behaviour for free — transfer out your captain and their replacement inherits
   the armband, because the armband was on the shirt.
+- **The search says what it hides.** The list leaves out everyone in the
+  planned squad and, while a slot is being filled, the player who started in
+  it, because bringing him back is the undo and not a purchase. Both rules are
+  right, but a search for either used to return an empty list: transfer Hall
+  out, type "Hall", and nothing came back, which reads exactly like a broken
+  search. Now a match on the sold player shows him at the top as THE PLAYER YOU
+  TRANSFERRED OUT, and tapping him *is* the undo. A match on someone still in
+  the squad says ALREADY IN YOUR SQUAD.
+- **Saved, said out loud, and only when true.** The plan writes to
+  `localStorage` on every change, and the page never said so, which made "where
+  is the save button" a fair question. The ledger now reads SAVED ON THIS
+  DEVICE beside CLEAR PLAN, with a line that nothing is sent to FPL. To keep
+  that honest, `useTransferPlan` returns a fourth element saying whether the
+  last write landed. A blocked or full `localStorage` used to be swallowed,
+  leaving the plan in memory and gone on reload; it now reads NOT SAVED ·
+  STORAGE BLOCKED.
 
 ### Four numbers that are wrong without ever throwing
 
@@ -391,6 +410,185 @@ so that a chain stays possible later as a *list* of these.
 
 ---
 
+## The team score — done
+
+`lib/teamScore.js` and `components/TeamScorePanel.js`. It appears in two
+places: at the top of MyTeam's SQUAD tab, and on the transfer planner as a
+band under the summary strip plus a SCORE tab.
+
+**The job is one number for a squad that can be taken apart.** It rates the
+squad for the upcoming gameweek, with a five-gameweek view beside it.
+**FPL publishes no such figure, so the model is ours**, and every component
+behind the headline is on screen. A rating the reader cannot take apart is one
+they can only accept or ignore, and on a page that lists the eleven players
+being rated, directly underneath, being unarguable is a defect.
+
+- **Every component is a percentile within position.** "Is 0.42 xGI per 90
+  good" has no answer; "better than 86% of midfielders who have played" has
+  one. It is also what lets a keeper and a forward sit in the same column, and
+  so what lets a squad carry a single number at all. The peer set is
+  `percentileFor`'s, so the player page and the score agree on what a
+  percentile is.
+- **Availability is a gate, not a component.** A 95th-percentile forward with
+  a broken foot is a zero, and no weighting of form against fixtures says so.
+  `chance_of_playing_next_round` multiplies the player's rating instead of
+  being averaged into it; a silent `null` means fit for an `a` player and out
+  for an `i` one.
+- **Four components over one gameweek, five over five.**
+
+  | | Form | Fixtures | Underlying | Minutes | Season (`points_per_game`) |
+  |---|---|---|---|---|---|
+  | Gameweek | 26% | 26% | 32% | 16% | — |
+  | Five gameweeks | 13% | 25% | 29% | 18% | 15% |
+
+  Underlying is position-aware: keepers on xGC and saves, defenders on xGC,
+  xGI and the defensive-contribution threshold, midfielders on xGI and the
+  threshold, forwards on xGI. Fixtures map FDR 1–5 to 100/82/58/32/12, plus 4
+  at home. A blank scores 0 rather than being skipped, which would rate a
+  blank week as an average one. A double adds 18, because two fixtures at FDR
+  3 beat one at FDR 2.
+- **`ep_next` is not a component, and should not come back without
+  re-measuring.** It was one, until it measured **r = 0.998 against `form`**
+  across 77 starters. It is a restatement of form, not an independent
+  projection, so carrying both put 40% of the score on one signal and
+  presented it as two. Its weight went to Underlying, the only measure that
+  is genuinely independent of form (r = 0.08).
+- **The squad is judged on its weak links, not just its average.** The XI's
+  rating is 60% its mean and 40% the mean of its worst three; the bench takes
+  10% of the total for a gameweek and 20% for five. A flat mean of eleven
+  percentiles regresses so hard to the middle that, on a plain mean, seven real
+  squads spanning a 158-point season gap landed between 56 and 69, and no
+  reweighting widened that. With the weak links weighted in, 27 squads spanning
+  232 points spread across 40–69. The captain counts twice, and the armband is
+  read from the pick rather than the multiplier for the same reason a starter
+  is `position <= 11`: Bench Boost and Triple Captain change multipliers
+  without changing the squad. Any gap between the captain and the model's
+  top-rated starter costs 0.3 per point, capped at 6, and a note names the
+  better option once the gap reaches 4.
+- **It rates the gameweek still to be played.** `is_next` is FPL's own answer
+  to "which gameweek is upcoming", and it stays right in the gap between one
+  gameweek finishing and the next becoming current, where `current_event + 1`
+  does not. The squad is the last one FPL published, the same baseline and
+  caveat as the planner.
+- **It shows for any manager**, not only your own team. Rating the squad you
+  are drawn against this week is the same question asked about someone else.
+- **No fixture list means no rating, not a low one.** `fixtures-future` loads
+  in its own request with its own error handling. Without it every club would
+  read as a blank, so `scoreSquad` returns `null` and the panel says there is
+  not enough data, rather than showing a confidently wrong score with a quarter
+  of it at zero.
+
+### The displayed number
+
+The raw rating only spans about 40–74 on real squads, so an elite squad read
+**73**, which sounds like a C grade. `rescale` maps the raw rating linearly
+onto 0–100 using the population-weighted median and spread of real squads, so
+that **50 is a typical squad and about 90 is the top 2%**. That works out to
+3.6 displayed points per raw point for a gameweek and 3.2 for five.
+
+- **Linear, deliberately not a percentile.** A "share of squads you beat"
+  curve was fitted first and matched the sample well, but it flattens at the
+  top. At 99, a whole raw point moved the display by 0.4, so nearly every
+  transfer an elite manager planned read NO CHANGE, on exactly the squads a
+  planner most needs to be sensitive for. The cost is that 91 is a rating,
+  not a literal percentage, and both ends clamp.
+- **Calibrated per horizon on one gameweek.** `CALIBRATION` holds GW7's
+  numbers: median 60.9 and spread 4.47 for one gameweek, 62.08 and 4.97 for
+  five. A week of unusually kind fixtures lifts the whole field; **if the
+  tiers start to look generous, re-measure rather than nudge the numbers by
+  eye.**
+- **The tiers sit on the displayed scale:** ELITE 85+, STRONG 65+, SOLID 35+,
+  THIN 15+, WEAK below. For the gameweek view that is roughly 6% / 13% / 72% /
+  9% of FPL squads, with WEAK the squad with several starters out. Two earlier
+  sets of cutoffs failed in opposite directions: one left ELITE and WEAK
+  unreachable, the next, fitted on 26 squads, let a quarter of 132 into
+  ELITE.
+- **Every label beside a number is derived from that number as displayed.**
+  Scores are carried unrounded and shown rounded. A plan that moved 72.4 →
+  72.6 read NO CHANGE between a displayed 72 and 73, and a 66.6 would have
+  shown "67 STRONG" with 67 the ELITE cutoff of the time. `shownDelta` and the
+  band both work from the rounded score.
+- **XI / WORST 3 / BENCH are player averages, labelled PLAYER AVG.** They are
+  on the player scale, not the squad scale, and unlabelled a 91 above a 72
+  reads as arithmetic that does not add up.
+
+Tones follow the existing rules. Band chips are `bg-{tone}-ink
+text-background`, and SOLID is `bg-inverted` with no hue at all (rule 5: most
+squads land there). Tracks are plain fills. Deltas are `text-live-ink` /
+`text-destructive-ink`, or muted for no change. Measured: every chip clears
+4.5:1 in all six themes, the worst being 4.58:1 for the live chip in Sage, and
+`contrast-audit` is clean on the planner with both deltas on screen.
+
+### On the planner
+
+**The planner's question is never "what is this squad worth"; it is "is this
+better than what I have".** So it shows a comparison: the plan's score, its
+tier, and the movement against the fifteen you own, recomputed on every tap.
+
+- **One model, two shapes.** `buildSquad` and `applyPlan` describe the same
+  fifteen players differently. `squadFromPlan` translates the plan into the
+  shape `scoreSquad` reads rather than teaching the model both. A test holds
+  an untouched plan to exactly the squad tab's rating, and it compares the
+  *raw* rating, because test squads sit below the real range and clamp to 0
+  on the display, where any two would agree.
+- **The armband comes from the sheet, not the pick.** Captaincy is keyed by
+  slot, so selling your captain moves the armband onto his replacement.
+- **An open slot is rated on the players present** and labelled `RATED ON 10
+  OF 11`, not scored as a zero. A slot you have just opened is a decision in
+  progress, and a rating that collapses while you choose is noise.
+- **A band, not a fourth summary cell.** The strip's notes were measured to fit
+  94px cells at 375px; a fourth cell takes them to ~85px and truncates `SET BY
+  YOU · RESET`. The band sits above the tab bar because "did that move help"
+  is asked on the pitch, while the move is being made.
+- **The comparison leads with what moved.** Bringing in a 25%-doubt striker
+  (Isak for Wissa) lifted form and underlying by 4 each, held fixtures, cost 2
+  on minutes, and dropped the raw rating by six (about 21 on today's displayed
+  scale). Components are averaged *before*
+  the chance-of-playing discount, and a new weak link hits the worst-three
+  average far harder than it moves a mean: worst 3 fell from 54 to 42. Rising
+  rows over a falling number reads as a bug. So WHAT THE PLAN CHANGED shows XI mean,
+  worst 3 and bench first, then says out loud that the components below can
+  rise while the score falls.
+- **The baseline is its own memo.** The squad you own does not change when you
+  plan, so it is not re-rated on every tap.
+
+### How it was validated, and what is still open
+
+132 real squads were scored: the H2H league plus a sample spread across the
+Overall league from rank 1 to ~10M. Against overall rank, the score's Spearman
+correlation is **0.38**, which is real (the noise band is ±0.17) but **behind
+three naive baselines**: the XI's summed form at 0.65, its summed `ep_next` at
+0.64, and squad value at 0.50.
+
+That test is biased toward backward-looking measures: form and squad value are
+partly made of the same past points that rank is, while a quarter of the score
+is next week's fixtures. So it was not treated as a verdict, and the score
+was not tuned toward rank, which would only teach it to look backwards. **The
+fair test is still open:** predictions for all 132 squads were snapshotted
+before GW7 kicked off, to be compared with the points each XI actually scores.
+If summed form wins that too, the model should lean much harder on form, or be
+simplified.
+
+The snapshot, the fetch script and the analysis live in a local
+`.score-validation/` folder, excluded through `.git/info/exclude` and **not in
+the repository**. Sampling fetches go to FPL directly at about one request a
+second, never through the Edge Functions: the live site shares their egress
+IP, and a burst there is what the WAF answers with a 403 for everyone.
+
+### Known limits
+
+- **Minutes is unfair to a player back from injury.** Bootstrap carries season
+  totals only; per-gameweek history means `element-summary` per player, which
+  is exactly the burst the WAF punishes. The availability gate carries the
+  "is he fit now" half.
+- **It will not match Fantasy Football Hub point for point.** Their rating sits
+  on bookmaker odds and minutes modelling the FPL API does not expose. Both
+  should put an elite squad around 90.
+- **Scoring cost is unmeasured on slow phones.** Each rating walks the element
+  list once per player per component, and the planner re-rates on every tap.
+
+---
+
 ## Rollout status
 
 | Surface | State |
@@ -404,6 +602,7 @@ so that a chain stays possible later as a *list* of these.
 | `MyTeam` + `MyTeamSquad` / `MyTeamSeason` / `MyTeamLeagues` | Done |
 | `Home.js` | Done |
 | `TransferPlanner` + `PlanPitch` / `PlanPlayerPanel` / `PlanLedger` / `TransferPlanFixtures` | Done |
+| `TeamScorePanel` / `PlanScoreBand` (on MyTeam's SQUAD tab and the planner) | Done — see **The team score** |
 
 Home is a state-aware front door: fresh browsers get two compact setup actions,
 while saved manager and league IDs become resume actions with deliberate change
@@ -442,6 +641,10 @@ and `@headlessui/react`, none of which are imported any more.
   `total_players` — they differ by ~900k and quoting both contradicts itself.
 - **`hooks/useMyEntry.js`** — "this is me" as its own key. See the manager page
   section; browsing must never write identity.
+- **`lib/teamScore.js`** — the squad rating, its calibration and the adapter
+  that lets the planner use it. See **The team score**: the model is ours, its
+  components are always on screen, and its calibration comes from one
+  gameweek.
 
 ### Dead class names — a CSS variable is not a Tailwind colour
 

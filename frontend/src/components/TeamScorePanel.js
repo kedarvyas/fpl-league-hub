@@ -371,8 +371,8 @@ const TeamScorePanel = ({ week, run, gameweek, runLength = 0, comparison = null 
 
                     {/*
                      * Said out loud, because without it the two lists appear
-                     * to contradict each other: a 25%-doubt striker lifts
-                     * every average below and drops the score above, and four
+                     * to contradict each other: a 25%-doubt striker can lift
+                     * the averages below while dropping the score above, and
                      * rising components over a falling number reads as a bug.
                      */}
                     <p className="pt-2.5 text-[8px] leading-[1.6] tracking-[0.06em] text-muted-foreground">

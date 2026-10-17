@@ -377,12 +377,13 @@ export const compareScores = (before, after) => {
          * The three figures the headline is actually built from.
          *
          * Without these the comparison can look broken, and did: bringing in a
-         * 25%-doubt striker raised every component average and dropped the
-         * score by six, because the components are percentiles *before* the
-         * chance-of-playing discount while the score is after it — and because
-         * a new weak link hits the floor far harder than it moves a mean. Four
-         * green arrows above a falling number is the kind of thing that makes
-         * a reader stop believing the page.
+         * 25%-doubt striker (Isak for Wissa) lifted form and underlying, held
+         * fixtures and barely moved minutes, while the raw rating dropped by six —
+         * because the components are percentiles *before* the
+         * chance-of-playing discount while the score is after it, and because
+         * a new weak link hits the floor far harder than it moves a mean.
+         * Rising rows above a falling number is the kind of thing that makes a
+         * reader stop believing the page.
          */
         aggregates: [
             pair('xi', 'XI mean', (s) => s.xi),
@@ -439,7 +440,7 @@ const SCALE_PER_SD = 16;
  * curve was tried first and fitted the sample well, but it flattens out at the
  * top: at 99, a whole raw point of improvement moved the display by 0.4, so
  * almost every transfer an elite manager planned read NO CHANGE. A straight
- * line keeps one raw point worth the same ~3.5 displayed points everywhere,
+ * line keeps one raw point worth the same 3.2–3.6 displayed points everywhere,
  * which is what a planner that answers "did that help" needs. The cost is
  * that the number is a rating, not a literal percentage, and both ends clamp.
  */
@@ -498,11 +499,11 @@ const BENCH_SHARE = { gw: 0.1, run: 0.2 };
  * mean.
  *
  * A flat mean of eleven percentiles regresses hard to the middle: on a plain
- * mean, 27 real squads spanning a 230-point season gap all scored between 56
- * and 70. The scale was barely used and no reweighting fixed it — the
- * arithmetic was the problem, not the weights. Leaning on the weak links
- * spreads the same squads across 40–69, which is what makes the bands below
- * mean anything.
+ * mean, seven real squads spanning a 158-point season gap landed between 56
+ * and 69, and no reweighting widened that — the arithmetic was the problem,
+ * not the weights. With the weak links weighted in, 27 squads spanning 232
+ * points spread across 40–69, which is what gives the bands room to mean
+ * anything.
  *
  * **What this does not do is agree with season points.** On seven squads it
  * looked like it did (r 0.6 → 0.8); at 27 that correlation is 0.16 and the
